@@ -1,0 +1,83 @@
+class_name PauseMenu
+extends CanvasLayer
+## Pause overlay: resume, restart, quick settings, back to the menu (with a
+## warning that leaving a running exam costs 100 points — rule №26).
+
+signal resume
+signal restart
+signal quit_to_menu
+
+var _panel: PanelContainer
+var _warn: Label
+var _settings: SettingsPanel
+
+
+func _init() -> void:
+	layer = 20
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	visible = false
+
+
+func _ready() -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.theme = UITheme.get_theme()
+	add_child(center)
+	_panel = PanelContainer.new()
+	_panel.custom_minimum_size = Vector2(460, 0)
+	center.add_child(_panel)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	_panel.add_child(v)
+	var title := UITheme.label(Loc.t("pause.title"), 34, UITheme.TEXT, true)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	var b_resume := UITheme.primary_button(Loc.t("pause.resume"))
+	b_resume.pressed.connect(func() -> void: resume.emit())
+	v.add_child(b_resume)
+	var b_restart := UITheme.button(Loc.t("pause.restart"))
+	b_restart.pressed.connect(func() -> void: restart.emit())
+	v.add_child(b_restart)
+	var b_settings := UITheme.button(Loc.t("menu.settings"))
+	b_settings.pressed.connect(_open_settings)
+	v.add_child(b_settings)
+	var b_menu := UITheme.button(Loc.t("pause.menu"))
+	b_menu.pressed.connect(func() -> void: quit_to_menu.emit())
+	v.add_child(b_menu)
+	_warn = UITheme.label(Loc.t("pause.warn_exam"), 18, UITheme.STOP)
+	_warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_warn)
+
+
+func open(exam_running: bool) -> void:
+	visible = true
+	_warn.visible = exam_running
+	_panel.visible = true
+
+
+func close() -> void:
+	visible = false
+	if _settings:
+		_settings.queue_free()
+		_settings = null
+
+
+func _open_settings() -> void:
+	_panel.visible = false
+	_settings = SettingsPanel.new()
+	_settings.closed.connect(func() -> void:
+		_settings.queue_free()
+		_settings = null
+		_panel.visible = true)
+	add_child(_settings)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if visible and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		resume.emit()

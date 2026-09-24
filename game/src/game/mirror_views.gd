@@ -1,0 +1,100 @@
+class_name MirrorViews
+extends Node
+## The two door mirrors, rendered to small textures and shown over the
+## screen's upper corners while reversing (or always, in the top camera).
+## Parking and the box are practically impossible from a phone screen
+## without them. Rendered at low resolution and a reduced rate on phones.
+
+const SIZE := Vector2i(360, 200)
+# The eye sits just behind each mirror glass (Car.mirror_eye, per model) so
+# the housing itself stays out of view.
+const TOE := 0.22 # radians, mirrors are angled outwards
+
+var car: Car
+var quality := 1
+var _vps: Array[SubViewport] = []
+var _cams: Array[Camera3D] = []
+var _rects: Array[TextureRect] = []
+var _frames: Array[Panel] = []
+var _frame_count := 0
+var _visible := false
+
+
+func setup(p_car: Car, hud_root: Control, p_quality: int) -> void:
+	car = p_car
+	quality = p_quality
+	for side in 2:
+		var vp := SubViewport.new()
+		vp.size = SIZE
+		vp.msaa_3d = Viewport.MSAA_DISABLED
+		vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		vp.handle_input_locally = false
+		add_child(vp)
+		var cam := Camera3D.new()
+		cam.fov = 38.0
+		cam.near = 0.05
+		cam.far = 250.0
+		cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		vp.add_child(cam)
+		_vps.append(vp)
+		_cams.append(cam)
+		var frame := Panel.new()
+		frame.add_theme_stylebox_override("panel", UITheme.box(Color(0.03, 0.03, 0.04, 0.95), 26, 3,
+				Color(0.25, 0.27, 0.3), 0))
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.visible = false
+		hud_root.add_child(frame)
+		hud_root.move_child(frame, 1)
+		var tr := TextureRect.new()
+		tr.texture = vp.get_texture()
+		tr.flip_h = true # a mirror reverses left and right
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(tr)
+		_rects.append(tr)
+		_frames.append(frame)
+	hud_root.get_viewport().size_changed.connect(_layout)
+	_layout()
+
+
+func _layout() -> void:
+	if _frames.is_empty():
+		return
+	var vp := _frames[0].get_viewport().get_visible_rect().size
+	var w := minf(300.0, vp.x * 0.2)
+	var h := w * float(SIZE.y) / float(SIZE.x)
+	var y := vp.y * 0.26
+	_frames[0].position = Vector2(vp.x * 0.5 - w - 190, y)
+	_frames[1].position = Vector2(vp.x * 0.5 + 190, y)
+	for i in 2:
+		_frames[i].size = Vector2(w, h)
+		_rects[i].position = Vector2(4, 4)
+		_rects[i].size = Vector2(w - 8, h - 8)
+
+
+func _process(_delta: float) -> void:
+	if car == null or _vps.is_empty():
+		return
+	var want := bool(Settings.get_value("mirrors")) and quality >= 1 and AvtoGear.in_reverse(car)
+	if want != _visible:
+		_visible = want
+		for f in _frames:
+			f.visible = want
+		for vp in _vps:
+			vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	if not _visible:
+		return
+	var xf := car.get_global_transform_interpolated()
+	for i in 2:
+		var pos := car.mirror_eye * Vector3(-1.0 if i == 0 else 1.0, 1.0, 1.0)
+		# Yaw PI looks backwards; a further +angle would turn the left mirror
+		# inwards (towards +x), so the outward toe is negative on the left.
+		var toe := -TOE if i == 0 else TOE
+		var basis := xf.basis * Basis(Vector3.UP, PI + toe) * Basis(Vector3.RIGHT, -0.16)
+		_cams[i].global_transform = Transform3D(basis, xf * pos)
+	# Phones: refresh the mirrors every other frame.
+	_frame_count += 1
+	var update := quality >= 2 or _frame_count % 2 == 0
+	for vp in _vps:
+		vp.render_target_update_mode = SubViewport.UPDATE_ONCE if update else SubViewport.UPDATE_DISABLED

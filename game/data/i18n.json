@@ -1,0 +1,772 @@
+{
+ "app.title": {
+  "uz_latn": "Avtodrom",
+  "uz_cyrl": "Автодром",
+  "ru": "Автодром"
+ },
+ "app.subtitle": {
+  "uz_latn": "Toshkent imtihon markazi avtodromi",
+  "uz_cyrl": "Тошкент имтиҳон маркази автодроми",
+  "ru": "Автодром Ташкентского экзаменационного центра"
+ },
+ "menu.exam": {
+  "uz_latn": "Imtihon",
+  "uz_cyrl": "Имтиҳон",
+  "ru": "Экзамен"
+ },
+ "menu.exam_desc": {
+  "uz_latn": "12 ta mashq, rasmiy jarima jadvali bo‘yicha",
+  "uz_cyrl": "12 та машқ, расмий жарима жадвали бўйича",
+  "ru": "12 упражнений по официальной таблице штрафов"
+ },
+ "menu.practice": {
+  "uz_latn": "Mashq",
+  "uz_cyrl": "Машқ",
+  "ru": "Тренировка"
+ },
+ "menu.practice_desc": {
+  "uz_latn": "Istalgan mashqni alohida o‘rganing",
+  "uz_cyrl": "Исталган машқни алоҳида ўрганинг",
+  "ru": "Отработайте любое упражнение отдельно"
+ },
+ "menu.free": {
+  "uz_latn": "Erkin haydash",
+  "uz_cyrl": "Эркин ҳайдаш",
+  "ru": "Свободная езда"
+ },
+ "menu.free_desc": {
+  "uz_latn": "Avtodromda cheklovsiz mashq qiling",
+  "uz_cyrl": "Автодромда чекловсиз машқ қилинг",
+  "ru": "Катайтесь по автодрому без ограничений"
+ },
+ "menu.rules": {
+  "uz_latn": "Jarima jadvali",
+  "uz_cyrl": "Жарима жадвали",
+  "ru": "Таблица штрафов"
+ },
+ "menu.settings": {
+  "uz_latn": "Sozlamalar",
+  "uz_cyrl": "Созламалар",
+  "ru": "Настройки"
+ },
+ "menu.history": {
+  "uz_latn": "Natijalar",
+  "uz_cyrl": "Натижалар",
+  "ru": "Результаты"
+ },
+ "menu.help": {
+  "uz_latn": "Boshqaruv",
+  "uz_cyrl": "Бошқарув",
+  "ru": "Управление"
+ },
+ "menu.map": {
+  "uz_latn": "Marshrut",
+  "uz_cyrl": "Маршрут",
+  "ru": "Маршрут"
+ },
+ "menu.car": {
+  "uz_latn": "Avtomobil",
+  "uz_cyrl": "Автомобил",
+  "ru": "Автомобиль"
+ },
+ "menu.back": {
+  "uz_latn": "Orqaga",
+  "uz_cyrl": "Орқага",
+  "ru": "Назад"
+ },
+ "menu.start": {
+  "uz_latn": "Boshlash",
+  "uz_cyrl": "Бошлаш",
+  "ru": "Начать"
+ },
+ "menu.quit": {
+  "uz_latn": "Chiqish",
+  "uz_cyrl": "Чиқиш",
+  "ru": "Выход"
+ },
+ "menu.best": {
+  "uz_latn": "Eng yaxshi natija: {0} ball",
+  "uz_cyrl": "Энг яхши натижа: {0} балл",
+  "ru": "Лучший результат: {0} баллов"
+ },
+ "menu.passes": {
+  "uz_latn": "Muvaffaqiyatli: {0} marta",
+  "uz_cyrl": "Муваффақиятли: {0} марта",
+  "ru": "Успешно сдано: {0} раз"
+ },
+ "menu.no_history": {
+  "uz_latn": "Hali imtihon topshirilmagan",
+  "uz_cyrl": "Ҳали имтиҳон топширилмаган",
+  "ru": "Экзаменов ещё не было"
+ },
+ "menu.choose_exercise": {
+  "uz_latn": "Mashqni tanlang",
+  "uz_cyrl": "Машқни танланг",
+  "ru": "Выберите упражнение"
+ },
+ "menu.loading": {
+  "uz_latn": "Yuklanmoqda…",
+  "uz_cyrl": "Юкланмоқда…",
+  "ru": "Загрузка…"
+ },
+ "menu.demo": {
+  "uz_latn": "Namuna: to‘g‘ri bajarilishini ko‘rish",
+  "uz_cyrl": "Намуна: тўғри бажарилишини кўриш",
+  "ru": "Образец: посмотреть правильное выполнение"
+ },
+ "menu.demo_hint": {
+  "uz_latn": "— mashqning to‘g‘ri bajarilishini ko‘rsatadi (avtopilot)",
+  "uz_cyrl": "— машқнинг тўғри бажарилишини кўрсатади (автопилот)",
+  "ru": "— показывает правильное выполнение упражнения (автопилот)"
+ },
+ "menu.demo_exam": {
+  "uz_latn": "Namuna: butun imtihonni avtopilot topshiradi",
+  "uz_cyrl": "Намуна: бутун имтиҳонни автопилот топширади",
+  "ru": "Образец: весь экзамен проходит автопилот"
+ },
+ "car.nexia2": {
+  "uz_latn": "Nexia 2 — mexanika",
+  "uz_cyrl": "Nexia 2 — механика",
+  "ru": "Nexia 2 — механика"
+ },
+ "car.cobalt_at": {
+  "uz_latn": "Cobalt — avtomat",
+  "uz_cyrl": "Cobalt — автомат",
+  "ru": "Cobalt — автомат"
+ },
+ "car.nexia2_desc": {
+  "uz_latn": "5 pog‘onali mexanik uzatmalar qutisi",
+  "uz_cyrl": "5 поғонали механик узатмалар қутиси",
+  "ru": "5-ступенчатая механическая коробка"
+ },
+ "car.cobalt_at_desc": {
+  "uz_latn": "6 pog‘onali avtomat uzatmalar qutisi",
+  "uz_cyrl": "6 поғонали автомат узатмалар қутиси",
+  "ru": "6-ступенчатая автоматическая коробка"
+ },
+ "set.title": {
+  "uz_latn": "Sozlamalar",
+  "uz_cyrl": "Созламалар",
+  "ru": "Настройки"
+ },
+ "set.language": {
+  "uz_latn": "Til",
+  "uz_cyrl": "Тил",
+  "ru": "Язык"
+ },
+ "set.graphics": {
+  "uz_latn": "Grafika",
+  "uz_cyrl": "Графика",
+  "ru": "Графика"
+ },
+ "set.quality": {
+  "uz_latn": "Sifat",
+  "uz_cyrl": "Сифат",
+  "ru": "Качество"
+ },
+ "set.q0": {
+  "uz_latn": "Past",
+  "uz_cyrl": "Паст",
+  "ru": "Низкое"
+ },
+ "set.q1": {
+  "uz_latn": "O‘rta",
+  "uz_cyrl": "Ўрта",
+  "ru": "Среднее"
+ },
+ "set.q2": {
+  "uz_latn": "Yuqori",
+  "uz_cyrl": "Юқори",
+  "ru": "Высокое"
+ },
+ "set.render_scale": {
+  "uz_latn": "Tasvir aniqligi",
+  "uz_cyrl": "Тасвир аниқлиги",
+  "ru": "Разрешение рендера"
+ },
+ "set.fps": {
+  "uz_latn": "Kadrlar chastotasi",
+  "uz_cyrl": "Кадрлар частотаси",
+  "ru": "Частота кадров"
+ },
+ "set.shadows": {
+  "uz_latn": "Soyalar",
+  "uz_cyrl": "Соялар",
+  "ru": "Тени"
+ },
+ "set.mirrors": {
+  "uz_latn": "Oynalar (orqani ko‘rish)",
+  "uz_cyrl": "Ойналар (орқани кўриш)",
+  "ru": "Зеркала заднего вида"
+ },
+ "set.controls": {
+  "uz_latn": "Boshqaruv",
+  "uz_cyrl": "Бошқарув",
+  "ru": "Управление"
+ },
+ "set.steering": {
+  "uz_latn": "Rul boshqaruvi",
+  "uz_cyrl": "Рул бошқаруви",
+  "ru": "Руль"
+ },
+ "set.steer_wheel": {
+  "uz_latn": "Ekrandagi rul",
+  "uz_cyrl": "Экрандаги рул",
+  "ru": "Экранный руль"
+ },
+ "set.steer_tilt": {
+  "uz_latn": "Telefonni qiyshaytirish",
+  "uz_cyrl": "Телефонни қийшайтириш",
+  "ru": "Наклон телефона"
+ },
+ "set.steer_buttons": {
+  "uz_latn": "Tugmalar",
+  "uz_cyrl": "Тугмалар",
+  "ru": "Кнопки"
+ },
+ "set.sensitivity": {
+  "uz_latn": "Rul sezgirligi",
+  "uz_cyrl": "Рул сезгирлиги",
+  "ru": "Чувствительность руля"
+ },
+ "set.autocenter": {
+  "uz_latn": "Rul o‘zi markazga qaytsin",
+  "uz_cyrl": "Рул ўзи марказга қайтсин",
+  "ru": "Автовозврат руля"
+ },
+ "set.auto_clutch": {
+  "uz_latn": "Avtomatik ilashish muftasi",
+  "uz_cyrl": "Автоматик илашиш муфтаси",
+  "ru": "Автоматическое сцепление"
+ },
+ "set.auto_clutch_desc": {
+  "uz_latn": "Mexanikada debriyajni tizim bosadi",
+  "uz_cyrl": "Механикада дебриажни тизим босади",
+  "ru": "Сцепление выжимает система"
+ },
+ "set.abs": {
+  "uz_latn": "ABS",
+  "uz_cyrl": "ABS",
+  "ru": "ABS"
+ },
+ "set.left_handed": {
+  "uz_latn": "Pedallar chap tomonda",
+  "uz_cyrl": "Педаллар чап томонда",
+  "ru": "Педали слева"
+ },
+ "set.learning": {
+  "uz_latn": "O‘qish",
+  "uz_cyrl": "Ўқиш",
+  "ru": "Обучение"
+ },
+ "set.hints": {
+  "uz_latn": "Ko‘rsatmalar",
+  "uz_cyrl": "Кўрсатмалар",
+  "ru": "Подсказки"
+ },
+ "set.route": {
+  "uz_latn": "Marshrut chizig‘i",
+  "uz_cyrl": "Маршрут чизиғи",
+  "ru": "Линия маршрута"
+ },
+ "set.time_limit": {
+  "uz_latn": "Imtihon vaqti (daqiqa)",
+  "uz_cyrl": "Имтиҳон вақти (дақиқа)",
+  "ru": "Время экзамена (мин)"
+ },
+ "set.sound": {
+  "uz_latn": "Ovoz",
+  "uz_cyrl": "Овоз",
+  "ru": "Звук"
+ },
+ "set.vol_master": {
+  "uz_latn": "Umumiy ovoz",
+  "uz_cyrl": "Умумий овоз",
+  "ru": "Общая громкость"
+ },
+ "set.vol_engine": {
+  "uz_latn": "Dvigatel",
+  "uz_cyrl": "Двигател",
+  "ru": "Двигатель"
+ },
+ "set.vol_effects": {
+  "uz_latn": "Effektlar",
+  "uz_cyrl": "Эффектлар",
+  "ru": "Эффекты"
+ },
+ "set.reset": {
+  "uz_latn": "Standart sozlamalar",
+  "uz_cyrl": "Стандарт созламалар",
+  "ru": "Сбросить настройки"
+ },
+ "hud.kmh": {
+  "uz_latn": "km/soat",
+  "uz_cyrl": "км/соат",
+  "ru": "км/ч"
+ },
+ "hud.rpm": {
+  "uz_latn": "×1000 ayl/min",
+  "uz_cyrl": "×1000 айл/мин",
+  "ru": "×1000 об/мин"
+ },
+ "hud.penalty": {
+  "uz_latn": "Jarima",
+  "uz_cyrl": "Жарима",
+  "ru": "Штраф"
+ },
+ "hud.points": {
+  "uz_latn": "ball",
+  "uz_cyrl": "балл",
+  "ru": "балл."
+ },
+ "hud.time": {
+  "uz_latn": "Vaqt",
+  "uz_cyrl": "Вақт",
+  "ru": "Время"
+ },
+ "hud.next": {
+  "uz_latn": "Keyingi",
+  "uz_cyrl": "Кейинги",
+  "ru": "Далее"
+ },
+ "hud.exercise": {
+  "uz_latn": "Mashq",
+  "uz_cyrl": "Машқ",
+  "ru": "Упражнение"
+ },
+ "hud.prepare": {
+  "uz_latn": "Tayyorgarlik",
+  "uz_cyrl": "Тайёргарлик",
+  "ru": "Подготовка"
+ },
+ "hud.ready": {
+  "uz_latn": "Tayyorman",
+  "uz_cyrl": "Тайёрман",
+  "ru": "Готов"
+ },
+ "hud.start_signal": {
+  "uz_latn": "START!",
+  "uz_cyrl": "СТАРТ!",
+  "ru": "СТАРТ!"
+ },
+ "hud.emergency": {
+  "uz_latn": "AVARIYA ISHORASI — TO‘XTANG!",
+  "uz_cyrl": "АВАРИЯ ИШОРАСИ — ТЎХТАНГ!",
+  "ru": "АВАРИЙНЫЙ СИГНАЛ — СТОП!"
+ },
+ "hud.stalled": {
+  "uz_latn": "Dvigatel o‘chdi",
+  "uz_cyrl": "Двигател ўчди",
+  "ru": "Двигатель заглох"
+ },
+ "hud.clutch_needed": {
+  "uz_latn": "Uzatmani almashtirish uchun debriyajni bosing",
+  "uz_cyrl": "Узатмани алмаштириш учун дебриажни босинг",
+  "ru": "Для переключения выжмите сцепление"
+ },
+ "hud.clutch_to_start": {
+  "uz_latn": "Debriyajni bosing yoki neytralni qo‘ying",
+  "uz_cyrl": "Дебриажни босинг ёки нейтрални қўйинг",
+  "ru": "Выжмите сцепление или включите нейтраль"
+ },
+ "hud.brake_to_shift": {
+  "uz_latn": "Tormozni bosib turing",
+  "uz_cyrl": "Тормозни босиб туринг",
+  "ru": "Удерживайте тормоз"
+ },
+ "hud.turn_left": {
+  "uz_latn": "Chapga",
+  "uz_cyrl": "Чапга",
+  "ru": "Налево"
+ },
+ "hud.turn_right": {
+  "uz_latn": "O‘ngga",
+  "uz_cyrl": "Ўнгга",
+  "ru": "Направо"
+ },
+ "hud.in_m": {
+  "uz_latn": "{0} m",
+  "uz_cyrl": "{0} м",
+  "ru": "{0} м"
+ },
+ "hud.belt": {
+  "uz_latn": "Kamar",
+  "uz_cyrl": "Камар",
+  "ru": "Ремень"
+ },
+ "hud.key": {
+  "uz_latn": "Kalit",
+  "uz_cyrl": "Калит",
+  "ru": "Ключ"
+ },
+ "hud.hazard": {
+  "uz_latn": "Avariya",
+  "uz_cyrl": "Авария",
+  "ru": "Аварийка"
+ },
+ "hud.handbrake": {
+  "uz_latn": "Qo‘l tormozi",
+  "uz_cyrl": "Қўл тормози",
+  "ru": "Ручник"
+ },
+ "hud.lights": {
+  "uz_latn": "Faralar",
+  "uz_cyrl": "Фаралар",
+  "ru": "Фары"
+ },
+ "hud.camera": {
+  "uz_latn": "Kamera",
+  "uz_cyrl": "Камера",
+  "ru": "Камера"
+ },
+ "hud.gas": {
+  "uz_latn": "Gaz",
+  "uz_cyrl": "Газ",
+  "ru": "Газ"
+ },
+ "hud.brake": {
+  "uz_latn": "Tormoz",
+  "uz_cyrl": "Тормоз",
+  "ru": "Тормоз"
+ },
+ "hud.clutch": {
+  "uz_latn": "Debriyaj",
+  "uz_cyrl": "Дебриаж",
+  "ru": "Сцепление"
+ },
+ "hud.free_mode": {
+  "uz_latn": "Erkin haydash",
+  "uz_cyrl": "Эркин ҳайдаш",
+  "ru": "Свободная езда"
+ },
+ "hud.demo": {
+  "uz_latn": "NAMUNA · avtopilot boshqarmoqda",
+  "uz_cyrl": "НАМУНА · автопилот бошқармоқда",
+  "ru": "ОБРАЗЕЦ · за рулём автопилот"
+ },
+ "hud.practice_done": {
+  "uz_latn": "Mashq tugadi",
+  "uz_cyrl": "Машқ тугади",
+  "ru": "Упражнение завершено"
+ },
+ "prep.belt": {
+  "uz_latn": "Xavfsizlik kamarini taqing",
+  "uz_cyrl": "Хавфсизлик камарини тақинг",
+  "ru": "Пристегните ремень"
+ },
+ "prep.engine": {
+  "uz_latn": "Dvigatelni o‘t oldiring (kalitni bosib turing)",
+  "uz_cyrl": "Двигателни ўт олдиринг (калитни босиб туринг)",
+  "ru": "Заведите двигатель (удерживайте ключ)"
+ },
+ "prep.handbrake": {
+  "uz_latn": "Qo‘l tormozi tortilgan bo‘lsin",
+  "uz_cyrl": "Қўл тормози тортилган бўлсин",
+  "ru": "Ручник затянут"
+ },
+ "prep.signal": {
+  "uz_latn": "Tayyor bo‘lsangiz, chapga burilish chirog‘ini yoqing",
+  "uz_cyrl": "Тайёр бўлсангиз, чапга бурилиш чироғини ёқинг",
+  "ru": "Когда готовы — включите левый поворотник"
+ },
+ "hint.start_go": {
+  "uz_latn": "START! 30 soniya ichida harakatni boshlang, START chizig‘ini chap chiroq bilan kesib o‘ting",
+  "uz_cyrl": "СТАРТ! 30 сония ичида ҳаракатни бошланг, СТАРТ чизиғини чап чироқ билан кесиб ўтинг",
+  "ru": "СТАРТ! В течение 30 с начните движение, пересеките линию СТАРТ с левым поворотником"
+ },
+ "hint.signal_off": {
+  "uz_latn": "Chap burilish chirog‘ini o‘chiring (10 m ichida)",
+  "uz_cyrl": "Чап бурилиш чироғини ўчиринг (10 м ичида)",
+  "ru": "Выключите левый поворотник (в пределах 10 м)"
+ },
+ "hint.stopline": {
+  "uz_latn": "To‘xtash chizig‘idan 1 m gacha oldinda to‘xtang, chiziqni bosmang",
+  "uz_cyrl": "Тўхташ чизиғидан 1 м гача олдинда тўхтанг, чизиқни босманг",
+  "ru": "Остановитесь не далее 1 м до стоп-линии, не наезжая на неё"
+ },
+ "hint.wait3": {
+  "uz_latn": "Kuting: {0} s",
+  "uz_cyrl": "Кутинг: {0} с",
+  "ru": "Ждите: {0} с"
+ },
+ "hint.go": {
+  "uz_latn": "Harakatni davom ettiring",
+  "uz_cyrl": "Ҳаракатни давом эттиринг",
+  "ru": "Продолжайте движение"
+ },
+ "hint.hill_stop": {
+  "uz_latn": "Estakadada to‘xtang: mashina qayd etish va STOP chiziqlari orasida bo‘lsin",
+  "uz_cyrl": "Эстакадада тўхтанг: машина қайд этиш ва СТОП чизиқлари орасида бўлсин",
+  "ru": "Остановитесь на эстакаде между линией фиксации и линией СТОП"
+ },
+ "hint.hold_3s": {
+  "uz_latn": "Mashinani ushlab turing: {0} s",
+  "uz_cyrl": "Машинани ушлаб туринг: {0} с",
+  "ru": "Удерживайте автомобиль: {0} с"
+ },
+ "hint.hill_go": {
+  "uz_latn": "Orqaga 0,3 m dan ko‘p siljimasdan harakatni boshlang (30 s ichida)",
+  "uz_cyrl": "Орқага 0,3 м дан кўп силжимасдан ҳаракатни бошланг (30 с ичида)",
+  "ru": "Тронитесь без отката более 0,3 м (в течение 30 с)"
+ },
+ "hint.corridor": {
+  "uz_latn": "Nazorat chiziqlarini bosmasdan o‘ting, 2 daqiqa ichida",
+  "uz_cyrl": "Назорат чизиқларини босмасдан ўтинг, 2 дақиқа ичида",
+  "ru": "Проедьте, не наезжая на контрольные линии, за 2 минуты"
+ },
+ "hint.corridor_time": {
+  "uz_latn": "Nazorat chiziqlarini bosmang · {0} s qoldi",
+  "uz_cyrl": "Назорат чизиқларини босманг · {0} с қолди",
+  "ru": "Не наезжайте на контрольные линии · осталось {0} с"
+ },
+ "hint.light_red": {
+  "uz_latn": "Qizil chiroq: to‘xtash chizig‘idan 1 m gacha oldinda to‘xtang",
+  "uz_cyrl": "Қизил чироқ: тўхташ чизиғидан 1 м гача олдинда тўхтанг",
+  "ru": "Красный: остановитесь не далее 1 м до стоп-линии"
+ },
+ "hint.light_green_left": {
+  "uz_latn": "Yashil: chapga buriling (chap chiroq)",
+  "uz_cyrl": "Яшил: чапга бурилинг (чап чироқ)",
+  "ru": "Зелёный: поверните налево (левый поворотник)"
+ },
+ "hint.light_green_right": {
+  "uz_latn": "Yashil: o‘ngga buriling (o‘ng chiroq)",
+  "uz_cyrl": "Яшил: ўнгга бурилинг (ўнг чироқ)",
+  "ru": "Зелёный: поверните направо (правый поворотник)"
+ },
+ "hint.light_green_straight": {
+  "uz_latn": "Yashil: to‘g‘riga o‘ting",
+  "uz_cyrl": "Яшил: тўғрига ўтинг",
+  "ru": "Зелёный: проезжайте прямо"
+ },
+ "hint.box_enter": {
+  "uz_latn": "Boks yonidan o‘tib to‘xtang",
+  "uz_cyrl": "Бокс ёнидан ўтиб тўхтанг",
+  "ru": "Проедьте бокс и остановитесь"
+ },
+ "hint.box_reverse": {
+  "uz_latn": "Orqaga yurib boksga kiring",
+  "uz_cyrl": "Орқага юриб боксга киринг",
+  "ru": "Въезжайте в бокс задним ходом"
+ },
+ "hint.box_fix": {
+  "uz_latn": "Orqa g‘ildiraklar qayd etish chizig‘ida to‘xtang",
+  "uz_cyrl": "Орқа ғилдираклар қайд этиш чизиғида тўхтанг",
+  "ru": "Остановитесь задними колёсами на линии фиксации"
+ },
+ "hint.box_leave": {
+  "uz_latn": "Boksdan chiqib, kelgan yo‘lingizdan qayting",
+  "uz_cyrl": "Боксдан чиқиб, келган йўлингиздан қайтинг",
+  "ru": "Выезжайте из бокса и возвращайтесь обратно"
+ },
+ "hint.parallel_pass": {
+  "uz_latn": "Cho‘ntak yonidan o‘tib to‘xtang",
+  "uz_cyrl": "Чўнтак ёнидан ўтиб тўхтанг",
+  "ru": "Проедьте карман и остановитесь"
+ },
+ "hint.parallel_reverse": {
+  "uz_latn": "Orqaga yurib cho‘ntakka joylashing",
+  "uz_cyrl": "Орқага юриб чўнтакка жойлашинг",
+  "ru": "Паркуйтесь в карман задним ходом"
+ },
+ "hint.parallel_fix": {
+  "uz_latn": "O‘ng g‘ildiraklar qayd etish chizig‘ida to‘xtang",
+  "uz_cyrl": "Ўнг ғилдираклар қайд этиш чизиғида тўхтанг",
+  "ru": "Остановитесь правыми колёсами на линии фиксации"
+ },
+ "hint.parallel_leave": {
+  "uz_latn": "Cho‘ntakdan chiqing",
+  "uz_cyrl": "Чўнтакдан чиқинг",
+  "ru": "Выезжайте из кармана"
+ },
+ "hint.emergency_ready": {
+  "uz_latn": "Kabinada ishora yonsa — 2 soniyada to‘xtang",
+  "uz_cyrl": "Кабинада ишора ёнса — 2 сонияда тўхтанг",
+  "ru": "При сигнале в салоне — остановитесь за 2 с"
+ },
+ "hint.emergency_stop": {
+  "uz_latn": "TO‘XTANG! (2 soniya)",
+  "uz_cyrl": "ТЎХТАНГ! (2 сония)",
+  "ru": "СТОП! (2 секунды)"
+ },
+ "hint.emergency_hazard": {
+  "uz_latn": "Avariya chirog‘ini yoqing (3 soniya)",
+  "uz_cyrl": "Авария чироғини ёқинг (3 сония)",
+  "ru": "Включите аварийную сигнализацию (3 с)"
+ },
+ "hint.emergency_wait": {
+  "uz_latn": "Ishora o‘chguncha kuting",
+  "uz_cyrl": "Ишора ўчгунча кутинг",
+  "ru": "Ждите, пока сигнал погаснет"
+ },
+ "hint.emergency_go": {
+  "uz_latn": "Avariya chirog‘ini o‘chirib, harakatni davom ettiring",
+  "uz_cyrl": "Авария чироғини ўчириб, ҳаракатни давом эттиринг",
+  "ru": "Выключите аварийку и продолжайте движение"
+ },
+ "hint.accel": {
+  "uz_latn": "40 km/soatgacha tezlashing va 2-uzatmaga o‘ting",
+  "uz_cyrl": "40 км/соатгача тезлашинг ва 2-узатмага ўтинг",
+  "ru": "Разгонитесь до 40 км/ч и включите 2-ю передачу"
+ },
+ "hint.accel_hold": {
+  "uz_latn": "20–40 km/soat oralig‘ida harakatlaning",
+  "uz_cyrl": "20–40 км/соат оралиғида ҳаракатланинг",
+  "ru": "Держите скорость 20–40 км/ч"
+ },
+ "hint.accel_end": {
+  "uz_latn": "Tezlikni 20 km/soatgacha kamaytiring (1-uzatma)",
+  "uz_cyrl": "Тезликни 20 км/соатгача камайтиринг (1-узатма)",
+  "ru": "Снизьте скорость до 20 км/ч (1-я передача)"
+ },
+ "hint.finish_signal": {
+  "uz_latn": "O‘ng burilish chirog‘ini yoqing va FINISH chizig‘ini kesib o‘ting",
+  "uz_cyrl": "Ўнг бурилиш чироғини ёқинг ва ФИНИШ чизиғини кесиб ўтинг",
+  "ru": "Включите правый поворотник и пересеките линию ФИНИШ"
+ },
+ "hint.finish_stop": {
+  "uz_latn": "To‘xtang",
+  "uz_cyrl": "Тўхтанг",
+  "ru": "Остановитесь"
+ },
+ "hint.finish_park": {
+  "uz_latn": "Neytral (P) va qo‘l tormozi",
+  "uz_cyrl": "Нейтрал (P) ва қўл тормози",
+  "ru": "Нейтраль (P) и ручной тормоз"
+ },
+ "hint.finish_engine": {
+  "uz_latn": "Dvigatelni o‘chiring (kalit)",
+  "uz_cyrl": "Двигателни ўчиринг (калит)",
+  "ru": "Заглушите двигатель (ключ)"
+ },
+ "hint.finish_belt": {
+  "uz_latn": "Kamarni yeching",
+  "uz_cyrl": "Камарни ечинг",
+  "ru": "Отстегните ремень"
+ },
+ "pause.title": {
+  "uz_latn": "Pauza",
+  "uz_cyrl": "Пауза",
+  "ru": "Пауза"
+ },
+ "pause.resume": {
+  "uz_latn": "Davom etish",
+  "uz_cyrl": "Давом этиш",
+  "ru": "Продолжить"
+ },
+ "pause.restart": {
+  "uz_latn": "Qaytadan boshlash",
+  "uz_cyrl": "Қайтадан бошлаш",
+  "ru": "Начать заново"
+ },
+ "pause.menu": {
+  "uz_latn": "Bosh menyu",
+  "uz_cyrl": "Бош меню",
+  "ru": "Главное меню"
+ },
+ "pause.warn_exam": {
+  "uz_latn": "Imtihonni tark etish — 100 jarima ball",
+  "uz_cyrl": "Имтиҳонни тарк этиш — 100 жарима балл",
+  "ru": "Выход из экзамена — 100 штрафных баллов"
+ },
+ "res.passed": {
+  "uz_latn": "IMTIHONDAN O‘TDINGIZ",
+  "uz_cyrl": "ИМТИҲОНДАН ЎТДИНГИЗ",
+  "ru": "ЭКЗАМЕН СДАН"
+ },
+ "res.failed": {
+  "uz_latn": "IMTIHONDAN O‘TA OLMADINGIZ",
+  "uz_cyrl": "ИМТИҲОНДАН ЎТА ОЛМАДИНГИЗ",
+  "ru": "ЭКЗАМЕН НЕ СДАН"
+ },
+ "res.practice": {
+  "uz_latn": "Mashq natijasi",
+  "uz_cyrl": "Машқ натижаси",
+  "ru": "Результат тренировки"
+ },
+ "res.total": {
+  "uz_latn": "Jami jarima: {0} ball",
+  "uz_cyrl": "Жами жарима: {0} балл",
+  "ru": "Всего штрафных баллов: {0}"
+ },
+ "res.rule": {
+  "uz_latn": "O‘tish uchun jarima 100 balldan kam bo‘lishi kerak",
+  "uz_cyrl": "Ўтиш учун жарима 100 баллдан кам бўлиши керак",
+  "ru": "Для сдачи сумма штрафов должна быть меньше 100"
+ },
+ "res.time": {
+  "uz_latn": "Vaqt: {0}",
+  "uz_cyrl": "Вақт: {0}",
+  "ru": "Время: {0}"
+ },
+ "res.distance": {
+  "uz_latn": "Masofa: {0} m",
+  "uz_cyrl": "Масофа: {0} м",
+  "ru": "Пройдено: {0} м"
+ },
+ "res.errors": {
+  "uz_latn": "Xatolar",
+  "uz_cyrl": "Хатолар",
+  "ru": "Ошибки"
+ },
+ "res.no_errors": {
+  "uz_latn": "Xatosiz! Ajoyib natija.",
+  "uz_cyrl": "Хатосиз! Ажойиб натижа.",
+  "ru": "Без ошибок! Отлично."
+ },
+ "res.retry": {
+  "uz_latn": "Qayta topshirish",
+  "uz_cyrl": "Қайта топшириш",
+  "ru": "Пересдать"
+ },
+ "res.retry_practice": {
+  "uz_latn": "Yana bir bor",
+  "uz_cyrl": "Яна бир бор",
+  "ru": "Ещё раз"
+ },
+ "res.menu": {
+  "uz_latn": "Bosh menyu",
+  "uz_cyrl": "Бош меню",
+  "ru": "Главное меню"
+ },
+ "res.exercises": {
+  "uz_latn": "Mashqlar",
+  "uz_cyrl": "Машқлар",
+  "ru": "Упражнения"
+ },
+ "res.done": {
+  "uz_latn": "bajarildi",
+  "uz_cyrl": "бажарилди",
+  "ru": "выполнено"
+ },
+ "res.not_done": {
+  "uz_latn": "bajarilmadi",
+  "uz_cyrl": "бажарилмади",
+  "ru": "не выполнено"
+ },
+ "res.interrupted": {
+  "uz_latn": "Imtihon to‘xtatildi",
+  "uz_cyrl": "Имтиҳон тўхтатилди",
+  "ru": "Экзамен прерван"
+ },
+ "help.title": {
+  "uz_latn": "Boshqaruv",
+  "uz_cyrl": "Бошқарув",
+  "ru": "Управление"
+ },
+ "help.touch": {
+  "uz_latn": "Chapda — rul, o‘ngda — gaz va tormoz pedallari (barmog‘ingizni pastroq qo‘ysangiz, pedal kuchliroq bosiladi). Yuqorida — burilish chiroqlari, avariya chirog‘i, kamar, kalit va qo‘l tormozi.",
+  "uz_cyrl": "Чапда — рул, ўнгда — газ ва тормоз педаллари (бармоғингизни пастроқ қўйсангиз, педаль кучлироқ босилади). Юқорида — бурилиш чироқлари, авария чироғи, камар, калит ва қўл тормози.",
+  "ru": "Слева — руль, справа — педали газа и тормоза (чем ниже палец, тем сильнее нажатие). Сверху — поворотники, аварийка, ремень, ключ и ручник."
+ },
+ "help.keyboard": {
+  "uz_latn": "Klaviatura: W/S — gaz/tormoz, A/D — rul, C — debriyaj, 1–5/R/N — uzatmalar, Q/E — burilish chiroqlari, H — avariya, B — kamar, I — kalit (bosib turing — o‘t oldirish), Probel — qo‘l tormozi, V — kamera, Esc — pauza.",
+  "uz_cyrl": "Клавиатура: W/S — газ/тормоз, A/D — рул, C — дебриаж, 1–5/R/N — узатмалар, Q/E — бурилиш чироқлари, H — авария, B — камар, I — калит (босиб туринг — ўт олдириш), Пробел — қўл тормози, V — камера, Esc — пауза.",
+  "ru": "Клавиатура: W/S — газ/тормоз, A/D — руль, C — сцепление, 1–5/R/N — передачи, Q/E — поворотники, H — аварийка, B — ремень, I — ключ (удерживать — запуск), Пробел — ручник, V — камера, Esc — пауза."
+ },
+ "help.auto": {
+  "uz_latn": "Avtomat (Cobalt): P/R/N/G tugmalari yoki ekrandagi selektor; P va R ga faqat to‘xtab turganda o‘tiladi.",
+  "uz_cyrl": "Автомат (Cobalt): P/R/N/G тугмалари ёки экрандаги селектор; P ва R га фақат тўхтаб турганда ўтилади.",
+  "ru": "Автомат (Cobalt): клавиши P/R/N/G или экранный селектор; P и R — только на месте."
+ }
+}
