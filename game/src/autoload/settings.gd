@@ -100,4 +100,6 @@ func detect_quality() -> int:
 
 
 func is_mobile() -> bool:
-	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+	# "--touch" (after "--") previews the phone layout on a desktop.
+	var forced := "--touch" in OS.get_cmdline_user_args()
+	return forced or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
