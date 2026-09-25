@@ -37,6 +37,8 @@ var steering_lock := 540.0
 var automatic := false
 ## Demonstration: only the camera and pause keys reach the game.
 var view_only := false
+## Set by the drive scene every tick (m/s): steering feel depends on it.
+var car_speed := 0.0
 
 # Outputs (read by the drive scene every physics tick).
 var throttle := 0.0
@@ -79,12 +81,16 @@ func _physics_process(delta: float) -> void:
 	_kb_clutch = move_toward(_kb_clutch, 1.0 if clutch_key else 0.0, (CLUTCH_DOWN if clutch_key else CLUTCH_UP) * delta)
 
 	var sens := float(Settings.get_value("steering_sensitivity"))
-	var target := 0.0
+	var v := absf(car_speed)
 	if left != right:
-		target = steering_lock if right else -steering_lock
-		_kb_steer = move_toward(_kb_steer, target, STEER_RATE * sens * delta)
-	elif bool(Settings.get_value("steering_autocenter")):
-		_kb_steer = move_toward(_kb_steer, 0.0, CENTER_RATE * delta)
+		var target := steering_lock if right else -steering_lock
+		# Quick at parking speed, calmer when driving on (no twitchy lane changes).
+		var rate := STEER_RATE * clampf(sens, 0.75, 2.0) / (1.0 + v / 9.0)
+		_kb_steer = move_toward(_kb_steer, target, rate * delta)
+	else:
+		# Caster: the wheel only returns by itself while the car rolls, and the
+		# faster it rolls the quicker — a parked car keeps the wheel where it is.
+		_kb_steer = move_toward(_kb_steer, 0.0, clampf(v * 90.0, 0.0, CENTER_RATE) * delta)
 
 	# Gamepad (first connected pad).
 	var pad_throttle := 0.0

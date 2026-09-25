@@ -307,15 +307,15 @@ def zone(*rects):
 NAMES = {
     "start": {"uz_latn": "Start", "uz_cyrl": "Старт", "ru": "Старт"},
     "crosswalk": {"uz_latn": "Piyodalar o'tish joyi", "uz_cyrl": "Пиёдалар ўтиш жойи", "ru": "Пешеходный переход"},
-    "hill": {"uz_latn": "Estakada (qiyalikda to'xtash)", "uz_cyrl": "Эстакада (қияликда тўхташ)", "ru": "Эстакада (остановка на подъёме)"},
-    "turn90": {"uz_latn": "90 gradus burilish", "uz_cyrl": "90 градус бурилиш", "ru": "Поворот на 90 градусов"},
-    "intersection": {"uz_latn": "Svetoforli chorraha", "uz_cyrl": "Светофорли чорраҳа", "ru": "Регулируемый перекрёсток"},
+    "hill": {"uz_latn": "Estakada", "uz_cyrl": "Эстакада", "ru": "Эстакада"},
+    "turn90": {"uz_latn": "90° burilish", "uz_cyrl": "90° бурилиш", "ru": "Поворот на 90°"},
+    "intersection": {"uz_latn": "Chorraha", "uz_cyrl": "Чорраҳа", "ru": "Перекрёсток"},
     "box": {"uz_latn": "Boksga kirish", "uz_cyrl": "Боксга кириш", "ru": "Въезд в бокс"},
     "zigzag": {"uz_latn": "Ilon izi", "uz_cyrl": "Илон изи", "ru": "Змейка"},
-    "emergency": {"uz_latn": "Avariya holatda to'xtash", "uz_cyrl": "Авария ҳолатда тўхташ", "ru": "Аварийная остановка"},
+    "emergency": {"uz_latn": "Avariya to'xtash", "uz_cyrl": "Авария тўхташ", "ru": "Аварийная остановка"},
     "parallel": {"uz_latn": "Parallel to'xtash", "uz_cyrl": "Параллел тўхташ", "ru": "Параллельная парковка"},
-    "railway": {"uz_latn": "Temir yo'l kesishmasi", "uz_cyrl": "Темир йўл кесишмаси", "ru": "Железнодорожный переезд"},
-    "accel": {"uz_latn": "Yo'lning tezlashish qismi", "uz_cyrl": "Йўлнинг тезлашиш қисми", "ru": "Участок разгона"},
+    "railway": {"uz_latn": "Temir yo'l", "uz_cyrl": "Темир йўл", "ru": "Ж/д переезд"},
+    "accel": {"uz_latn": "Tezlashish", "uz_cyrl": "Тезлашиш", "ru": "Разгон"},
     "finish": {"uz_latn": "Finish", "uz_cyrl": "Финиш", "ru": "Финиш"},
 }
 
@@ -644,7 +644,7 @@ sign("1.14", 985, 84, "W")                        # steep ascent (estakada)
 sign("2.5", HILL_STOP_X - 2, 91.5, "W")           # STOP on the ramp (stands on the deck)
 sign("1.13", 690, 91.5, "W")                      # steep descent
 sign("1.12.1", 300, 470, "E")                     # 90° corridor
-sign("4.1.1", 1000, 440, "S")                     # north approach: straight
+sign("4.1.3", 1000, 440, "S")                     # intersection, north approach: left (pass 1)
 sign("1.12.2", 910, 955, "N")                     # zmeyka B entrance (as on the scheme)
 sign("1.12.2", 690, 955, "N")                     # zmeyka A entrance
 sign("2.4", 720, 695, "N")                        # zmeyka B exit: yield
@@ -663,6 +663,22 @@ sign("3.24-20", 1325, 1150, "E")
 sign("4.2.1", 1142, 474, "S")                     # on the nose of the finish-road island
 sign("3.19", 950, 330, "E")
 sign("4.1.2", 1760, 690, "E")
+
+# Mandatory-direction signs before every junction turn of the exam route
+# (heading = the traffic they are for; placed on its right-hand side).
+sign("4.1.1", 1263, 70, "W")                      # start road: straight on
+sign("4.1.3", 38, 320, "S")                       # left road -> 90° corridor (left)
+sign("4.1.2", 1380, 668, "E")                     # -> box pad P1 (right)
+sign("4.1.2", 1995, 1010, "S")                    # right road -> inner bottom lane (right)
+sign("4.1.2", 900, 1040, "W")                     # inner bottom lane -> zmeyka B (right)
+sign("4.1.2", 700, 715, "N")                      # zmeyka B exit -> intersection (right)
+sign("4.1.2", 880, 672, "E")                      # intersection, west approach: right (pass 2)
+sign("4.1.3", 1015, 1040, "S")                    # -> outer bottom lane (left)
+sign("4.1.3", 2004, 1153, "E")                    # outer bottom lane -> right road (left)
+sign("4.1.3", 2116, 620, "N")                     # right road -> parallel / intersection (left)
+sign("4.1.3", 260, 575, "W")                      # west road -> railway (left)
+sign("4.1.3", 18, 1069, "S")                      # railway road -> acceleration section (left)
+sign("4.1.4", 1180, 520, "W")                     # intersection, east approach: straight or right
 
 LIGHTS = [
     {"id": "N", "pos": w(998, 500), "yaw": HEAD["S"], "group": "NS"},

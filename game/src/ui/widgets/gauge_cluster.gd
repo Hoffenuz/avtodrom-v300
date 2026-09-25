@@ -1,114 +1,73 @@
 class_name GaugeCluster
 extends Control
-## Instrument cluster: speedometer with the avtodrom limits marked (20 km/h
-## amber, 40 km/h red), tachometer with the stall zone and redline, the
-## selected gear, and the warning lamps a learner must watch.
+## Compact instrument strip: speed (amber above 20 km/h, red above 40 — the
+## avtodrom limits), the selected gear and the indicator arrows. Warning lamps
+## (belt, handbrake, engine, ABS) appear above it only while they are lit.
+
+const W := 290.0
+const H := 62.0
 
 var car: Car
-var speed_kmh := 0.0
-var rpm := 0.0
-var gear_text := "N"
-var _blink := false
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(430, 190)
+	custom_minimum_size = Vector2(W, H)
 
 
 func _process(_delta: float) -> void:
-	if car == null:
-		return
-	speed_kmh = absf(car.get_speed_kmh())
-	rpm = car.get_rpm() if car.ignition else 0.0
-	gear_text = AvtoGear.label(car)
-	_blink = car.blink_lit
-	queue_redraw()
-
-
-func _dial(c: Vector2, r: float, a0: float, a1: float, value: float, vmax: float, color: Color, width: float) -> void:
-	draw_arc(c, r, a0, a1, 48, Color(1, 1, 1, 0.1), width, true)
-	var t := clampf(value / vmax, 0.0, 1.0)
-	if t > 0.001:
-		draw_arc(c, r, a0, lerpf(a0, a1, t), 48, color, width, true)
-
-
-func _tick_mark(c: Vector2, r: float, a: float, len_: float, color: Color, w: float) -> void:
-	var d := Vector2(cos(a), sin(a))
-	draw_line(c + d * (r - len_), c + d * r, color, w, true)
+	if car and is_visible_in_tree():
+		queue_redraw()
 
 
 func _draw() -> void:
-	var rect := Rect2(Vector2.ZERO, size)
-	draw_style_box(UITheme.box(Color(0.05, 0.06, 0.08, 0.82), 28, 1, UITheme.LINE, 0), rect)
-	var f := UITheme.bold()
-	var fr := UITheme.regular()
-
-	# Speedometer 0–60 km/h (the avtodrom never needs more).
-	var sc := Vector2(size.x * 0.34, size.y * 0.6)
-	var sr := size.y * 0.46
-	var a0 := PI * 0.8
-	var a1 := PI * 2.2
-	var vmax := 60.0
-	var col := UITheme.GO
-	if speed_kmh > 40.5:
-		col = UITheme.STOP
-	elif speed_kmh > 20.5:
-		col = UITheme.CAUTION
-	_dial(sc, sr, a0, a1, speed_kmh, vmax, col, 12.0)
-	for v in [0, 10, 20, 30, 40, 50, 60]:
-		var a := lerpf(a0, a1, v / vmax)
-		var tc := UITheme.CAUTION if v == 20 else (UITheme.STOP if v == 40 else Color(1, 1, 1, 0.45))
-		_tick_mark(sc, sr - 10.0, a, 14.0 if v % 20 == 0 else 8.0, tc, 3.0 if v % 20 == 0 else 2.0)
-	var st := "%d" % int(round(speed_kmh))
-	var fs := 58
-	var sw := f.get_string_size(st, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	draw_string(f, sc + Vector2(-sw * 0.5, 14), st, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, UITheme.TEXT)
-	var unit := Loc.t("hud.kmh")
-	var uw := fr.get_string_size(unit, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-	draw_string(fr, sc + Vector2(-uw * 0.5, 38), unit, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITheme.TEXT_DIM)
-
-	# Tachometer.
-	var tc2 := Vector2(size.x * 0.76, size.y * 0.47)
-	var tr := size.y * 0.3
-	var rmax := 7000.0
-	var idle := car.get_idle_rpm() if car else 850.0
-	var red := car.get_redline_rpm() if car else 6000.0
-	var rcol := UITheme.INFO
-	if rpm > red:
-		rcol = UITheme.STOP
-	elif car and car.ignition and car.is_engine_running() and rpm < idle - 200.0:
-		rcol = UITheme.CAUTION
-	_dial(tc2, tr, a0, a1, rpm, rmax, rcol, 8.0)
-	draw_arc(tc2, tr + 7.0, lerpf(a0, a1, red / rmax), a1, 16, UITheme.STOP, 3.0, true)
-	var rt := "%.1f" % (rpm / 1000.0)
-	var rw := f.get_string_size(rt, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
-	draw_string(f, tc2 + Vector2(-rw * 0.5, 8), rt, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, UITheme.TEXT)
-	var rl := Loc.t("hud.rpm")
-	var rlw := fr.get_string_size(rl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
-	draw_string(fr, tc2 + Vector2(-rlw * 0.5, 26), rl, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UITheme.TEXT_FAINT)
-
-	# Gear.
-	var gbox := Rect2(tc2.x - 34, size.y - 58, 68, 46)
-	draw_style_box(UITheme.box(Color(1, 1, 1, 0.07), 12, 0, UITheme.LINE, 0), gbox)
-	var gw := f.get_string_size(gear_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 32).x
-	draw_string(f, gbox.get_center() + Vector2(-gw * 0.5, 12), gear_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 32,
-			UITheme.CAUTION if gear_text == "R" else UITheme.TEXT)
-
-	# Warning lamps row (top).
 	if car == null:
 		return
-	var y := 24.0
-	var x := 26.0
-	var s := 11.0
+	var rect := Rect2(Vector2.ZERO, size)
+	draw_style_box(UITheme.box(Color(0.05, 0.06, 0.08, 0.8), int(size.y * 0.5), 1, UITheme.LINE, 0), rect)
+	var f := UITheme.bold()
+	var fr := UITheme.regular()
+	var cy := size.y * 0.5
+	# Indicator arrows at both ends.
+	Icons.draw(self, "left", Vector2(26, cy), 10.0, UITheme.INDICATOR if car.left_lit() else Color(1, 1, 1, 0.14))
+	Icons.draw(self, "right", Vector2(size.x - 26, cy), 10.0,
+			UITheme.INDICATOR if car.right_lit() else Color(1, 1, 1, 0.14))
+	# Speed.
+	var kmh := absf(car.get_speed_kmh())
+	var col := UITheme.TEXT
+	if kmh > 40.5:
+		col = UITheme.STOP
+	elif kmh > 20.5:
+		col = UITheme.CAUTION
+	var st := "%d" % int(round(kmh))
+	var fs := 34
+	var sw := f.get_string_size(st, HORIZONTAL_ALIGNMENT_RIGHT, -1, fs).x
+	var sx := 112.0 # right edge of the number
+	draw_string(f, Vector2(sx - sw, cy + 12), st, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	draw_string(fr, Vector2(sx + 5, cy + 11), Loc.t("hud.kmh"), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UITheme.TEXT_DIM)
+	# Gear.
+	var gear := AvtoGear.label(car)
+	var gbox := Rect2(size.x - 98, cy - 19, 48, 38)
+	draw_style_box(UITheme.box(Color(1, 1, 1, 0.08), 10, 0, UITheme.LINE, 0), gbox)
+	var gw := f.get_string_size(gear, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+	draw_string(f, gbox.get_center() + Vector2(-gw * 0.5, 9), gear, HORIZONTAL_ALIGNMENT_LEFT, -1, 24,
+			UITheme.CAUTION if gear == "R" else UITheme.TEXT)
+	# Lit warning lamps only, centred above the strip.
 	var lamps := []
-	lamps.append(["left", UITheme.INDICATOR, car.left_lit()])
-	lamps.append(["right", UITheme.INDICATOR, car.right_lit()])
-	lamps.append(["belt", UITheme.STOP, car.ignition and not car.seatbelt])
-	lamps.append(["handbrake", UITheme.STOP, car.ignition and car.handbrake > 0.5])
-	lamps.append(["engine", UITheme.CAUTION, car.ignition and not car.is_engine_running()])
-	lamps.append(["abs", UITheme.CAUTION, car.is_abs_active()])
+	if car.ignition and not car.seatbelt:
+		lamps.append(["belt", UITheme.STOP])
+	if car.ignition and car.handbrake > 0.5:
+		lamps.append(["handbrake", UITheme.STOP])
+	if car.ignition and not car.is_engine_running():
+		lamps.append(["engine", UITheme.CAUTION])
+	if car.is_abs_active():
+		lamps.append(["abs", UITheme.CAUTION])
+	if lamps.is_empty():
+		return
+	var step := 30.0
+	var x := size.x * 0.5 - (lamps.size() - 1) * step * 0.5
+	var bg := Rect2(x - 20, -34, (lamps.size() - 1) * step + 40, 28)
+	draw_style_box(UITheme.box(Color(0.05, 0.06, 0.08, 0.8), 14, 0, UITheme.LINE, 0), bg)
 	for l in lamps:
-		var on: bool = l[2]
-		Icons.draw(self, l[0], Vector2(x, y), s, l[1] if on else Color(1, 1, 1, 0.12))
-		x += 30.0
+		Icons.draw(self, l[0], Vector2(x, -20), 9.0, l[1])
+		x += step

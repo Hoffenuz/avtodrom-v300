@@ -16,9 +16,11 @@ const DEFAULTS := {
 	"auto_clutch": true, # manual gearbox: the simulation works the clutch
 	"abs": true,
 	"steering_mode": "wheel", # wheel | tilt | buttons
-	"steering_sensitivity": 1.0,
+	# On-screen wheel: 1.5 = one full turn of the finger gives the car's full
+	# lock (1.5 steering-wheel turns on the Nexia).
+	"steering_sensitivity": 1.5,
 	"steering_autocenter": true,
-	"camera": "cockpit", # cockpit | chase | top
+	"camera": "chase", # cockpit | chase | top (the last one used)
 	"quality": -1, # -1 = auto, 0 low, 1 medium, 2 high
 	"render_scale": 1.0,
 	"fps_limit": 60,

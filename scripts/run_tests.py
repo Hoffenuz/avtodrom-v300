@@ -76,6 +76,8 @@ def main() -> int:
             "nobelt": {1},
             "nostop": {11, 25},
             "redlight": {24},
+            "nosignal": {2, 5, 7},
+            "speed": {8},
         }
         for fault, expected in expectations.items():
             code, out = godot_drive(["--car=nexia2", "--faults=" + fault])
