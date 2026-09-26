@@ -1,10 +1,13 @@
+#include <algorithm>
 #include "vehicle_sim.h"
 
 namespace avto {
 
 namespace {
 
-constexpr int kSubsteps = 8;
+// Internal integration rate of the drivetrain / tyre model, independent of
+// the engine's physics tick: 8 substeps at 120 Hz, 16 at 60 Hz (phones).
+constexpr double kSubstepRate = 960.0;
 constexpr int kSolverIterations = 14;
 constexpr double kBearingDrag = 0.35; // N·m per rad/s, wheel bearings + brake drag
 constexpr double kParasiticBrake = 2.0; // N·m, pads lightly touching the disc
@@ -555,8 +558,9 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 	fx_acc_.fill(0.0);
 	fy_acc_.fill(0.0);
 	brake_acc_.fill(0.0);
-	const double h = dt / kSubsteps;
-	for (int s = 0; s < kSubsteps; ++s) {
+	const int n_sub = std::clamp(static_cast<int>(std::lround(dt * kSubstepRate)), 1, 32);
+	const double h = dt / n_sub;
+	for (int s = 0; s < n_sub; ++s) {
 		substep(h, input, contacts);
 	}
 
@@ -564,8 +568,8 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 		const size_t k = static_cast<size_t>(i);
 		const size_t b = static_cast<size_t>(kWheel0 + i);
 		WheelOutput &o = out_[k];
-		o.fx = fx_acc_[k] / kSubsteps;
-		o.fy = fy_acc_[k] / kSubsteps;
+		o.fx = fx_acc_[k] / n_sub;
+		o.fy = fy_acc_[k] / n_sub;
 		if (contacts[k].contact) {
 			const double rr = params_.tire.rolling_resistance * contacts[k].rolling_resistance * fz_[k];
 			o.fx -= rr * std::tanh(contacts[k].vx / 0.25);
@@ -574,7 +578,7 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 		o.slip_long = tire_[k].slip_long;
 		o.slip_lat = tire_[k].slip_lat;
 		o.sliding = tire_[k].sliding;
-		o.brake_torque = brake_acc_[k] / kSubsteps;
+		o.brake_torque = brake_acc_[k] / n_sub;
 	}
 
 	const double speed = 0.5 * (omega_[kWheel0] + omega_[kWheel0 + 1]) * radius;

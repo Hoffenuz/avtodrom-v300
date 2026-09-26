@@ -88,10 +88,12 @@ static func get_theme() -> Theme:
 	t.set_stylebox("panel", "PanelContainer", box(SURFACE, 22, 1, LINE, 24))
 	t.set_stylebox("panel", "Panel", box(SURFACE, 22, 1, LINE, 24))
 
-	var grabber := box(TEXT, 14, 0, LINE, 0)
-	t.set_stylebox("slider", "HSlider", box(Color(1, 1, 1, 0.14), 6, 0, LINE, 0))
-	t.set_stylebox("grabber_area", "HSlider", box(GO, 6, 0, LINE, 0))
-	t.set_stylebox("grabber_area_highlight", "HSlider", box(GO.lightened(0.15), 6, 0, LINE, 0))
+	# Slider track: the stylebox's content margins give it its thickness.
+	for pair in [["slider", Color(1, 1, 1, 0.16)], ["grabber_area", GO], ["grabber_area_highlight", GO.lightened(0.15)]]:
+		var sb := box(pair[1], 6, 0, LINE, 0)
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
+		t.set_stylebox(pair[0], "HSlider", sb)
 	var g_img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
 	g_img.fill(Color(0, 0, 0, 0))
 	for y in 32:
@@ -102,7 +104,11 @@ static func get_theme() -> Theme:
 	var g_tex := ImageTexture.create_from_image(g_img)
 	t.set_icon("grabber", "HSlider", g_tex)
 	t.set_icon("grabber_highlight", "HSlider", g_tex)
-	var _unused := grabber
+	# On/off switch drawn big enough for a thumb.
+	t.set_icon("checked", "CheckButton", _switch_texture(true))
+	t.set_icon("unchecked", "CheckButton", _switch_texture(false))
+	t.set_icon("checked_disabled", "CheckButton", _switch_texture(true))
+	t.set_icon("unchecked_disabled", "CheckButton", _switch_texture(false))
 
 	t.set_stylebox("panel", "PopupMenu", box(SURFACE_SOLID, 14, 1, LINE, 10))
 	t.set_font_size("font_size", "PopupMenu", 24)
@@ -114,6 +120,29 @@ static func get_theme() -> Theme:
 	t.set_stylebox("grabber_pressed", "VScrollBar", box(Color(1, 1, 1, 0.45), 6, 0, LINE, 0))
 	_theme = t
 	return t
+
+
+static func _switch_texture(on: bool) -> ImageTexture:
+	var w := 72
+	var h := 40
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var track := GO if on else Color(1, 1, 1, 0.22)
+	var r := h * 0.5
+	var knob_x := w - r if on else r
+	for y in h:
+		for x in w:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var cx := clampf(p.x, r, w - r)
+			var d := p.distance_to(Vector2(cx, r))
+			var a := clampf(r - d, 0.0, 1.0)
+			var col := Color(track, track.a * a)
+			var dk := p.distance_to(Vector2(knob_x, r))
+			var ak := clampf(r - 4.0 - dk, 0.0, 1.0)
+			if ak > 0.0:
+				col = col.blend(Color(1, 1, 1, ak))
+			img.set_pixel(x, y, col)
+	return ImageTexture.create_from_image(img)
 
 
 static func label(text: String, size := 22, color := TEXT, bold_font := false) -> Label:

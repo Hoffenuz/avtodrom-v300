@@ -9,6 +9,7 @@ signal quit_to_menu
 
 var _panel: PanelContainer
 var _warn: Label
+var _restart: Button
 var _settings: SettingsPanel
 
 
@@ -39,9 +40,9 @@ func _ready() -> void:
 	var b_resume := UITheme.primary_button(Loc.t("pause.resume"))
 	b_resume.pressed.connect(func() -> void: resume.emit())
 	v.add_child(b_resume)
-	var b_restart := UITheme.button(Loc.t("pause.restart"))
-	b_restart.pressed.connect(func() -> void: restart.emit())
-	v.add_child(b_restart)
+	_restart = UITheme.button(Loc.t("pause.restart"))
+	_restart.pressed.connect(func() -> void: restart.emit())
+	v.add_child(_restart)
 	var b_settings := UITheme.button(Loc.t("menu.settings"))
 	b_settings.pressed.connect(_open_settings)
 	v.add_child(b_settings)
@@ -54,9 +55,12 @@ func _ready() -> void:
 	v.add_child(_warn)
 
 
+## During a real exam there is no "start again": leaving counts as a failed
+## attempt (№26), like walking away from the examiner.
 func open(exam_running: bool) -> void:
 	visible = true
 	_warn.visible = exam_running
+	_restart.visible = not exam_running
 	_panel.visible = true
 
 

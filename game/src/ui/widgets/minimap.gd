@@ -54,7 +54,7 @@ func _draw() -> void:
 	for isl in _islands:
 		draw_colored_polygon(isl, Color(0.2, 0.42, 0.22))
 	# Route ahead.
-	if director and Settings.get_value("show_route"):
+	if director and Session.route_visible():
 		var s := director.tracker.s
 		var pts := PackedVector2Array()
 		var i0 := data.route_index(s)

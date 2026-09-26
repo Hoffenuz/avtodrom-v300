@@ -30,8 +30,8 @@ const BRAKE_UP := 2.2
 const BRAKE_DOWN := 4.0
 const CLUTCH_DOWN := 4.0 # pressing the clutch is quick...
 const CLUTCH_UP := 1.4 # ...letting it out should not be
-const STEER_RATE := 420.0 # deg/s at the steering wheel
-const CENTER_RATE := 540.0
+const STEER_RATE := 600.0 # deg/s at the steering wheel
+const CENTER_RATE := 420.0
 const TILT_DEAD_ZONE := 2.0 # degrees of phone tilt
 const TILT_SMOOTHING := 12.0 # 1/s, ~2 Hz corner
 
@@ -39,6 +39,8 @@ var steering_lock := 540.0
 var automatic := false
 ## Demonstration: only the camera and pause keys reach the game.
 var view_only := false
+## Set by the drive scene every tick (m/s): steering feel depends on it.
+var car_speed := 0.0
 
 # Outputs (read by the drive scene every physics tick).
 var throttle := 0.0
@@ -82,12 +84,19 @@ func _physics_process(delta: float) -> void:
 	_kb_clutch = move_toward(_kb_clutch, 1.0 if clutch_key else 0.0, (CLUTCH_DOWN if clutch_key else CLUTCH_UP) * delta)
 
 	var sens := float(Settings.get_value("steering_sensitivity"))
-	var target := 0.0
+	var v := absf(car_speed)
 	if left != right:
-		target = steering_lock if right else -steering_lock
-		_kb_steer = move_toward(_kb_steer, target, STEER_RATE * sens * delta)
-	elif bool(Settings.get_value("steering_autocenter")):
-		_kb_steer = move_toward(_kb_steer, 0.0, CENTER_RATE * delta)
+		var target := steering_lock if right else -steering_lock
+		# Full lock in about 0.9 s at parking speed, a little calmer when
+		# driving on; turning back through the centre is twice as quick.
+		var rate := STEER_RATE * clampf(sens / 1.5, 0.6, 1.6) / (1.0 + v / 14.0)
+		if signf(target) != signf(_kb_steer) and absf(_kb_steer) > 1.0:
+			rate *= 2.0
+		_kb_steer = move_toward(_kb_steer, target, rate * delta)
+	else:
+		# Keys released: the wheel comes back to the centre (quicker when
+		# rolling, like the caster does), so the car drives straight again.
+		_kb_steer = move_toward(_kb_steer, 0.0, (CENTER_RATE + v * 60.0) * delta)
 
 	# Gamepad (first connected pad).
 	var pad_throttle := 0.0
