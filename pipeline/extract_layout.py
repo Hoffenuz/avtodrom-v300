@@ -7,7 +7,8 @@ Chiqish: game/data/layout_auto.json — metrlardagi poligonlar:
   * fence    — maydon chegarasi
 
 Koordinatalar: dunyo X = o'ngga (rasm x), dunyo Z = pastga (rasm y),
-markaz — to'siq to'rtburchagining markazi. Masshtab: 11 px = 1 m.
+markaz — to'siq to'rtburchagining markazi. Masshtab: 12 px = 1 m (yo'l bo'laklari ~3.2–3.7 m,
+mashq maydonchalari real o'lchamlarga yaqin).
 
 Ishlatish:  python pipeline/extract_layout.py [--debug]
 """
@@ -22,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "reference" / "scheme_landscape.jpg"
 OUT = ROOT / "game" / "data" / "layout_auto.json"
 
-PX_PER_M = 11.0
+PX_PER_M = 12.0
 # To'siq (oq chegara chizig'i) — rasmdagi piksel koordinatalari.
 FENCE_PX = (51.0, 89.0, 2095.0, 1137.0)  # x0, y0, x1, y1
 CX = (FENCE_PX[0] + FENCE_PX[2]) / 2.0
@@ -166,6 +167,9 @@ def main(debug=False):
     cv2.drawContours(filled, cnts, -1, 1, -1)
     # Bordyur halqasini qo'shamiz (orol = o't + bordyur).
     island_mask = cv2.dilate(filled, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * CURB_PX + 1, 2 * CURB_PX + 1)))
+    # Straight kerb faces and square corners are made in course_def.py
+    # (axis snapping); the trace itself is not smoothed, which would round
+    # the ends of every road and pad.
     islands = contours_of(island_mask, 400, 1.2)
 
     # --- Beton maydonchalar ---------------------------------------------------

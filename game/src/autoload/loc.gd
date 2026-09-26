@@ -23,6 +23,9 @@ func _ready() -> void:
 	else:
 		push_error("i18n.json could not be parsed")
 	language = str(Settings.get_value("language"))
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--lang="):
+			language = arg.substr(7) # screenshots in every language, not saved
 	if language not in LANGUAGES:
 		language = "uz_latn"
 	Settings.changed.connect(_on_setting_changed)

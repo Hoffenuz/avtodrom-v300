@@ -85,13 +85,16 @@ ISLAND_JOIN_PX = [[(1700, 655), (1755, 655), (1766, 658), (1774, 665), (1779, 67
 # straight under the P sign and its plates: (x0, y0, x1, y1) is island, below y1 is road.
 KERB_STEP_BOX_PX = [(1480, 495, 1550, 531), (1725, 495, 1800, 528), (1975, 495, 2030, 528)]
 # Straight kerb faces where the tracer followed sign icons past the kerb.
-ISLAND_CUT_PX = [(2025, 488, 2045, 530), (1110, 470, 1129, 520),
+ISLAND_CUT_PX = [(1781.8, 995, 1853.3, 1012.5), (2025, 488, 2045, 530), (1110, 470, 1129, 520), (1229, 533, 1262, 580),
                  [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1110, 800), (1110, 680)]]
-ISLAND_FILL_PX = [(990, 452, 1015, 528), (1129, 470, 1150, 520),
+ISLAND_FILL_PX = [[(1782, 1044.4), (1792, 1049), (1805, 1051), (1826, 1051.3), (1826, 1030), (1782, 1030)],
+                  [(683, 725), (683, 703), (690, 691), (702, 682), (718, 675), (740, 667), (760, 662), (760, 725)],
+                  (990, 452, 1015, 528), (1129, 470, 1150, 520), (1200, 530, 1229, 572),
                   [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1165, 800), (1165, 680)]]
 # Parallel-parking pockets (outer box). The concrete inside is authored as
 # pocket_px(); the island around it is squared into a kerb U with an open mouth.
 POCKETS_PX = [(1335, 497, 1480, 530), (1590, 497, 1725, 530), (1840, 497, 1975, 530)]
+POCKET_ROW_PX = (1229.4, 2024.6, 530)  # x from the intersection corner to the hatched end, kerb y
 
 
 def _zone(r):
@@ -225,6 +228,10 @@ def clean_island(P, pads_px):
     for x0, y0, x1, y1 in POCKETS_PX:
         if Q.intersects(box(x0, y0 - 5, x1, y0)):
             Q = Q.union(box(x0 - 2, y0 - 5, x1 + 2, y1)).difference(box(x0 + 4, y0 + 3, x1 - 4, y1 + 20))
+            # One straight kerb face along the whole pocket row.
+            xa, xb, y = POCKET_ROW_PX
+            row = box(xa, y - 6, xb, y).difference(unary_union([pocket_px(*k) for k in POCKETS_PX]))
+            Q = Q.union(row).difference(box(xa, y, xb, y + 15))
     Q = Q.difference(pads_px)
     Q = max(_parts(Q.buffer(0)), key=lambda g: g.area)
     Q = Polygon(_round_chamfers(list(Q.exterior.coords)[:-1], pads_px)).buffer(0)
@@ -268,9 +275,15 @@ for x0, y0, x1, y1 in POCKETS_PX:
 def tuck_under_islands(pad_w):
     """Pads and islands are traced separately, so thin asphalt slivers can show
     between a pad and its kerb. Each pad grows up to 0.5 m, but only over the gap
-    to a kerb and under the island, where the kerb and grass hide it."""
+    to a kerb and under the island, where the kerb and grass hide it, never
+    past its own end onto the road."""
     P = Polygon([px_of(q) for q in pad_w]).buffer(0)
-    grown = P.union(P.buffer(0.5 * S, join_style=2).intersection(islands_union_px.buffer(0.55 * S)))
+    # Only the gaps: a closing of pad + islands fills the narrow strips between
+    # them but adds nothing where the pad simply ends at the road.
+    r = 0.55 * S
+    closed = P.union(islands_union_px).buffer(r, join_style=2).buffer(-r, join_style=2)
+    grown = P.union(closed.difference(islands_union_px).intersection(P.buffer(0.5 * S, join_style=2)))
+    grown = grown.union(P.buffer(0.5 * S, join_style=2).intersection(islands_union_px))
     grown = max(_parts(grown.buffer(0)), key=lambda g: g.area).simplify(0.03 * S)
     return [w(x, y) for x, y in list(grown.exterior.coords)[:-1]]
 
@@ -502,15 +515,15 @@ def zone(*rects):
 NAMES = {
     "start": {"uz_latn": "Start", "uz_cyrl": "Старт", "ru": "Старт"},
     "crosswalk": {"uz_latn": "Piyodalar o'tish joyi", "uz_cyrl": "Пиёдалар ўтиш жойи", "ru": "Пешеходный переход"},
-    "hill": {"uz_latn": "Estakada (qiyalikda to'xtash)", "uz_cyrl": "Эстакада (қияликда тўхташ)", "ru": "Эстакада (остановка на подъёме)"},
-    "turn90": {"uz_latn": "90 gradus burilish", "uz_cyrl": "90 градус бурилиш", "ru": "Поворот на 90 градусов"},
-    "intersection": {"uz_latn": "Svetoforli chorraha", "uz_cyrl": "Светофорли чорраҳа", "ru": "Регулируемый перекрёсток"},
+    "hill": {"uz_latn": "Estakada", "uz_cyrl": "Эстакада", "ru": "Эстакада"},
+    "turn90": {"uz_latn": "90° burilish", "uz_cyrl": "90° бурилиш", "ru": "Поворот на 90°"},
+    "intersection": {"uz_latn": "Chorraha", "uz_cyrl": "Чорраҳа", "ru": "Перекрёсток"},
     "box": {"uz_latn": "Boksga kirish", "uz_cyrl": "Боксга кириш", "ru": "Въезд в бокс"},
     "zigzag": {"uz_latn": "Ilon izi", "uz_cyrl": "Илон изи", "ru": "Змейка"},
-    "emergency": {"uz_latn": "Avariya holatda to'xtash", "uz_cyrl": "Авария ҳолатда тўхташ", "ru": "Аварийная остановка"},
+    "emergency": {"uz_latn": "Avariya to'xtash", "uz_cyrl": "Авария тўхташ", "ru": "Аварийная остановка"},
     "parallel": {"uz_latn": "Parallel to'xtash", "uz_cyrl": "Параллел тўхташ", "ru": "Параллельная парковка"},
-    "railway": {"uz_latn": "Temir yo'l kesishmasi", "uz_cyrl": "Темир йўл кесишмаси", "ru": "Железнодорожный переезд"},
-    "accel": {"uz_latn": "Yo'lning tezlashish qismi", "uz_cyrl": "Йўлнинг тезлашиш қисми", "ru": "Участок разгона"},
+    "railway": {"uz_latn": "Temir yo'l", "uz_cyrl": "Темир йўл", "ru": "Ж/д переезд"},
+    "accel": {"uz_latn": "Tezlashish", "uz_cyrl": "Тезлашиш", "ru": "Разгон"},
     "finish": {"uz_latn": "Finish", "uz_cyrl": "Финиш", "ru": "Финиш"},
 }
 
@@ -734,27 +747,37 @@ def arc_px(cx, cy, rx, ry, a0, a1, n=10):
              cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
 
 
+# Outer edge line, 0.45 m inside the fence; the scheme rounds it at the two
+# west corners (top-left r ~ 6.5 m, bottom-left r ~ 4.8 m) and keeps the east
+# corners square.
+_FI = 0.45 * S
+_FX0, _FY0, _FX1, _FY1 = FENCE_PX[0] + _FI, FENCE_PX[1] + _FI, FENCE_PX[2] - _FI, FENCE_PX[3] - _FI
+FENCE_LINE_PX = ([(_FX1, _FY0), (_FX1, _FY1)] + arc_px(_FX0 + 58, _FY1 - 58, 58, 58, 90, 180) +
+                 arc_px(_FX0 + 78, _FY0 + 78, 78, 78, 180, 270))
+
+
 # Lane dividers.
 add_line([(1172, 134), (1417, 134)], 0.12)                               # start box: solid
-add_line([(360, 134), (1080, 134)], 0.12, dash=[3.0, 6.0])               # top road
-add_line([(105, 260), (105, 420)], 0.12, dash=[3.0, 6.0])                # left road
+# Top road: a solid divider that bends round the top-left corner into the
+# left road, where it turns dashed.
+add_line([(1080, 134), (210, 134)] + arc_px(210, 239, 105, 105, 270, 180), 0.12)
+add_line([(105, 250), (105, 427)], 0.12, dash=[3.0, 6.0])                # left road
 add_line([(1180, 372), (1860, 372)], 0.12, dash=[3.0, 6.0])              # finish road
 add_line([(1236, 574), (2030, 574)], 0.12, dash=[3.0, 6.0])              # parallel road
-add_line([(1140, 1095), (2035, 1095)], 0.12)                              # bottom road, east part
 # North leg: the divider runs up from the stop line and splits into two curves,
 # one to the nose of the island west of it, one to the corner of the parking lot.
 add_line(arc_px(1138, 400, 60, 70, -90, -180) + [(1078, 512)], 0.12)
 add_line([(955, 221)] + arc_px(1025, 295, 53, 74, -90, 0), 0.12)
 add_line([(1078, 295), (1078, 400)], 0.12)
 add_line([(1075, 724), (1075, 990)], 0.12)                                # south leg divider
-add_line([(2040, 650), (2040, 1080)], 0.12, dash=[3.0, 6.0])             # right road
 # One solid line runs from the road north of the zmeyka, down the left road
 # (between its two lanes) and along the bottom road, with rounded corners.
 add_line([(938, 621), (186, 621)] + arc_px(186, 701, 80, 80, 270, 180) +
          arc_px(160, 1040, 53, 55, 180, 90) + [(1020, 1095)], 0.12)
-# Approach lane boxes at the intersection.
-add_line([(1226, 616), (1330, 616)], 0.15)
-add_line([(1134, 722), (1134, 800)], 0.15)
+# One solid line from the east approach of the intersection along the parallel
+# road, down the right road and back along the bottom road, with rounded corners.
+add_line([(1226, 617), (1975, 617)] + arc_px(1975, 682, 65, 65, 270, 360) +
+         arc_px(1980, 1035, 60, 59, 0, 90) + [(1140, 1094)], 0.12)
 
 # Hatched gore areas.
 
@@ -882,7 +905,7 @@ sign("4.1.2", 892, 293, "E")                      # top loop: right
 sign("3.19", 936, 317, "E")
 sign("4.1.2", 934, 414, "E")                      # onto the north leg: right, yield
 sign("2.4", 934, 430, "E")
-sign("4.1.1", 1000, 440, "S")                     # north approach: straight
+sign("4.1.3", 1000, 440, "S")                     # north approach: left (pass 1)
 sign("5.15", 1202, 436, "E", plates=("7.6.4",))    # parking strip on the finish island
 sign("4.1.1", 1277, 690, "E")                     # box island, north side: straight
 sign("1.12.2", 910, 955, "N")                     # zmeyka B entrance (as on the scheme)
@@ -922,6 +945,16 @@ sign("3.24-20", 1325, 1150, "E")
 sign("4.1.3", 2004, 1150, "E")                    # bottom road: left up the right road
 sign("4.2.1", 1142, 474, "S")                     # on the nose of the finish-road island
 sign("4.1.2", 1760, 690, "E")
+
+# Mandatory-direction signs before the junction turns of the exam route that
+# the scheme's own signs above leave uncovered (heading = the traffic they are
+# for; placed on its right-hand side).
+sign("4.1.2", 1380, 668, "E")                     # -> box pad P1 (right)
+sign("4.1.2", 1995, 1010, "S")                    # right road -> inner bottom lane (right)
+sign("4.1.2", 900, 1040, "W")                     # inner bottom lane -> zmeyka B (right)
+sign("4.1.2", 880, 672, "E")                      # intersection, west approach: right (pass 2)
+sign("4.1.3", 1015, 1040, "S")                    # -> outer bottom lane (left)
+sign("4.1.4", 1180, 520, "W")                     # intersection, east approach: straight or right
 
 LIGHTS = [
     {"id": "N", "pos": w(998, 500), "yaw": HEAD["S"], "group": "NS"},
@@ -1001,7 +1034,7 @@ data = {
     "pads": pads_out,
     "estakada": EST,
     "markings": {"lines": lines, "polys": polys, "texts": texts, "arrows": arrows,
-                 "edge_offset": 0.35, "edge_width": 0.12, "fence_inset": 0.45,
+                 "edge_offset": 0.35, "edge_width": 0.12, "fence_line": wl(FENCE_LINE_PX),
                  # As on the scheme, the kerb edge line stops at each parking pocket:
                  # none inside the pocket and none across its mouth.
                  "edge_skip": [wl([(x0, y0), (x1 + 1, y0), (x1 + 1, y1 + 5), (x0, y1 + 5)])

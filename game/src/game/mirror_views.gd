@@ -62,11 +62,12 @@ func _layout() -> void:
 	if _frames.is_empty():
 		return
 	var vp := _frames[0].get_viewport().get_visible_rect().size
-	var w := minf(300.0, vp.x * 0.2)
+	# Small, high on the screen, clear of the card (left) and the buttons (right).
+	var w := minf(250.0, vp.x * 0.17)
 	var h := w * float(SIZE.y) / float(SIZE.x)
-	var y := vp.y * 0.26
-	_frames[0].position = Vector2(vp.x * 0.5 - w - 190, y)
-	_frames[1].position = Vector2(vp.x * 0.5 + 190, y)
+	var y := vp.y * 0.2
+	_frames[0].position = Vector2(vp.x * 0.5 - w - 110, y)
+	_frames[1].position = Vector2(vp.x * 0.5 + 110, y)
 	for i in 2:
 		_frames[i].size = Vector2(w, h)
 		_rects[i].position = Vector2(4, 4)

@@ -50,12 +50,23 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 	quality = p_quality
 	_est = data.raw["estakada"]
 	traffic = get_node_or_null("TrafficController") as TrafficController
+	if p_quality <= 1:
+		# Small casters are not worth a shadow pass on medium and low.
+		for n in ["FencePosts", "LampPostMesh", "GuardRailPosts", "Surroundings/ParkTreeCrowns",
+				"Surroundings/ParkTreeTrunks", "Surroundings/PoplarCrowns", "Surroundings/PoplarTrunks"]:
+			var gi := get_node_or_null(n) as GeometryInstance3D
+			if gi:
+				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if p_quality == 0:
-		var crowns := get_node_or_null("TreeCrowns") as MultiMeshInstance3D
-		if crowns:
-			crowns.multimesh.visible_instance_count = crowns.multimesh.instance_count / 2
-			var trunks := get_node_or_null("TreeTrunks") as MultiMeshInstance3D
-			trunks.multimesh.visible_instance_count = trunks.multimesh.instance_count / 2
+		# Low-end phones: half the trees and city blocks, no tree shadows.
+		for n in ["ParkTreeCrowns", "ParkTreeTrunks", "City", "ParkedCars0", "ParkedCars1"]:
+			var mmi := get_node_or_null("Surroundings/" + n) as MultiMeshInstance3D
+			if mmi:
+				mmi.multimesh.visible_instance_count = mmi.multimesh.instance_count / 2
+		for n in ["ParkTreeCrowns", "ParkTreeTrunks", "PoplarCrowns", "PoplarTrunks", "ParkedCars0", "ParkedCars1"]:
+			var gi := get_node_or_null("Surroundings/" + n) as GeometryInstance3D
+			if gi:
+				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func build(p_data: CourseData, p_quality: int) -> void:
@@ -74,7 +85,9 @@ func build(p_data: CourseData, p_quality: int) -> void:
 	_build_traffic_lights()
 	_build_lamp_posts()
 	_build_fence()
-	_build_trees()
+	var around := Surroundings.new()
+	add_child(around)
+	around.build(_fence_rect(), quality, mat)
 	_build_collision()
 
 
@@ -95,7 +108,11 @@ func _make_materials() -> void:
 	mat["asphalt"] = _ground_material("asphalt", Color(0.78, 0.8, 0.84), 0.8, 0.30)
 	mat["concrete"] = _ground_material("concrete", Color(1.05, 1.05, 1.05), 0.7, 0.20)
 	mat["kerb"] = _ground_material("concrete", Color(1.25, 1.25, 1.22), 0.5, 0.10)
-	mat["grass"] = _ground_material("grass", Color(0.92, 1.0, 0.9), 1.0, 0.35)
+	var grass := ShaderMaterial.new()
+	grass.shader = load("res://assets/shaders/grass.gdshader")
+	grass.set_shader_parameter("albedo_tex", load("res://assets/textures/grass/albedo.jpg"))
+	grass.set_shader_parameter("normal_tex", load("res://assets/textures/grass/normal.jpg"))
+	mat["grass"] = grass
 	var paint := ShaderMaterial.new()
 	paint.shader = load("res://assets/shaders/marking.gdshader")
 	paint.set_shader_parameter("wear_tex", load("res://assets/textures/asphalt/albedo.jpg"))
@@ -155,8 +172,9 @@ func _build_ground() -> void:
 			Vector2(r.position.x, r.end.y)]), 0.0, TILE_ASPHALT)
 	_mesh_instance(_finish(st, mat["asphalt"]), "Asphalt", false)
 
-	# Lawn around the fenced area (a frame, so it never overlaps the asphalt).
-	var big := r.grow(160.0)
+	# Lawn around the fenced area (a frame, so it never overlaps the asphalt),
+	# out to where the fog hides the edge.
+	var big := r.grow(650.0)
 	var g := _begin()
 	var y := -0.002
 	for q in [
@@ -376,9 +394,13 @@ func _build_markings() -> void:
 				parts = next
 			for part in parts:
 				MeshUtil.add_ribbon(st, _densify(part, 1.0, false), ew, PAINT_Y, false)
-	var r := _fence_rect().grow(-float(m.get("fence_inset", 0.45)))
-	MeshUtil.add_ribbon(st, _densify(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end,
-			Vector2(r.position.x, r.end.y)]), 1.0, true), 0.15, PAINT_Y, true)
+	# Outer edge line along the fence: authored (rounded where the scheme rounds
+	# it) or, without one, the fence rectangle inset.
+	var outer := CourseData.poly(m["fence_line"]) if m.has("fence_line") else PackedVector2Array()
+	if outer.is_empty():
+		var r := _fence_rect().grow(-float(m.get("fence_inset", 0.45)))
+		outer = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+	MeshUtil.add_ribbon(st, _densify(outer, 1.0, true), 0.15, PAINT_Y, true)
 	for a in m["arrows"]:
 		_add_arrow(st, CourseData.v2(a["pos"]), float(a["yaw"]), str(a["kind"]))
 	st.index()
@@ -400,8 +422,10 @@ func _build_markings() -> void:
 func _add_text(text: String, pos: Vector2, yaw_deg: float, size: float) -> void:
 	var l := Label3D.new()
 	l.text = text
-	l.font_size = 256
-	l.pixel_size = size / 256.0 * 0.9
+	# 96 px glyphs are sharp enough for paint seen from a car and keep the
+	# font atlas small (256 px glyphs cost tens of MB of video memory).
+	l.font_size = 96
+	l.pixel_size = size / 96.0 * 0.9
 	l.modulate = Color(0.93, 0.93, 0.9)
 	l.outline_size = 0
 	l.shaded = true
@@ -613,7 +637,8 @@ func _build_fence() -> void:
 	post.top_radius = 0.035
 	post.bottom_radius = 0.035
 	post.height = height + 0.1
-	post.radial_segments = 6
+	post.radial_segments = 5
+	post.rings = 0
 	var fence_body := StaticBody3D.new()
 	fence_body.name = "FenceBody"
 	fence_body.collision_layer = LAYER_OBSTACLE
@@ -658,62 +683,6 @@ func _build_fence() -> void:
 	pm.albedo_color = Color(0.25, 0.42, 0.3)
 	pm.roughness = 0.6
 	_mesh_instance(_finish(post_st, pm, false), "FencePosts")
-
-
-func _build_trees() -> void:
-	var count := 70 if quality >= 1 else 36
-	var r := _fence_rect()
-	var trunk := CylinderMesh.new()
-	trunk.top_radius = 0.12
-	trunk.bottom_radius = 0.18
-	trunk.height = 2.4
-	trunk.radial_segments = 6
-	var crown := SphereMesh.new()
-	crown.radius = 2.2
-	crown.height = 4.0
-	crown.radial_segments = 10
-	crown.rings = 6
-	var trunk_mm := MultiMesh.new()
-	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
-	trunk_mm.mesh = trunk
-	trunk_mm.instance_count = count
-	var crown_mm := MultiMesh.new()
-	crown_mm.transform_format = MultiMesh.TRANSFORM_3D
-	crown_mm.use_colors = true
-	crown_mm.mesh = crown
-	crown_mm.instance_count = count
-	for i in count:
-		var side := i % 4
-		var along := _rng.randf()
-		var dist := _rng.randf_range(9.0, 38.0)
-		var p: Vector2
-		match side:
-			0: p = Vector2(lerpf(r.position.x - 20, r.end.x + 20, along), r.position.y - dist)
-			1: p = Vector2(lerpf(r.position.x - 20, r.end.x + 20, along), r.end.y + dist)
-			2: p = Vector2(r.position.x - dist, lerpf(r.position.y, r.end.y, along))
-			_: p = Vector2(r.end.x + dist, lerpf(r.position.y, r.end.y, along))
-		var s := _rng.randf_range(0.8, 1.35)
-		trunk_mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(s, s, s)), Vector3(p.x, 1.2 * s, p.y)))
-		var cb := Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.9, 1.25), s))
-		crown_mm.set_instance_transform(i, Transform3D(cb, Vector3(p.x, 3.6 * s, p.y)))
-		crown_mm.set_instance_color(i, Color(0.2, 0.42, 0.16).lerp(Color(0.33, 0.5, 0.18), _rng.randf()))
-	var tm := StandardMaterial3D.new()
-	tm.albedo_color = Color(0.33, 0.24, 0.16)
-	tm.roughness = 0.9
-	trunk.material = tm
-	var cm := StandardMaterial3D.new()
-	cm.albedo_color = Color.WHITE
-	cm.vertex_color_use_as_albedo = true
-	cm.roughness = 0.85
-	crown.material = cm
-	var t := MultiMeshInstance3D.new()
-	t.name = "TreeTrunks"
-	t.multimesh = trunk_mm
-	add_child(t)
-	var c := MultiMeshInstance3D.new()
-	c.name = "TreeCrowns"
-	c.multimesh = crown_mm
-	add_child(c)
 
 
 # --------------------------------------------------------------------------- collision
