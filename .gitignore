@@ -26,6 +26,7 @@ native/godot-cpp/gen/
 game/.godot/
 game/bin/*.dll
 game/bin/*.so
+game/bin/*.dylib
 game/bin/*.exp
 game/bin/*.lib
 game/bin/*.pdb

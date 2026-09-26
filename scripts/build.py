@@ -1,25 +1,32 @@
 """
 Builds everything that ships:
 
-  1. native module (C++ GDExtension): Windows x86_64, Android arm64 + x86_64
+  1. native module (C++ GDExtension): host desktop (Windows x86_64, or Linux /
+     macOS when building there), Android arm64 + x86_64
   2. course bake (res://data/course_baked.scn)
-  3. exports: export/windows/Avtodrom.exe, export/android/avtodrom.apk
-     (release-signed with keys/avtodrom-release.keystore) and avtodrom-debug.apk
+  3. exports: export/windows/Avtodrom.exe (Windows hosts only, since the Windows
+     DLL needs MSVC), export/android/avtodrom.apk (release-signed with
+     keys/avtodrom-release.keystore) and avtodrom-debug.apk
 
     python scripts/build.py               # everything
     python scripts/build.py --no-native   # skip the C++ builds
     python scripts/build.py --android     # only the Android export
 
-Android SDK/NDK: ANDROID_HOME must not contain spaces (SCons response files);
-this script uses C:/android_sdk, a junction to the SDK (created if missing).
+Android SDK/NDK: ANDROID_HOME must not contain spaces (SCons response files).
+On Windows this script uses C:/android_sdk, a junction to the SDK (created if
+missing). On Linux/macOS it uses ANDROID_HOME, or ~/Android/Sdk (Linux) /
+~/Library/Android/sdk (macOS) when that is unset.
+
+Godot: see scripts/host.py (GODOT env var overrides the bundled binary).
 """
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-GODOT = ROOT / "tools" / "godot" / "Godot_v4.7.2-stable_win64_console.exe"
+from host import MACOS, ROOT, WINDOWS, godot
+
+GODOT = godot()
 GAME = ROOT / "game"
 NATIVE = ROOT / "native"
 NDK = "28.2.13676358"
@@ -40,12 +47,26 @@ def ensure_sdk_link():
     subprocess.run(["cmd", "/c", "mklink", "/J", str(SDK_LINK), str(sdk)], check=True)
 
 
+def android_home():
+    if WINDOWS:
+        ensure_sdk_link()
+        return str(SDK_LINK).replace("\\", "/")
+    if os.environ.get("ANDROID_HOME"):
+        sdk = os.environ["ANDROID_HOME"]
+    elif MACOS:
+        sdk = str(Path.home() / "Library" / "Android" / "sdk")
+    else:
+        sdk = str(Path.home() / "Android" / "Sdk")
+    if " " in sdk:
+        sys.exit(f"ANDROID_HOME must not contain spaces (symlink it somewhere without them): {sdk}")
+    return sdk
+
+
 def native():
     scons = [sys.executable, "-m", "SCons", "-j12"]
     sh(scons + ["target=template_debug"], NATIVE)
     sh(scons + ["target=template_release"], NATIVE)
-    ensure_sdk_link()
-    env = dict(os.environ, ANDROID_HOME=str(SDK_LINK).replace("\\", "/"))
+    env = dict(os.environ, ANDROID_HOME=android_home())
     for arch in ("arm64", "x86_64"):
         for target in ("template_debug", "template_release"):
             sh(scons + ["platform=android", f"arch={arch}", f"target={target}", f"ndk_version={NDK}"], NATIVE, env)
@@ -94,7 +115,10 @@ def main():
     bake()
     export_android()
     if not only_android:
-        export_windows()
+        if WINDOWS:
+            export_windows()
+        else:
+            print("skipping Windows export: the Windows DLL is only built on Windows hosts")
     print("done ->", ROOT / "export")
 
 

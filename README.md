@@ -91,6 +91,11 @@ Talablar (Windows): Python 3.12+ (`pip install scons opencv-python shapely numpy
 Visual Studio 2022 Build Tools (MSVC), Android uchun JDK 17 va Android SDK +
 NDK 28.2.13676358. Godot 4.7.2 va eksport shablonlari `tools/` ichida.
 
+Linux/macOS: MSVC o'rniga GCC/Clang. Godot `tools/godot/` dan
+(`Godot_v4.7.2-stable_linux.x86_64` yoki `Godot.app`), `GODOT` muhit
+o'zgaruvchisidan yoki PATH dagi `godot` dan olinadi; Android SDK `ANDROID_HOME`
+dan. Windows eksporti faqat Windows'da yig'iladi.
+
 Yangi klondan keyin avval `git submodule update --init` (godot-cpp), keyin
 `build.py` — u `game/bin/` dagi C++ kutubxonalarni ham yaratadi.
 
