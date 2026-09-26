@@ -14,13 +14,15 @@ enum Indicator { OFF, LEFT, RIGHT }
 ## Per-model data from the Blender builds (pipeline/blender/build_*.py):
 ## body origin midway between the axles on the ground; front/rear = distance
 ## to the bumpers, half_width = body side (without mirrors), mirror = right
-## door-mirror eye point (the left one is mirrored).
+## door-mirror eye point (the left one is mirrored). speed_max/rpm_max: the
+## dashboard dials' full scale (km/h, rpm).
 const MODELS := {
 	"nexia2": {"path": "res://assets/cars/nexia2/nexia2.glb", "front": 2.18, "rear": 2.31, "half_width": 0.83,
-			"mirror": Vector3(0.88, 0.93, -0.37)},
+			"mirror": Vector3(0.88, 0.93, -0.37), "speed_max": 220.0, "rpm_max": 8000.0},
 	"cobalt_at": {"path": "res://assets/cars/cobalt/cobalt.glb", "front": 2.22, "rear": 2.26, "half_width": 0.86,
-			"mirror": Vector3(0.936, 1.043, -0.53)},
+			"mirror": Vector3(0.936, 1.043, -0.53), "speed_max": 220.0, "rpm_max": 7000.0},
 }
+const GAUGE_SHADER := preload("res://assets/shaders/gauge.gdshader")
 const BLINK_HZ := 1.5 # 90 flashes per minute (UNECE R48)
 const LAYER_CAR := 2
 const MASK_WORLD := 1 | 4
@@ -41,6 +43,10 @@ var mirror_eye := Vector3(0.88, 0.93, -0.37)
 var _wheel_pivots: Array[Node3D] = []
 var _wheel_spins: Array[Node3D] = []
 var _steering: Node3D
+var _gauge_speed: ShaderMaterial
+var _gauge_rpm: ShaderMaterial
+var _speed_max := 220.0
+var _rpm_max := 8000.0
 var _lamps := {}
 var _lamp_on := {}
 var _lamp_off := {}
@@ -85,6 +91,8 @@ func _clear_model() -> void:
 	_wheel_pivots.clear()
 	_wheel_spins.clear()
 	_steering = null
+	_gauge_speed = null
+	_gauge_rpm = null
 	_lamps.clear()
 	_lamp_on.clear()
 	_lamp_off.clear()
@@ -116,6 +124,7 @@ func _load_model() -> void:
 		if mi:
 			_lamps[n] = mi
 	_apply_materials(model)
+	_make_gauges(spec)
 	_make_collision()
 	_make_lamp_materials()
 	_update_lamps(0.0)
@@ -146,6 +155,15 @@ func _pbr(color: Color, metallic: float, roughness: float) -> StandardMaterial3D
 	return m
 
 
+## Cabin surfaces skip the sun's shadow maps: seen from the driver's seat the
+## roof shadow falls on them as big jagged steps. Their dark albedo stands in
+## for the shade under the roof instead.
+func _cabin(color: Color, roughness: float, metallic := 0.0) -> StandardMaterial3D:
+	var m := _pbr(color, metallic, roughness)
+	m.disable_receive_shadows = true
+	return m
+
+
 func _apply_materials(root: Node) -> void:
 	var paint := _pbr(Color(0.93, 0.94, 0.95), 0.05, 0.28)
 	paint.clearcoat_enabled = true
@@ -168,8 +186,12 @@ func _apply_materials(root: Node) -> void:
 		"lamp_glass": lamp_glass,
 		"lamp_orange": _pbr(Color(0.75, 0.33, 0.02), 0.0, 0.25),
 		"lamp_red": _pbr(Color(0.42, 0.03, 0.03), 0.0, 0.2),
-		"interior": _pbr(Color(0.3, 0.3, 0.31), 0.0, 0.85),
-		"interior_light": _pbr(Color(0.46, 0.46, 0.47), 0.0, 0.8),
+		"interior": _cabin(Color(0.13, 0.13, 0.135), 0.85),
+		"interior_light": _cabin(Color(0.22, 0.22, 0.225), 0.8),
+		"interior_black": _cabin(Color(0.03, 0.03, 0.032), 0.6),
+		"dash": _cabin(Color(0.06, 0.06, 0.065), 0.8),
+		"dash_panel": _cabin(Color(0.012, 0.012, 0.014), 0.3),
+		"dash_trim": _cabin(Color(0.1, 0.1, 0.11), 0.5),
 		"mirror": _pbr(Color(0.9, 0.92, 0.94), 1.0, 0.02),
 		"lamp_white": _pbr(Color(0.82, 0.84, 0.86), 0.3, 0.12),
 		"plate": _pbr(Color(0.92, 0.93, 0.94), 0.0, 0.45),
@@ -186,6 +208,27 @@ func _apply_materials(root: Node) -> void:
 		# The interior only matters from the driver's seat; the body shell never
 		# needs to receive its own shadow twice.
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
+func _make_gauges(spec: Dictionary) -> void:
+	_speed_max = spec.get("speed_max", 220.0)
+	_rpm_max = spec.get("rpm_max", 8000.0)
+	_gauge_speed = _gauge("GaugeSpeed", int(_speed_max / 20.0) + 1, 2.0)
+	var red := get_redline_rpm()
+	_gauge_rpm = _gauge("GaugeRpm", int(_rpm_max / 1000.0) + 1, red / _rpm_max if red > 0.0 else 1.0)
+
+
+func _gauge(node_name: String, majors: int, red_from: float) -> ShaderMaterial:
+	var mi := model.find_child(node_name, true, false) as MeshInstance3D
+	if mi == null:
+		return null
+	var m := ShaderMaterial.new()
+	m.shader = GAUGE_SHADER
+	m.set_shader_parameter("majors", majors)
+	m.set_shader_parameter("red_from", red_from)
+	mi.set_surface_override_material(0, m)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return m
 
 
 func _emissive(color: Color, energy: float) -> StandardMaterial3D:
@@ -328,6 +371,11 @@ func _update_wheels() -> void:
 			_wheel_spins[i].rotation.x = -fmod(get_wheel_rotation(i), TAU)
 	if _steering:
 		_steering.rotation.y = -deg_to_rad(steering_wheel)
+	if _gauge_speed:
+		var kmh := absf(get_forward_speed()) * 3.6
+		_gauge_speed.set_shader_parameter("value", clampf(kmh / _speed_max, 0.0, 1.0))
+	if _gauge_rpm:
+		_gauge_rpm.set_shader_parameter("value", clampf(get_rpm() / _rpm_max, 0.0, 1.0))
 
 
 func _update_lamps(delta: float) -> void:
