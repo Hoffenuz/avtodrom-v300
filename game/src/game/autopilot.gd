@@ -12,6 +12,8 @@ const CRUISE := 3.6 # m/s ≈ 13 km/h
 const CORRIDOR := 1.9
 const MANOEUVRE := 0.9
 const DECEL := 1.1 # m/s² planning deceleration
+const LIGHT_DECEL := 2.5 # m/s² hardest braking accepted for a light turning yellow
+const LIGHT_MARGIN := 1.0 # s spare before the yellow when deciding to go on
 
 enum Mode { ROUTE, PATH }
 
@@ -309,7 +311,8 @@ func _drive_route(dt: float, ex: Exercise) -> void:
 		if ds < -3.0:
 			st["done"] = true
 			continue
-		if st["kind"] == "light" and director.traffic_go(str(st["approach"])) and _stop_t <= 0.0:
+		if st["kind"] == "light" and director.traffic_go(str(st["approach"])) and _stop_t <= 0.0 \
+				and _clears_before_yellow(ds, str(st["approach"])):
 			if ds < 1.0:
 				st["done"] = true
 			continue
@@ -330,7 +333,8 @@ func _drive_route(dt: float, ex: Exercise) -> void:
 				var waited: bool = _stop_t >= float(st["wait"])
 				var go_ok := waited
 				if st["kind"] == "light":
-					go_ok = director.traffic_go(str(st["approach"])) and _stop_t > 0.8
+					go_ok = director.traffic_go(str(st["approach"])) and _stop_t > 0.8 \
+							and director.traffic_go_left(str(st["approach"])) > 2.0
 				if go_ok:
 					if st["kind"] == "hill":
 						_hill_start(dt, st)
@@ -348,6 +352,17 @@ func _drive_route(dt: float, ex: Exercise) -> void:
 	var steer := _pursue(target, false, true, back)
 	var tb := _speed_control(v_target, dt)
 	_set_controls(tb.x, tb.y, steer)
+
+
+## On green: true if the front will be over the STOP line (0.45 m past the
+## planned stop point) before the light turns yellow, or if it is already too
+## late to stop comfortably. Otherwise the car treats the green as a red.
+func _clears_before_yellow(ds: float, approach: String) -> bool:
+	var v := maxf(car.get_forward_speed(), 0.0)
+	var to_line := ds + 0.45
+	if to_line <= v * v / (2.0 * LIGHT_DECEL):
+		return true
+	return to_line / maxf(v, 0.5) + LIGHT_MARGIN < director.traffic_go_left(approach)
 
 
 func _hill_start(dt: float, st: Dictionary) -> void:
