@@ -76,14 +76,31 @@ BUMP_FIX_PX = [(710, 1001), (685, 715), (1266, 994), (1220, 566), (945, 339), (9
                (1869, 411), (1855, 411)]
 # Where an outline must be convex (a rounded island nose, the two thin gore islands
 # necked by their signs, a straight kerb under a pier or a sign plate) the part inside the box is replaced by its convex hull.
-HULL_BOX_PX = [(240, 545, 300, 590), (490, 540, 560, 590), (915, 290, 962, 345), (735, 188, 765, 215), (545, 188, 575, 215), (1848, 405, 1876, 432)]
+HULL_BOX_PX = [(1738, 960, 1790, 1008), (1778, 1004, 1835, 1026), (240, 545, 300, 590), (490, 540, 560, 590), (915, 290, 962, 345), (735, 188, 765, 215), (545, 188, 575, 215), (1848, 405, 1876, 432)]
 # The box island's grass runs on under the two direction signs at its NE corner,
 # but the tracer splits it there: the islands this patch touches become one, with
 # the straight top kerb and the rounded corner of the scheme.
 ISLAND_JOIN_PX = [[(1700, 655), (1755, 655), (1766, 658), (1774, 665), (1779, 675), (1781, 686), (1700, 686)]]
 # Behind each parallel-parking pocket the kerb steps down to the road and runs
 # straight under the P sign and its plates: (x0, y0, x1, y1) is island, below y1 is road.
-KERB_STEP_BOX_PX = [(1480, 495, 1550, 531), (1725, 495, 1800, 528), (1975, 495, 2012, 516)]
+KERB_STEP_BOX_PX = [(1480, 495, 1550, 531), (1725, 495, 1800, 528), (1975, 495, 2030, 528)]
+# Straight kerb faces where the tracer followed sign icons past the kerb.
+ISLAND_CUT_PX = [(2025, 488, 2045, 530), (1110, 470, 1129, 520),
+                 [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1110, 800), (1110, 680)]]
+ISLAND_FILL_PX = [(990, 452, 1015, 528), (1129, 470, 1150, 520),
+                  [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1165, 800), (1165, 680)]]
+# Parallel-parking pockets (outer box). The concrete inside is authored as
+# pocket_px(); the island around it is squared into a kerb U with an open mouth.
+POCKETS_PX = [(1335, 497, 1480, 530), (1590, 497, 1725, 530), (1840, 497, 1975, 530)]
+
+
+def _zone(r):
+    return box(*r) if len(r) == 4 else Polygon(r)
+
+
+def pocket_px(x0, y0, x1, y1):
+    return box(x0 + 4, y0 + 3, x1 - 4, y1)
+
 FIX_R_PX = 2.0 * S
 
 
@@ -118,6 +135,67 @@ def _round_chamfers(pts, keep_out, iters=3):
     return pts
 
 
+SNAP_DEG = 6.0
+SNAP_MIN_LEN_PX = 2.5 * S
+
+
+def regularize(poly_px, square_corners, near=None):
+    """The scheme is a slightly skewed render, so traced kerbs and pads that are
+    straight on the ground run up to ~2 deg off the site axes. Every straight
+    edge (>= 2.5 m) within 6 deg of an axis is snapped onto it, and a short
+    chamfer (< 1.2 m) between two snapped perpendicular edges becomes a square
+    corner: always for pads, and for islands only next to a pad (`near`)."""
+    g = poly_px.simplify(0.1 * S)
+    v = [np.array(c, float) for c in list(g.exterior.coords)[:-1]]
+    n = len(v)
+    # Runs of consecutive edges all within SNAP_DEG of the same axis (a straight
+    # kerb the tracer split into pieces) snap together onto one line.
+    cand = []
+    for i in range(n):
+        d = v[(i + 1) % n] - v[i]
+        ang = math.degrees(math.atan2(d[1], d[0])) % 180
+        cand.append("h" if min(ang, 180 - ang) <= SNAP_DEG else ("v" if abs(ang - 90) <= SNAP_DEG else None))
+    axis = [None] * n  # per edge: ("h", y) or ("v", x)
+    start = next((i for i in range(n) if cand[i] != cand[i - 1]), 0)
+    i = 0
+    while i < n:
+        k0 = (start + i) % n
+        run = [k0]
+        while i + len(run) < n and cand[(start + i + len(run)) % n] == cand[k0]:
+            run.append((start + i + len(run)) % n)
+        i += len(run)
+        if cand[k0] is None:
+            continue
+        c = 1 if cand[k0] == "h" else 0
+        lens = [float(np.hypot(*(v[(e + 1) % n] - v[e]))) for e in run]
+        if sum(lens) < SNAP_MIN_LEN_PX:
+            continue
+        val = sum(L * (v[e][c] + v[(e + 1) % n][c]) / 2 for L, e in zip(lens, run)) / sum(lens)
+        for e in run:
+            axis[e] = (cand[k0], val)
+    out = []
+    for j in range(n):
+        xs = [ax[1] for ax in (axis[j - 1], axis[j]) if ax and ax[0] == "v"]
+        ys = [ax[1] for ax in (axis[j - 1], axis[j]) if ax and ax[0] == "h"]
+        out.append(np.array([np.mean(xs) if xs else v[j][0], np.mean(ys) if ys else v[j][1]]))
+    # square the short chamfers between perpendicular snapped edges
+    for j in range(n):
+        if axis[j] is not None:
+            continue
+        pa, pb = axis[j - 1], axis[(j + 1) % n]
+        if not pa or not pb or pa[0] == pb[0]:
+            continue
+        if np.hypot(*(out[(j + 1) % n] - out[j])) > 1.2 * S:
+            continue
+        corner = np.array([pa[1] if pa[0] == "v" else pb[1], pa[1] if pa[0] == "h" else pb[1]])
+        if not square_corners and (near is None or near.distance(Point(corner)) > 0.8 * S):
+            continue
+        out[j] = corner
+        out[(j + 1) % n] = corner
+    q = Polygon([tuple(c) for c in out]).buffer(0)
+    return max(_parts(q), key=lambda g2: g2.area)
+
+
 def join_islands(polys_px):
     for patch in ISLAND_JOIN_PX:
         bridge = Polygon(patch)
@@ -140,6 +218,13 @@ def clean_island(P, pads_px):
     for x0, y0, x1, y1 in KERB_STEP_BOX_PX:
         if Q.intersects(box(x0, y0, x1, y0 + 2)):
             Q = Q.union(box(x0, y0, x1, y1)).difference(box(x0, y1, x1, y1 + 20))
+    for r in ISLAND_FILL_PX:
+        if Q.intersects(_zone(r).buffer(2)):
+            Q = Q.union(_zone(r))
+    Q = Q.difference(unary_union([_zone(r) for r in ISLAND_CUT_PX]))
+    for x0, y0, x1, y1 in POCKETS_PX:
+        if Q.intersects(box(x0, y0 - 5, x1, y0)):
+            Q = Q.union(box(x0 - 2, y0 - 5, x1 + 2, y1)).difference(box(x0 + 4, y0 + 3, x1 - 4, y1 + 20))
     Q = Q.difference(pads_px)
     Q = max(_parts(Q.buffer(0)), key=lambda g: g.area)
     Q = Polygon(_round_chamfers(list(Q.exterior.coords)[:-1], pads_px)).buffer(0)
@@ -147,27 +232,35 @@ def clean_island(P, pads_px):
     r = 0.15 * S
     Q = max(_parts(Q.buffer(r, join_style=1).buffer(-2 * r, join_style=1).buffer(r, join_style=1)),
             key=lambda g: g.area)
+    Q = regularize(Q, False, pads_px)
     Q = max(_parts(Q.difference(pads_px)), key=lambda g: g.area).simplify(0.05 * S)
     return [w(x, y) for x, y in list(Q.exterior.coords)[:-1]]
 
 
-_layout_pads_px = unary_union([Polygon([px_of(q) for q in p]).buffer(0) for p in layout["pads"]])
+_pads_px_reg = [regularize(Polygon([px_of(q) for q in p]).buffer(0), True) for p in layout["pads"]]
+
+
+def _is_pocket(poly):
+    return 480 < poly.bounds[1] and poly.bounds[3] < 540  # traced parking pockets, authored instead
+
+
+_layout_pads_px = unary_union([p for p in _pads_px_reg if not _is_pocket(p)] +
+                              [pocket_px(*k) for k in POCKETS_PX])
 islands_w = [clean_island(p, _layout_pads_px) for p in
              join_islands([Polygon([px_of(q) for q in isl]).buffer(0) for isl in layout["islands"]])]
 islands_px = [Polygon([px_of(p) for p in isl]).buffer(0) for isl in islands_w]
 islands_union_px = unary_union(islands_px)
 
 pads_out = []
-for p in layout["pads"]:
-    poly = Polygon([px_of(q) for q in p])
+for poly in _pads_px_reg:
+    p = [w(x, y) for x, y in list(poly.exterior.coords)[:-1]]
     minx, miny, maxx, maxy = poly.bounds
     if miny < 160 and 1070 < minx < 1160:  # the top zebra, not a pad
         continue
-    if miny > 480 and maxy < 540:  # parallel-parking pockets are authored below
+    if _is_pocket(poly):
         continue
     pads_out.append(p)
 
-POCKETS_PX = [(1335, 497, 1480, 530), (1590, 497, 1725, 530), (1840, 497, 1975, 530)]
 for x0, y0, x1, y1 in POCKETS_PX:
     pads_out.append(wl([(x0 + 4, y0 + 3), (x1 - 4, y0 + 3), (x1 - 4, y1), (x0 + 4, y1)]))
 
@@ -321,12 +414,13 @@ add(fillet_path([
 add(fillet_path([
     (1700, 553, 0), (1560, 596, 0), (1226, 596, 0),
 ]))
-# 7. Intersection pass 3: from the east, STRAIGHT (west) -> the gore -> railway.
+# 7. Intersection pass 3: from the east, STRAIGHT (west) -> left between the gore and
+#    the lane line -> railway.
 add(fillet_path([
-    (1226, 596, 0), (1100, 598, 0), (180, 598, 90), (80, 700, 0),
+    (1226, 596, 0), (1100, 598, 0), (80, 600, 120), (80, 760, 0),
 ]))
 add(fillet_path([
-    (80, 700, 0), (80, 1113, 45), (2066, 1113, 45), (2066, 596, 60), (1226, 596, 0),
+    (80, 760, 0), (80, 1113, 45), (2066, 1113, 45), (2066, 596, 60), (1226, 596, 0),
 ]))
 # 8. Intersection pass 4: from the east, turn RIGHT (north) -> round the island onto the
 #    finish road -> finish line -> park.
@@ -617,8 +711,8 @@ for e in EX:
         add_stop_line(e["start_line"], 0.5)
     if e["id"] == "hill":
         add_stop_line(e["fixation_line"], 0.30)
-    if "fixation_line" in e and e["type"] in ("box", "parallel"):
-        add_stop_line(e["fixation_line"], 0.20)
+    # The box and parallel-parking fixation lines are exam sensors only: the
+    # plan shows bare concrete there, so they are not painted.
 for l in INTERSECTION["stop_lines"].values():
     add_stop_line(l)
 
@@ -628,24 +722,37 @@ texts.append({"text": "ФИНИШ", "pos": w(1852, 367), "yaw": HEAD["E"], "size
 
 # Start box and the stop-line lane box on the top road.
 add_line([(1170, 95), (1419, 95)], 0.15)
-add_line([(1170, 178), (1419, 178)], 0.15)
+# The parking lot north of the finish road: a solid outline that shares its top
+# edge with the start box and ends in a rounded head at the east end.
+LOT_HEAD_PX = [(1882, 178), (1922, 187), (1950, 205), (1966, 231), (1970, 254), (1968, 279),
+               (1955, 300), (1930, 316), (1885, 328)]
+add_line([(1157, 178)] + LOT_HEAD_PX + [(1138, 328)], 0.15)
+
+
+def arc_px(cx, cy, rx, ry, a0, a1, n=10):
+    return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)),
+             cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+
+
 # Lane dividers.
 add_line([(1172, 134), (1417, 134)], 0.12)                               # start box: solid
 add_line([(360, 134), (1080, 134)], 0.12, dash=[3.0, 6.0])               # top road
 add_line([(105, 260), (105, 420)], 0.12, dash=[3.0, 6.0])                # left road
 add_line([(1180, 372), (1860, 372)], 0.12, dash=[3.0, 6.0])              # finish road
 add_line([(1236, 574), (2030, 574)], 0.12, dash=[3.0, 6.0])              # parallel road
-add_line([(160, 620), (935, 620)], 0.12)                                  # road north of the zmeyka
 add_line([(1140, 1095), (2035, 1095)], 0.12)                              # bottom road, east part
-add_line([(160, 1095), (1020, 1095)], 0.12)                               # bottom road, west part
-add_line([(1078, 400), (1078, 512)], 0.12)                                # north leg divider
+# North leg: the divider runs up from the stop line and splits into two curves,
+# one to the nose of the island west of it, one to the corner of the parking lot.
+add_line(arc_px(1138, 400, 60, 70, -90, -180) + [(1078, 512)], 0.12)
+add_line([(955, 221)] + arc_px(1025, 295, 53, 74, -90, 0), 0.12)
+add_line([(1078, 295), (1078, 400)], 0.12)
 add_line([(1075, 724), (1075, 990)], 0.12)                                # south leg divider
 add_line([(2040, 650), (2040, 1080)], 0.12, dash=[3.0, 6.0])             # right road
-add_line([(80, 700), (80, 930)], 0.12)                                    # left road lower (lane)
-add_line([(106, 440), (106, 930)], 0.12, dash=[3.0, 6.0])
+# One solid line runs from the road north of the zmeyka, down the left road
+# (between its two lanes) and along the bottom road, with rounded corners.
+add_line([(938, 621), (186, 621)] + arc_px(186, 701, 80, 80, 270, 180) +
+         arc_px(160, 1040, 53, 55, 180, 90) + [(1020, 1095)], 0.12)
 # Approach lane boxes at the intersection.
-add_line([(1020, 400), (1020, 514)], 0.15)
-add_line([(900, 616), (938, 616)], 0.15)
 add_line([(1226, 616), (1330, 616)], 0.15)
 add_line([(1134, 722), (1134, 800)], 0.15)
 
@@ -894,7 +1001,11 @@ data = {
     "pads": pads_out,
     "estakada": EST,
     "markings": {"lines": lines, "polys": polys, "texts": texts, "arrows": arrows,
-                 "edge_offset": 0.35, "edge_width": 0.12, "fence_inset": 0.45},
+                 "edge_offset": 0.35, "edge_width": 0.12, "fence_inset": 0.45,
+                 # As on the scheme, the kerb edge line stops at each parking pocket:
+                 # none inside the pocket and none across its mouth.
+                 "edge_skip": [wl([(x0, y0), (x1 + 1, y0), (x1 + 1, y1 + 5), (x0, y1 + 5)])
+                               for x0, y0, x1, y1 in POCKETS_PX]},
     "railway": railway,
     "signs": SIGNS,
     "lights": LIGHTS,

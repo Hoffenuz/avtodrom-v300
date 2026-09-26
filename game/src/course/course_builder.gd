@@ -357,9 +357,25 @@ func _build_markings() -> void:
 	# Edge lines hugging every kerb (also the control lines of the exercises).
 	var offset := float(m.get("edge_offset", 0.35))
 	var ew := float(m.get("edge_width", 0.12))
+	var skip: Array = []
+	for q in m.get("edge_skip", []):
+		skip.append(CourseData.poly(q))
 	for isl in data.islands:
 		for loop in Geometry2D.offset_polygon(MeshUtil.clean(isl, 0.05), offset, Geometry2D.JOIN_ROUND):
-			MeshUtil.add_ribbon(st, _densify(loop, 1.0, true), ew, PAINT_Y, true)
+			if skip.is_empty():
+				MeshUtil.add_ribbon(st, _densify(loop, 1.0, true), ew, PAINT_Y, true)
+				continue
+			# Cut the loop where it runs through a skip zone (parking pockets).
+			var open := loop.duplicate()
+			open.append(loop[0])
+			var parts: Array = [open]
+			for zone in skip:
+				var next: Array = []
+				for part in parts:
+					next.append_array(Geometry2D.clip_polyline_with_polygon(part, zone))
+				parts = next
+			for part in parts:
+				MeshUtil.add_ribbon(st, _densify(part, 1.0, false), ew, PAINT_Y, false)
 	var r := _fence_rect().grow(-float(m.get("fence_inset", 0.45)))
 	MeshUtil.add_ribbon(st, _densify(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end,
 			Vector2(r.position.x, r.end.y)]), 1.0, true), 0.15, PAINT_Y, true)
