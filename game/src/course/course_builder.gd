@@ -2,7 +2,8 @@ class_name CourseBuilder
 extends Node3D
 ## Builds the avtodrom scene from CourseData: ground, concrete pads, grass
 ## islands with kerbs, the estakada, all road paint, the railway crossing,
-## signs, traffic lights, lamp posts, fence, trees and collision.
+## signs, traffic lights, lamp posts, fence and collision. Trees, streets and
+## buildings outside the fence are Scenery.
 ##
 ## Static geometry is merged by material (a handful of draw calls for the
 ## whole site) so it stays cheap on phones.
@@ -31,17 +32,20 @@ var _rng := RandomNumberGenerator.new()
 
 ## Loads the pre-built course (tests/bake_course.gd) or, if it is missing,
 ## builds it on the spot. Returns the course root, already configured.
+## The surroundings outside the fence (Scenery) are added as a child.
 static func load_or_build(p_data: CourseData, p_quality: int) -> CourseBuilder:
+	var course: CourseBuilder = null
 	if ResourceLoader.exists(BAKED_PATH):
 		var scene: PackedScene = load(BAKED_PATH)
-		var baked := scene.instantiate() as CourseBuilder
-		if baked:
-			baked.attach(p_data, p_quality)
-			return baked
-	var fresh := CourseBuilder.new()
-	fresh.name = "Course"
-	fresh.build(p_data, p_quality)
-	return fresh
+		course = scene.instantiate() as CourseBuilder
+		if course:
+			course.attach(p_data, p_quality)
+	if course == null:
+		course = CourseBuilder.new()
+		course.name = "Course"
+		course.build(p_data, p_quality)
+	Scenery.create(course, course, p_quality)
+	return course
 
 
 ## Re-links runtime state after the baked scene is instantiated.
@@ -50,12 +54,6 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 	quality = p_quality
 	_est = data.raw["estakada"]
 	traffic = get_node_or_null("TrafficController") as TrafficController
-	if p_quality == 0:
-		var crowns := get_node_or_null("TreeCrowns") as MultiMeshInstance3D
-		if crowns:
-			crowns.multimesh.visible_instance_count = crowns.multimesh.instance_count / 2
-			var trunks := get_node_or_null("TreeTrunks") as MultiMeshInstance3D
-			trunks.multimesh.visible_instance_count = trunks.multimesh.instance_count / 2
 
 
 func build(p_data: CourseData, p_quality: int) -> void:
@@ -74,7 +72,6 @@ func build(p_data: CourseData, p_quality: int) -> void:
 	_build_traffic_lights()
 	_build_lamp_posts()
 	_build_fence()
-	_build_trees()
 	_build_collision()
 
 
@@ -607,62 +604,6 @@ func _build_fence() -> void:
 	pm.albedo_color = Color(0.25, 0.42, 0.3)
 	pm.roughness = 0.6
 	_mesh_instance(_finish(post_st, pm, false), "FencePosts")
-
-
-func _build_trees() -> void:
-	var count := 70 if quality >= 1 else 36
-	var r := _fence_rect()
-	var trunk := CylinderMesh.new()
-	trunk.top_radius = 0.12
-	trunk.bottom_radius = 0.18
-	trunk.height = 2.4
-	trunk.radial_segments = 6
-	var crown := SphereMesh.new()
-	crown.radius = 2.2
-	crown.height = 4.0
-	crown.radial_segments = 10
-	crown.rings = 6
-	var trunk_mm := MultiMesh.new()
-	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
-	trunk_mm.mesh = trunk
-	trunk_mm.instance_count = count
-	var crown_mm := MultiMesh.new()
-	crown_mm.transform_format = MultiMesh.TRANSFORM_3D
-	crown_mm.use_colors = true
-	crown_mm.mesh = crown
-	crown_mm.instance_count = count
-	for i in count:
-		var side := i % 4
-		var along := _rng.randf()
-		var dist := _rng.randf_range(9.0, 38.0)
-		var p: Vector2
-		match side:
-			0: p = Vector2(lerpf(r.position.x - 20, r.end.x + 20, along), r.position.y - dist)
-			1: p = Vector2(lerpf(r.position.x - 20, r.end.x + 20, along), r.end.y + dist)
-			2: p = Vector2(r.position.x - dist, lerpf(r.position.y, r.end.y, along))
-			_: p = Vector2(r.end.x + dist, lerpf(r.position.y, r.end.y, along))
-		var s := _rng.randf_range(0.8, 1.35)
-		trunk_mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3(s, s, s)), Vector3(p.x, 1.2 * s, p.y)))
-		var cb := Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(s, s * _rng.randf_range(0.9, 1.25), s))
-		crown_mm.set_instance_transform(i, Transform3D(cb, Vector3(p.x, 3.6 * s, p.y)))
-		crown_mm.set_instance_color(i, Color(0.2, 0.42, 0.16).lerp(Color(0.33, 0.5, 0.18), _rng.randf()))
-	var tm := StandardMaterial3D.new()
-	tm.albedo_color = Color(0.33, 0.24, 0.16)
-	tm.roughness = 0.9
-	trunk.material = tm
-	var cm := StandardMaterial3D.new()
-	cm.albedo_color = Color.WHITE
-	cm.vertex_color_use_as_albedo = true
-	cm.roughness = 0.85
-	crown.material = cm
-	var t := MultiMeshInstance3D.new()
-	t.name = "TreeTrunks"
-	t.multimesh = trunk_mm
-	add_child(t)
-	var c := MultiMeshInstance3D.new()
-	c.name = "TreeCrowns"
-	c.multimesh = crown_mm
-	add_child(c)
 
 
 # --------------------------------------------------------------------------- collision

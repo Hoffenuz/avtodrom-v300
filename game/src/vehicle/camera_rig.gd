@@ -28,7 +28,7 @@ func _init(p_car: Car) -> void:
 	camera.name = "Camera"
 	camera.current = true
 	camera.near = 0.05
-	camera.far = 900.0
+	camera.far = 1400.0 # hills on the horizon (Scenery) are ~1 km out
 	# Placed every frame from the car's interpolated transform already.
 	camera.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	add_child(camera)

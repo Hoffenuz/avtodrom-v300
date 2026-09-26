@@ -42,7 +42,7 @@ func _build_world() -> void:
 	car.freeze = true
 	_cam = Camera3D.new()
 	_cam.fov = 50.0
-	_cam.far = 1200.0
+	_cam.far = 1400.0
 	_world.add_child(_cam)
 	_cam.current = true
 	get_viewport().msaa_3d = Viewport.MSAA_2X
