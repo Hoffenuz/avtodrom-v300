@@ -25,7 +25,7 @@ const DEFAULTS := {
 	"steering_autocenter": true,
 	"camera": "chase", # cockpit | chase | top (the last one used)
 	"quality": -1, # -1 = auto, 0 low, 1 medium, 2 high
-	"render_scale": 1.0,
+	"render_scale": -1.0, # 3D resolution; -1 = by quality (phones render below screen resolution)
 	"fps_limit": 60,
 	"shadows": true,
 	"mirrors": true,
@@ -55,6 +55,15 @@ func _ready() -> void:
 					_values[key] = v
 	if int(_values["quality"]) < 0:
 		_values["quality"] = detect_quality()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--physics-hz="): # tests: the phones' tick rate on a PC
+			Engine.physics_ticks_per_second = int(arg.substr(13))
+			Engine.max_physics_steps_per_frame = 3
+	if OS.has_feature("mobile"):
+		# Phones: 60 physics ticks (the C++ car model keeps its own 960 Hz
+		# substeps) and never more than 3 catch-up ticks in a slow frame.
+		Engine.physics_ticks_per_second = 60
+		Engine.max_physics_steps_per_frame = 3
 
 
 func get_value(key: String) -> Variant:
@@ -102,6 +111,17 @@ func detect_quality() -> int:
 	if cores >= 8:
 		return 1
 	return 0
+
+
+## 3D render resolution as a share of the screen: the setting, or by quality
+## (phone screens have far more pixels than their GPUs can shade at 60 fps).
+func render_scale() -> float:
+	var v := float(get_value("render_scale"))
+	if v > 0.0:
+		return clampf(v, 0.5, 1.0)
+	if not OS.has_feature("mobile"):
+		return 1.0
+	return [0.6, 0.72, 0.85][clampi(int(get_value("quality")), 0, 2)]
 
 
 ## Whether the on-screen driving controls are shown.

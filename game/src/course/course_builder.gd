@@ -50,6 +50,13 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 	quality = p_quality
 	_est = data.raw["estakada"]
 	traffic = get_node_or_null("TrafficController") as TrafficController
+	if p_quality <= 1:
+		# Small casters are not worth a shadow pass on medium and low.
+		for n in ["FencePosts", "LampPostMesh", "GuardRailPosts", "Surroundings/ParkTreeCrowns",
+				"Surroundings/ParkTreeTrunks", "Surroundings/PoplarCrowns", "Surroundings/PoplarTrunks"]:
+			var gi := get_node_or_null(n) as GeometryInstance3D
+			if gi:
+				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if p_quality == 0:
 		# Low-end phones: half the trees and city blocks, no tree shadows.
 		for n in ["ParkTreeCrowns", "ParkTreeTrunks", "City", "ParkedCars0", "ParkedCars1"]:
@@ -395,8 +402,10 @@ func _build_markings() -> void:
 func _add_text(text: String, pos: Vector2, yaw_deg: float, size: float) -> void:
 	var l := Label3D.new()
 	l.text = text
-	l.font_size = 256
-	l.pixel_size = size / 256.0 * 0.9
+	# 96 px glyphs are sharp enough for paint seen from a car and keep the
+	# font atlas small (256 px glyphs cost tens of MB of video memory).
+	l.font_size = 96
+	l.pixel_size = size / 96.0 * 0.9
 	l.modulate = Color(0.93, 0.93, 0.9)
 	l.outline_size = 0
 	l.shaded = true
@@ -573,7 +582,8 @@ func _build_fence() -> void:
 	post.top_radius = 0.035
 	post.bottom_radius = 0.035
 	post.height = height + 0.1
-	post.radial_segments = 6
+	post.radial_segments = 5
+	post.rings = 0
 	var fence_body := StaticBody3D.new()
 	fence_body.name = "FenceBody"
 	fence_body.collision_layer = LAYER_OBSTACLE

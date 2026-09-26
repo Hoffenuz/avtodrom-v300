@@ -183,7 +183,8 @@ func _build() -> void:
 
 	_section("set.graphics")
 	_row("set.quality", _segmented("quality", [[0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]))
-	_row("set.render_scale", _slider("render_scale", 0.5, 1.0, 0.05))
+	_row("set.render_scale", _segmented("render_scale", [[-1.0, Loc.t("set.auto")], [0.6, "60%"], [0.75, "75%"],
+			[1.0, "100%"]]))
 	_row("set.fps", _segmented("fps_limit", [[30, "30"], [60, "60"]]))
 	_row("set.shadows", _toggle("shadows"))
 	_row("set.mirrors", _toggle("mirrors"))

@@ -56,6 +56,7 @@ S = {
     "set.steer_buttons": ("Strelkalar", "Стрелкалар", "Стрелки"),
     "set.screen_controls": ("Ekrandagi rul va pedallar", "Экрандаги рул ва педаллар", "Экранный руль и педали"),
     "set.on": ("Yoqilgan", "Ёқилган", "Вкл"),
+    "set.auto": ("Avto", "Авто", "Авто"),
     "set.off": ("O‘chiq", "Ўчиқ", "Выкл"),
     "set.steer_tilt": ("Qiyalatish", "Қиялатиш", "Наклон"),
     "set.sensitivity": ("Rul sezgirligi", "Рул сезгирлиги", "Чувствительность руля"),

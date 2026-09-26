@@ -71,6 +71,15 @@ def main() -> int:
             if code != 0:
                 failures.append("e2e_exam " + car)
 
+        print("== 3b. End-to-end exam at the phones' 60 Hz physics tick")
+        code, out = run([str(GODOT), "--headless", "--path", str(GAME), "res://scenes/drive.tscn", "--fixed-fps", "60",
+                         "--", "--physics-hz=60", "--car=nexia2", "--seed=3", "--autopilot-test",
+                         "--quit-after-s=1500"], GAME)
+        res = [l for l in out.splitlines() if l.startswith("RESULT")]
+        print("   nexia2 60 Hz", res[-1] if res else out[-2000:])
+        if code != 0:
+            failures.append("e2e_exam 60 Hz")
+
         print("== 4. Rule detection with deliberate faults")
         expectations = {
             "nobelt": {1},

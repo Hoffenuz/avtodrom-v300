@@ -154,14 +154,9 @@ var _test_mode := false
 
 func _apply_graphics() -> void:
 	quality = int(Settings.get_value("quality"))
-	var vp := get_viewport()
-	var scale := float(Settings.get_value("render_scale"))
-	vp.scaling_3d_scale = clampf(scale, 0.5, 1.0)
-	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if (scale < 0.99 and quality >= 1) \
-			else Viewport.SCALING_3D_MODE_BILINEAR
-	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][clampi(quality, 0, 2)]
-	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
-	Engine.max_fps = int(Settings.get_value("fps_limit"))
+	EnvironmentSetup.apply_viewport(get_viewport(), quality)
+	if not DebugShots.perf:
+		Engine.max_fps = int(Settings.get_value("fps_limit"))
 
 
 func _connect_controls() -> void:

@@ -54,7 +54,7 @@ func _build_world() -> void:
 	_cam.far = 1200.0
 	_world.add_child(_cam)
 	_cam.current = true
-	get_viewport().msaa_3d = Viewport.MSAA_2X
+	EnvironmentSetup.apply_viewport(get_viewport(), q)
 
 
 func _process(delta: float) -> void:

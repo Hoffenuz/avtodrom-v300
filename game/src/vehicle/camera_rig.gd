@@ -37,6 +37,7 @@ var _initialised := false
 var _clear := 1.0 # share of the chase distance that is free of obstacles
 var _dodge := 0.0 # sideways step while a post stands behind the car
 var _dodge_target := 0.0
+var _free_cache := 1.0
 var _probe := SphereShape3D.new()
 
 
@@ -139,8 +140,13 @@ func _place_chase(xf: Transform3D, delta: float) -> void:
 	# A sign post, lamp post or the fence between the car and the camera:
 	# first step round it (a little to the side), and only if every side is
 	# blocked, come closer.
-	var free := _free_share(pivot, _chase_point(pivot, base_yaw + _dodge, dist, pitch, xf.origin.y))
-	if free < 0.95:
+	# Obstacle checks every other frame: the camera moves too little in one
+	# frame for it to matter, and shape casts against the course cost CPU.
+	var check := Engine.get_process_frames() % 2 == 0
+	var free := _free_cache
+	if check:
+		free = _free_share(pivot, _chase_point(pivot, base_yaw + _dodge, dist, pitch, xf.origin.y))
+	if check and free < 0.95:
 		var best := _dodge
 		var best_free := free
 		for off in DODGES:
@@ -151,7 +157,7 @@ func _place_chase(xf: Transform3D, delta: float) -> void:
 			if f > 0.95:
 				break
 		_dodge_target = best
-	elif absf(_dodge) > 0.001:
+	elif check and absf(_dodge) > 0.001:
 		# Back to straight behind as soon as that line is clear again.
 		if _free_share(pivot, _chase_point(pivot, base_yaw, dist, pitch, xf.origin.y)) > 0.97:
 			_dodge_target = 0.0
@@ -159,7 +165,9 @@ func _place_chase(xf: Transform3D, delta: float) -> void:
 	var yaw := base_yaw + _dodge
 	var back := Vector3(sin(yaw), 0.0, cos(yaw))
 	var pos := _chase_point(pivot, yaw, dist, pitch, xf.origin.y)
-	free = _free_share(pivot, pos)
+	if check:
+		free = _free_share(pivot, pos)
+		_free_cache = free
 	_clear = free if free < _clear else move_toward(_clear, free, delta * 1.5)
 	pos = pivot + (pos - pivot) * _clear
 	camera.global_position = pos

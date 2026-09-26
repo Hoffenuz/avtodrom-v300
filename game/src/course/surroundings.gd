@@ -198,8 +198,8 @@ func _build_exam_centre() -> void:
 	# Name on the entrance block, facing the field.
 	var sign := Label3D.new()
 	sign.text = "IMTIHON MARKAZI"
-	sign.font_size = 160
-	sign.pixel_size = 0.0075
+	sign.font_size = 96
+	sign.pixel_size = 0.0125
 	sign.modulate = Color(0.1, 0.24, 0.5)
 	sign.outline_size = 0
 	sign.shaded = true
@@ -274,7 +274,7 @@ func _park_cars(bays: Array) -> void:
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = "ParkedCars%d" % m
 		mmi.multimesh = mm
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)
 
 
@@ -322,8 +322,8 @@ func _crown_mesh() -> ArrayMesh:
 	var sphere := SphereMesh.new()
 	sphere.radius = 1.0
 	sphere.height = 2.0
-	sphere.radial_segments = 8
-	sphere.rings = 5
+	sphere.radial_segments = 6
+	sphere.rings = 4
 	for b in [[Vector3(0, 0, 0), 1.0], [Vector3(0.7, -0.25, 0.3), 0.75], [Vector3(-0.55, -0.2, -0.45), 0.8]]:
 		st.append_from(sphere, 0, Transform3D(Basis().scaled(Vector3.ONE * float(b[1])), b[0]))
 	return st.commit()
@@ -355,11 +355,12 @@ func _build_poplars() -> void:
 	trunk.bottom_radius = 0.2
 	trunk.height = 3.0
 	trunk.radial_segments = 5
+	trunk.rings = 0
 	var crown := SphereMesh.new()
 	crown.radius = 1.0
 	crown.height = 2.0
-	crown.radial_segments = 7
-	crown.rings = 6
+	crown.radial_segments = 6
+	crown.rings = 5
 	_scatter("Poplar", pts, trunk, crown, func(s: float) -> Array:
 		# [trunk basis/offset, crown scale, crown centre height]
 		var hgt := 10.0 * s
@@ -389,7 +390,8 @@ func _build_park_trees() -> void:
 	trunk.top_radius = 0.13
 	trunk.bottom_radius = 0.22
 	trunk.height = 3.0
-	trunk.radial_segments = 6
+	trunk.radial_segments = 5
+	trunk.rings = 0
 	_scatter("ParkTree", pts, trunk, _crown_mesh(), func(s: float) -> Array:
 		return [Vector3(1.0, 1.0, 1.0) * s, Vector3(2.4, 2.1, 2.4) * s, 4.2 * s],
 		Color(0.2, 0.36, 0.14), Color(0.36, 0.46, 0.18))

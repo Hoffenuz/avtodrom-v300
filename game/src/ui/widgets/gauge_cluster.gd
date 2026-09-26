@@ -15,8 +15,18 @@ func _init() -> void:
 	custom_minimum_size = Vector2(W, H)
 
 
+var _shown := ""
+
+
+## Redraw only when something on the strip changes (not every frame).
 func _process(_delta: float) -> void:
-	if car and is_visible_in_tree():
+	if car == null or not is_visible_in_tree():
+		return
+	var state := "%d|%s|%s%s|%s%s%s%s" % [int(round(absf(car.get_speed_kmh()))), AvtoGear.label(car),
+			car.left_lit(), car.right_lit(), car.ignition and not car.seatbelt, car.ignition and car.handbrake > 0.5,
+			car.ignition and not car.is_engine_running(), car.is_abs_active()]
+	if state != _shown:
+		_shown = state
 		queue_redraw()
 
 
