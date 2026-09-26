@@ -16,6 +16,9 @@ var autocenter := true
 var car_speed := 0.0
 var _touch := -1
 var _last_ang := 0.0
+## True once the player has taken the wheel; until then it only mirrors the
+## car's steering (keyboard, pad, autopilot) and never drives it.
+var driving := false
 
 
 func _init() -> void:
@@ -27,6 +30,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed and _touch < 0:
 			_touch = event.index
+			driving = true
 			_last_ang = (event.position - c).angle()
 		elif not event.pressed and event.index == _touch:
 			_touch = -1
@@ -50,7 +54,7 @@ func is_held() -> bool:
 
 
 func _process(delta: float) -> void:
-	if _touch < 0 and autocenter and absf(angle_deg) > 0.01:
+	if driving and _touch < 0 and autocenter and absf(angle_deg) > 0.01:
 		var rate := clampf(absf(car_speed) * 70.0, 0.0, 480.0)
 		if rate > 0.0:
 			angle_deg = move_toward(angle_deg, 0.0, rate * delta)

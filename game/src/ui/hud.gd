@@ -1,24 +1,36 @@
 class_name Hud
 extends CanvasLayer
-## Everything drawn over the road while driving: exercise card with the
-## current instruction, penalty/time status, penalty toasts, big centre
-## messages (START, emergency signal), the instrument cluster, and the
-## touch controls (wheel, pedals, gear lever, cabin switches).
+## Everything drawn over the road while driving, kept to the essentials so
+## the road stays visible:
+##   top    — exercise card (left), penalty · time (centre), camera / map /
+##            pause (right), short penalty notices under the centre;
+##   bottom — compact speed strip; on touch screens the steering wheel with
+##            the indicators (left) and the pedals, gear lever and the key /
+##            belt / handbrake switches (right).
+## Any free part of the screen is a look pad: drag to turn the camera round
+## the car (or the driver's head), pinch or scroll to zoom.
 ##
 ## Layout is recomputed on every resize from the visible rect and the
 ## display's safe area, so it works from 16:9 tablets to 21:9 phones.
 
 signal pause_requested
 signal camera_requested
-signal ready_pressed
+signal look_drag(delta: Vector2, width: float)
+signal look_end
+signal look_zoom(factor: float)
+
+const M := 14.0 # screen margin
 
 var car: Car
 var controls: DriverControls
 var director: ExamDirector
 var data: CourseData
 var touch_mode := true
+## Demonstration: the autopilot drives, the driving controls are hidden.
+var demo := false
 
 var root: Control
+var look_pad: LookPad
 var card: PanelContainer
 var card_title: Label
 var card_hint: Label
@@ -26,6 +38,7 @@ var card_turn: Label
 var status: PanelContainer
 var status_penalty: Label
 var status_time: Label
+var demo_badge: PanelContainer
 var toasts: VBoxContainer
 var center_msg: Label
 var emergency_overlay: ColorRect
@@ -47,7 +60,6 @@ var b_hazard: IconButton
 var b_key: IconButton
 var b_belt: IconButton
 var b_handbrake: IconButton
-var b_lights: IconButton
 var b_camera: IconButton
 var b_map: IconButton
 var b_pause: IconButton
@@ -55,10 +67,8 @@ var b_pause: IconButton
 var _center_t := 0.0
 var _emergency := false
 var _emergency_t := 0.0
-var _map_forced := false
-## Demonstration: the autopilot drives, the driving controls are hidden.
-var demo := false
-var demo_badge: PanelContainer
+var _map_on := false
+var _steer_dir := 0
 
 
 func _init() -> void:
@@ -70,21 +80,27 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 	controls = p_controls
 	director = p_director
 	data = p_data
-	touch_mode = Settings.is_mobile() or DisplayServer.is_touchscreen_available()
+	touch_mode = Settings.screen_controls_on()
+	_map_on = not touch_mode
 	_build()
 	if director:
 		director.penalty_added.connect(_on_penalty)
 		director.hint_changed.connect(_refresh_card)
 		director.exercise_changed.connect(_refresh_card)
-		director.state_changed.connect(_on_state)
-		director.start_signal.connect(func() -> void: show_center(Loc.t("hud.start_signal"), UITheme.GO, 2.5))
+		director.state_changed.connect(_refresh_card)
+		director.start_signal.connect(func() -> void: show_center(Loc.t("hud.start_signal"), UITheme.GO, 2.0))
 		director.emergency_signal.connect(_on_emergency)
 	car.engine_stalled.connect(func() -> void: show_center(Loc.t("hud.stalled"), UITheme.CAUTION, 2.0))
 	Loc.language_changed.connect(_relabel)
 	get_viewport().size_changed.connect(_layout)
+	Settings.changed.connect(func(k: String) -> void:
+		if k in ["screen_controls", "steering_mode", "left_handed", "auto_clutch"]:
+			touch_mode = Settings.screen_controls_on()
+			if not touch_mode:
+				controls.touch_steer_active = false
+			_layout())
 	_relabel()
 	_layout()
-	_refresh_card()
 
 
 # ------------------------------------------------------------------ construction
@@ -96,6 +112,14 @@ func _build() -> void:
 	root.theme = UITheme.get_theme()
 	add_child(root)
 
+	# Lowest layer: every touch that no control takes turns the camera.
+	look_pad = LookPad.new()
+	look_pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	look_pad.dragged.connect(func(d: Vector2) -> void: look_drag.emit(d, root.size.x))
+	look_pad.released.connect(func() -> void: look_end.emit())
+	look_pad.zoomed.connect(func(f: float) -> void: look_zoom.emit(f))
+	root.add_child(look_pad)
+
 	emergency_overlay = ColorRect.new()
 	emergency_overlay.color = Color(0.9, 0.1, 0.1, 0.0)
 	emergency_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -104,13 +128,14 @@ func _build() -> void:
 
 	card = PanelContainer.new()
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.06, 0.08, 0.72), 16, 0, UITheme.LINE, 12))
 	var cv := VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 4)
+	cv.add_theme_constant_override("separation", 2)
 	card.add_child(cv)
-	card_title = UITheme.label("", 22, UITheme.CAUTION, true)
-	card_hint = UITheme.label("", 20, UITheme.TEXT)
+	card_title = UITheme.label("", 19, UITheme.CAUTION, true)
+	card_hint = UITheme.label("", 17, UITheme.TEXT)
 	card_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_turn = UITheme.label("", 18, UITheme.INFO, true)
+	card_turn = UITheme.label("", 17, UITheme.INFO, true)
 	cv.add_child(card_title)
 	cv.add_child(card_hint)
 	cv.add_child(card_turn)
@@ -118,41 +143,39 @@ func _build() -> void:
 
 	status = PanelContainer.new()
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	status.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.06, 0.08, 0.72), 24, 0, UITheme.LINE, 10))
 	var sh := HBoxContainer.new()
-	sh.add_theme_constant_override("separation", 22)
+	sh.add_theme_constant_override("separation", 16)
 	sh.alignment = BoxContainer.ALIGNMENT_CENTER
 	status.add_child(sh)
-	status_penalty = UITheme.label("0", 26, UITheme.TEXT, true)
-	status_time = UITheme.label("0:00", 26, UITheme.TEXT_DIM, true)
+	status_penalty = UITheme.label("0", 21, UITheme.TEXT, true)
+	status_time = UITheme.label("0:00", 21, UITheme.TEXT_DIM, true)
 	sh.add_child(status_penalty)
 	sh.add_child(status_time)
 	root.add_child(status)
 
 	demo_badge = PanelContainer.new()
 	demo_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	demo_badge.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.12, 0.22, 0.88), 14, 2, UITheme.INFO, 12))
-	var db := UITheme.label("", 20, UITheme.INFO, true)
+	demo_badge.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.12, 0.22, 0.85), 14, 2, UITheme.INFO, 8))
+	var db := UITheme.label("", 17, UITheme.INFO, true)
 	db.name = "Text"
-	db.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	demo_badge.add_child(db)
 	demo_badge.visible = false
 	root.add_child(demo_badge)
 
 	toasts = VBoxContainer.new()
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	toasts.alignment = BoxContainer.ALIGNMENT_BEGIN
-	toasts.add_theme_constant_override("separation", 8)
+	toasts.add_theme_constant_override("separation", 6)
 	root.add_child(toasts)
 
-	center_msg = UITheme.label("", 54, UITheme.GO, true)
+	center_msg = UITheme.label("", 42, UITheme.GO, true)
 	center_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	center_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	center_msg.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	center_msg.add_theme_constant_override("outline_size", 10)
+	center_msg.add_theme_constant_override("outline_size", 9)
 	center_msg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center_msg.visible = false
 	root.add_child(center_msg)
-
-	_build_prepare()
 
 	cluster = GaugeCluster.new()
 	cluster.car = car
@@ -163,28 +186,28 @@ func _build() -> void:
 	root.add_child(minimap)
 
 	_build_touch()
+	_build_prepare()
 
 
 func _build_prepare() -> void:
 	prepare_panel = PanelContainer.new()
+	prepare_panel.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.06, 0.08, 0.86), 18, 0, UITheme.LINE, 16))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 10)
+	v.add_theme_constant_override("separation", 6)
 	prepare_panel.add_child(v)
-	var title := UITheme.label(Loc.t("hud.prepare"), 26, UITheme.CAUTION, true)
+	var title := UITheme.label("", 21, UITheme.CAUTION, true)
 	title.name = "Title"
 	v.add_child(title)
 	for key in ["prep.belt", "prep.engine", "prep.handbrake", "prep.signal"]:
-		var l := UITheme.label("", 21, UITheme.TEXT)
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var l := UITheme.label("", 18, UITheme.TEXT)
 		prep_items[key] = l
 		v.add_child(l)
-	ready_btn = UITheme.primary_button(Loc.t("hud.ready"))
+	ready_btn = UITheme.primary_button("", 20, 54)
 	ready_btn.pressed.connect(func() -> void:
-		ready_pressed.emit()
 		if director:
 			director.request_start())
 	v.add_child(ready_btn)
-	prepare_panel.visible = director != null and director.state == ExamDirector.State.PREPARE
+	prepare_panel.visible = false
 	root.add_child(prepare_panel)
 
 
@@ -196,16 +219,20 @@ func _build_touch() -> void:
 		controls.touch_steer_active = true)
 	root.add_child(wheel)
 
-	btn_steer_left = IconButton.new("left", 120)
-	btn_steer_right = IconButton.new("right", 120)
+	btn_steer_left = IconButton.new("left", 110)
+	btn_steer_right = IconButton.new("right", 110)
+	btn_steer_left.pressed_down.connect(func() -> void: _steer_dir = -1)
+	btn_steer_left.released.connect(func() -> void: _steer_dir = 0)
+	btn_steer_right.pressed_down.connect(func() -> void: _steer_dir = 1)
+	btn_steer_right.released.connect(func() -> void: _steer_dir = 0)
 	root.add_child(btn_steer_left)
 	root.add_child(btn_steer_right)
 
-	gas = Pedal.new(Loc.t("hud.gas"), UITheme.GO, 1.35)
+	gas = Pedal.new("", UITheme.GO, 1.35)
 	gas.changed.connect(func(v: float) -> void: controls.touch_throttle = v)
-	brake_pedal = Pedal.new(Loc.t("hud.brake"), UITheme.STOP, 1.1)
+	brake_pedal = Pedal.new("", UITheme.STOP, 1.1)
 	brake_pedal.changed.connect(func(v: float) -> void: controls.touch_brake = v)
-	clutch_pedal = Pedal.new(Loc.t("hud.clutch"), UITheme.INFO, 1.0)
+	clutch_pedal = Pedal.new("", UITheme.INFO, 1.0)
 	clutch_pedal.changed.connect(func(v: float) -> void: controls.touch_clutch = v)
 	root.add_child(gas)
 	root.add_child(brake_pedal)
@@ -216,50 +243,36 @@ func _build_touch() -> void:
 	gears.gear_requested.connect(func(g: int) -> void: controls.gear_requested.emit(g))
 	root.add_child(gears)
 
-	b_ind_left = IconButton.new("left", 96)
+	b_ind_left = IconButton.new("left", 76)
 	b_ind_left.lit_color = UITheme.INDICATOR
 	b_ind_left.tapped.connect(func() -> void: controls.indicator_pressed.emit(Car.Indicator.LEFT))
-	b_ind_right = IconButton.new("right", 96)
+	b_ind_right = IconButton.new("right", 76)
 	b_ind_right.lit_color = UITheme.INDICATOR
 	b_ind_right.tapped.connect(func() -> void: controls.indicator_pressed.emit(Car.Indicator.RIGHT))
-	b_hazard = IconButton.new("hazard", 84)
+	b_hazard = IconButton.new("hazard", 64)
 	b_hazard.lit_color = UITheme.STOP
 	b_hazard.icon_color = Color(1.0, 0.45, 0.45)
 	b_hazard.tapped.connect(func() -> void: controls.hazard_pressed.emit())
-	b_key = IconButton.new("key", 84)
+	b_key = IconButton.new("key", 66)
 	b_key.lit_color = UITheme.CAUTION
 	b_key.pressed_down.connect(func() -> void: controls.key_down())
 	b_key.released.connect(func() -> void: controls.key_up())
-	b_belt = IconButton.new("belt", 84)
+	b_belt = IconButton.new("belt", 66)
 	b_belt.lit_color = UITheme.GO
 	b_belt.tapped.connect(func() -> void: controls.seatbelt_pressed.emit())
-	b_handbrake = IconButton.new("handbrake", 84)
+	b_handbrake = IconButton.new("handbrake", 66)
 	b_handbrake.lit_color = UITheme.STOP
 	b_handbrake.tapped.connect(func() -> void: controls.handbrake_pressed.emit())
-	b_lights = IconButton.new("lights", 72)
-	b_lights.lit_color = UITheme.INFO
-	b_lights.tapped.connect(func() -> void: controls.headlights_pressed.emit())
-	b_camera = IconButton.new("camera", 72)
+	b_camera = IconButton.new("camera", 60)
 	b_camera.tapped.connect(func() -> void: camera_requested.emit())
-	b_map = IconButton.new("map", 72)
+	b_map = IconButton.new("map", 60)
 	b_map.tapped.connect(func() -> void:
-		_map_forced = not _map_forced
+		_map_on = not _map_on
 		_layout())
-	b_pause = IconButton.new("pause", 72)
+	b_pause = IconButton.new("pause", 60)
 	b_pause.tapped.connect(func() -> void: pause_requested.emit())
-	for b in [b_ind_left, b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_lights, b_camera, b_map, b_pause]:
+	for b in [b_ind_left, b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_camera, b_map, b_pause]:
 		root.add_child(b)
-	btn_steer_left.pressed_down.connect(func() -> void: _steer_button(-1))
-	btn_steer_left.released.connect(func() -> void: _steer_button(0))
-	btn_steer_right.pressed_down.connect(func() -> void: _steer_button(1))
-	btn_steer_right.released.connect(func() -> void: _steer_button(0))
-
-
-var _steer_dir := 0
-
-
-func _steer_button(d: int) -> void:
-	_steer_dir = d
 
 
 # ------------------------------------------------------------------ layout
@@ -273,52 +286,56 @@ func _layout() -> void:
 		return
 	var vp := get_viewport().get_visible_rect().size
 	var safe := UITheme.safe_margins(get_viewport())
-	var m := 16.0
-	var L := m + float(safe["left"])
-	var R := vp.x - m - float(safe["right"])
-	var T := m + float(safe["top"])
-	var B := vp.y - m - float(safe["bottom"])
+	var L := M + float(safe["left"])
+	var R := vp.x - M - float(safe["right"])
+	var T := M + float(safe["top"])
+	var B := vp.y - M - float(safe["bottom"])
 	var W := R - L
 	var steer_mode := str(Settings.get_value("steering_mode"))
 	var manual_clutch := not car.is_automatic() and not car.auto_clutch
 	var left_handed := bool(Settings.get_value("left_handed"))
+	var controls_on := touch_mode and not demo
 
-	# Top row, right: lights, camera, map, pause.
-	var bx := R - 72
-	for b in [b_pause, b_map, b_camera, b_lights]:
+	# Top row, right: pause, camera, map.
+	var bx := R - 60.0
+	for b in [b_pause, b_camera, b_map]:
 		_place(b, Vector2(bx, T), b.custom_minimum_size)
-		bx -= 82
+		bx -= 68.0
 
-	# Exercise card (top-left) and status (top-centre).
-	var card_w := minf(520.0, W * 0.36)
+	# Exercise card (top-left), status (top-centre), notices under it.
+	var card_w := minf(420.0, W * 0.3)
 	card.position = Vector2(L, T)
 	card.custom_minimum_size = Vector2(card_w, 0)
-	card_hint.custom_minimum_size = Vector2(card_w - 48.0, 0)
+	card_hint.custom_minimum_size = Vector2(card_w - 24.0, 0)
 	card.reset_size()
-	status.custom_minimum_size = Vector2(240, 0)
-	status.position = Vector2(L + W * 0.5 - 120 + (W * 0.1 if W < 1300 else 0.0), T)
+	status.visible = director != null
+	status.reset_size()
+	status.position = Vector2(L + W * 0.5 - status.size.x * 0.5, T)
 	demo_badge.reset_size()
-	demo_badge.position = Vector2(status.position.x + 120 - demo_badge.size.x * 0.5, T + 64)
-	toasts.position = Vector2(L + W * 0.5 - 260, T + 78)
-	toasts.size = Vector2(520, 300)
-	center_msg.position = Vector2(L, vp.y * 0.3)
-	center_msg.size = Vector2(W, 80)
-	prepare_panel.custom_minimum_size = Vector2(minf(560.0, W * 0.5), 0)
-	prepare_panel.position = Vector2(L + W * 0.5 - prepare_panel.custom_minimum_size.x * 0.5, vp.y * 0.2)
+	demo_badge.position = Vector2(L + W * 0.5 - demo_badge.size.x * 0.5, T + 52)
+	var toast_w := minf(460.0, W * 0.36)
+	toasts.position = Vector2(L + W * 0.5 - toast_w * 0.5, T + (92 if demo else 54))
+	toasts.size = Vector2(toast_w, 200)
+	center_msg.position = Vector2(L + W * 0.15, vp.y * 0.26)
+	center_msg.size = Vector2(W * 0.7, 60)
+	prepare_panel.custom_minimum_size = Vector2(minf(380.0, W * 0.36), 0)
+	prepare_panel.reset_size()
+	prepare_panel.position = Vector2(L + W * 0.5 - prepare_panel.custom_minimum_size.x * 0.5, T + 60)
 
 	# Pedals and gear lever on the right (mirrored for left-handed drivers).
-	var gas_sz := Vector2(140, 270)
-	var brake_sz := Vector2(170, 220)
-	var clutch_sz := Vector2(150, 220)
-	var gear_sz := Vector2(170, 170) if not car.is_automatic() else Vector2(96, 220)
+	var gas_sz := Vector2(116, 226)
+	var brake_sz := Vector2(136, 176)
+	var clutch_sz := Vector2(122, 176)
+	var gear_sz := Vector2(150, 150) if not car.is_automatic() else Vector2(84, 190)
 	var gas_pos := Vector2(R - gas_sz.x, B - gas_sz.y)
-	var brake_pos := Vector2(gas_pos.x - 16 - brake_sz.x, B - brake_sz.y)
-	var clutch_pos := Vector2(brake_pos.x - 16 - clutch_sz.x, B - clutch_sz.y)
-	var gear_pos := Vector2(brake_pos.x + brake_sz.x - gear_sz.x, brake_pos.y - 16 - gear_sz.y)
-	# Cabin column (key, belt, handbrake) at the right edge above the gas pedal.
-	var col_x := R - 84
-	var col_y := gas_pos.y - 16 - 84 * 3 - 20
-	var wheel_d := minf(300.0, vp.y * 0.42)
+	var brake_pos := Vector2(gas_pos.x - 12 - brake_sz.x, B - brake_sz.y)
+	var clutch_pos := Vector2(brake_pos.x - 12 - clutch_sz.x, B - clutch_sz.y)
+	var gear_pos := Vector2(brake_pos.x + brake_sz.x - gear_sz.x, brake_pos.y - 12 - gear_sz.y)
+	# Cabin switches (key, belt, handbrake) in a column above the gas pedal.
+	var sw := 66.0
+	var col_x := gas_pos.x + gas_sz.x * 0.5 - sw * 0.5
+	var col_y := gas_pos.y - 12 - sw * 3 - 16
+	var wheel_d := minf(250.0, vp.y * 0.36)
 	var wheel_pos := Vector2(L, B - wheel_d)
 	if left_handed:
 		var mirror := func(p: Vector2, s: Vector2) -> Vector2: return Vector2(L + R - p.x - s.x, p.y)
@@ -326,51 +343,49 @@ func _layout() -> void:
 		brake_pos = mirror.call(brake_pos, brake_sz)
 		clutch_pos = mirror.call(clutch_pos, clutch_sz)
 		gear_pos = mirror.call(gear_pos, gear_sz)
+		col_x = L + R - col_x - sw
 		wheel_pos = Vector2(R - wheel_d, B - wheel_d)
-		col_x = L
 	_place(gas, gas_pos, gas_sz)
 	_place(brake_pedal, brake_pos, brake_sz)
 	_place(clutch_pedal, clutch_pos, clutch_sz)
-	clutch_pedal.visible = touch_mode and manual_clutch
 	_place(gears, gear_pos, gear_sz)
 	for i in 3:
 		var b: IconButton = [b_key, b_belt, b_handbrake][i]
-		_place(b, Vector2(col_x, col_y + i * 92), b.custom_minimum_size)
+		_place(b, Vector2(col_x, col_y + i * (sw + 8)), b.custom_minimum_size)
 	# Steering (left): wheel or buttons; indicators and hazards above it.
 	_place(wheel, wheel_pos, Vector2(wheel_d, wheel_d))
-	wheel.visible = touch_mode and steer_mode == "wheel"
-	_place(btn_steer_left, Vector2(wheel_pos.x, B - 130), Vector2(120, 120))
-	_place(btn_steer_right, Vector2(wheel_pos.x + 140, B - 130), Vector2(120, 120))
-	btn_steer_left.visible = touch_mode and steer_mode == "buttons"
-	btn_steer_right.visible = btn_steer_left.visible
-	var ind_y := wheel_pos.y - 104
+	_place(btn_steer_left, Vector2(wheel_pos.x, B - 112), Vector2(110, 110))
+	_place(btn_steer_right, Vector2(wheel_pos.x + 126, B - 112), Vector2(110, 110))
+	var ind_y := wheel_pos.y - 86
 	_place(b_ind_left, Vector2(wheel_pos.x, ind_y), b_ind_left.custom_minimum_size)
-	_place(b_hazard, Vector2(wheel_pos.x + wheel_d * 0.5 - 42, ind_y + 6), b_hazard.custom_minimum_size)
-	_place(b_ind_right, Vector2(wheel_pos.x + wheel_d - 96, ind_y), b_ind_right.custom_minimum_size)
-	for c in [gas, brake_pedal, gears, b_key, b_belt, b_handbrake]:
-		c.visible = touch_mode
-	if demo:
-		for c in [gas, brake_pedal, clutch_pedal, gears, b_key, b_belt, b_handbrake, wheel, btn_steer_left,
-				btn_steer_right, b_ind_left, b_ind_right, b_hazard, b_lights]:
-			c.visible = false
-	# Cluster centred between the wheel and the pedal group.
-	var left_edge := wheel_pos.x + wheel_d + 12 if not left_handed else (clutch_pos.x + clutch_sz.x if manual_clutch else brake_pos.x + brake_sz.x) + 12
-	var right_edge := (clutch_pos.x if manual_clutch else brake_pos.x) - 12 if not left_handed else wheel_pos.x - 12
-	if not touch_mode:
-		left_edge = L
-		right_edge = R
-	var cw := clampf(right_edge - left_edge, 300.0, 430.0)
-	_place(cluster, Vector2((left_edge + right_edge) * 0.5 - cw * 0.5, B - 190), Vector2(cw, 190))
-	# Minimap: shown by default on wide screens, on demand otherwise.
-	var wide := vp.x / vp.y >= 2.0 or not touch_mode
-	minimap.visible = (wide or _map_forced) and data != null
-	var mm := 220.0
-	# Left of the cabin-switch column, below the top button row.
-	_place(minimap, Vector2(R - 84 - 16 - mm, T + 90), Vector2(mm, mm))
-	if not touch_mode:
-		_place(minimap, Vector2(R - mm, T + 90), Vector2(mm, mm))
-	elif not wide:
-		_place(minimap, Vector2(L + W * 0.5 - mm * 0.5, T + 90), Vector2(mm, mm))
+	_place(b_hazard, Vector2(wheel_pos.x + wheel_d * 0.5 - 32, ind_y + 6), b_hazard.custom_minimum_size)
+	_place(b_ind_right, Vector2(wheel_pos.x + wheel_d - 76, ind_y), b_ind_right.custom_minimum_size)
+
+	wheel.visible = controls_on and steer_mode == "wheel"
+	btn_steer_left.visible = controls_on and steer_mode == "buttons"
+	btn_steer_right.visible = btn_steer_left.visible
+	for c in [gas, brake_pedal, gears, b_key, b_belt, b_handbrake, b_ind_left, b_ind_right, b_hazard]:
+		c.visible = controls_on
+	clutch_pedal.visible = controls_on and manual_clutch
+	b_map.visible = director != null or data != null
+
+	# Speed strip: bottom centre, between the wheel and the pedals on phones.
+	var cw := GaugeCluster.W
+	var cx := L + W * 0.5
+	if controls_on:
+		var left_edge := wheel_pos.x + wheel_d if not left_handed else (clutch_pos.x + clutch_sz.x if manual_clutch
+				else brake_pos.x + brake_sz.x)
+		var right_edge := (clutch_pos.x if manual_clutch else brake_pos.x) if not left_handed else wheel_pos.x
+		cx = (left_edge + right_edge) * 0.5
+	_place(cluster, Vector2(cx - cw * 0.5, B - GaugeCluster.H), Vector2(cw, GaugeCluster.H))
+
+	# Map: under the top-right buttons (desktop) or under the status (phones).
+	minimap.visible = _map_on and data != null
+	var mm := 190.0 if touch_mode else 220.0
+	if touch_mode:
+		_place(minimap, Vector2(L + W * 0.5 - mm * 0.5, T + (96 if demo else 58)), Vector2(mm, mm))
+	else:
+		_place(minimap, Vector2(R - mm, T + 72), Vector2(mm, mm))
 
 
 # ------------------------------------------------------------------ updates
@@ -386,24 +401,22 @@ func _process(delta: float) -> void:
 		controls.touch_steer_deg = move_toward(controls.touch_steer_deg, 0.0, 480.0 * delta)
 		controls.touch_steer_active = true
 	wheel.car_speed = car.get_forward_speed()
-	wheel.autocenter = bool(Settings.get_value("steering_autocenter"))
 	wheel.sensitivity = float(Settings.get_value("steering_sensitivity"))
-	if not wheel.is_held():
-		# Keep the drawn wheel in step with keyboard / pad steering too.
-		if not controls.touch_steer_active or not wheel.visible:
-			wheel.set_angle(car.steering_wheel)
+	# Until the player takes the wheel it shows what the car's wheel does
+	# (keyboard, pad, autopilot in the demonstrations).
+	if not wheel.driving or not wheel.visible:
+		wheel.set_angle(car.steering_wheel)
 	b_ind_left.lit = car.left_lit()
 	b_ind_right.lit = car.right_lit()
 	b_hazard.lit = car.hazard
 	b_key.lit = car.ignition
 	b_belt.lit = car.seatbelt
 	b_handbrake.lit = car.handbrake > 0.5
-	b_lights.lit = car.headlights
 	gears.automatic = car.is_automatic()
 	gears.set_current(car.get_selector() if car.is_automatic() else car.get_gear())
 	# Status.
 	if director:
-		status_penalty.text = "%s: %d" % [Loc.t("hud.penalty"), director.total]
+		status_penalty.text = "%s %d" % [Loc.t("hud.penalty"), director.total]
 		status_penalty.add_theme_color_override("font_color",
 				UITheme.GO if director.total == 0 else (UITheme.CAUTION if director.total < 50 else UITheme.STOP))
 		status_time.text = UITheme.clock(director.exam_time)
@@ -422,23 +435,25 @@ func _process(delta: float) -> void:
 	if _emergency:
 		_emergency_t += delta
 		var pulse := 0.5 + 0.5 * sin(_emergency_t * TAU * 2.0)
-		emergency_overlay.color.a = 0.12 + 0.18 * pulse
+		emergency_overlay.color.a = 0.1 + 0.16 * pulse
 		center_msg.visible = true
 		center_msg.text = Loc.t("hud.emergency")
 		center_msg.add_theme_color_override("font_color", UITheme.STOP.lerp(Color.WHITE, pulse * 0.4))
 		center_msg.modulate.a = 1.0
-	# Toast life.
+	# Notice life.
 	for t in toasts.get_children():
-		var life: float = t.get_meta("life", 4.0) - delta
+		var life: float = t.get_meta("life", 3.5) - delta
 		t.set_meta("life", life)
-		t.modulate.a = clampf(life / 0.6, 0.0, 1.0)
+		t.modulate.a = clampf(life / 0.5, 0.0, 1.0)
 		if life <= 0.0:
 			t.queue_free()
 
 
 func _update_prepare() -> void:
 	var preparing := director.state == ExamDirector.State.PREPARE
-	prepare_panel.visible = preparing
+	if prepare_panel.visible != preparing:
+		prepare_panel.visible = preparing
+		_refresh_card()
 	if not preparing:
 		return
 	var checks := {
@@ -447,70 +462,71 @@ func _update_prepare() -> void:
 		"prep.handbrake": car.handbrake > 0.5,
 		"prep.signal": car.signalling_left(),
 	}
+	# Without the on-screen switches, say which key does it.
+	var keys := {"prep.belt": "B", "prep.engine": "I", "prep.handbrake": Loc.t("key.space"), "prep.signal": "Q"}
 	for key in prep_items:
 		var ok: bool = checks[key]
 		var l: Label = prep_items[key]
-		l.text = ("✓  " if ok else "•  ") + Loc.t(key)
+		l.text = ("✓  " if ok else "○  ") + Loc.t(key) + ("" if touch_mode else "  [%s]" % keys[key])
 		l.add_theme_color_override("font_color", UITheme.GO if ok else UITheme.TEXT)
 	ready_btn.disabled = not car.is_engine_running()
 
 
 func _update_turn() -> void:
-	if not Settings.get_value("show_hints") or director.state != ExamDirector.State.RUNNING:
-		card_turn.text = ""
+	if director.state != ExamDirector.State.RUNNING:
+		card_turn.visible = false
 		return
 	var t := director.next_turn()
-	if t.is_empty() or float(t["distance"]) > 60.0:
-		card_turn.text = ""
-		return
-	var dir_txt := Loc.t("hud.turn_left") if t["dir"] == "left" else Loc.t("hud.turn_right")
-	var arrow := "⟵ " if t["dir"] == "left" else "⟶ "
-	card_turn.text = arrow + dir_txt + " · " + Loc.t("hud.in_m", [maxi(int(t["distance"]), 0)])
+	var show := not t.is_empty() and float(t["distance"]) <= 45.0
+	if show:
+		var arrow := "←  " if t["dir"] == "left" else "→  "
+		var dir_txt := Loc.t("hud.turn_left") if t["dir"] == "left" else Loc.t("hud.turn_right")
+		card_turn.text = arrow + dir_txt + "  ·  " + Loc.t("hud.in_m", [maxi(int(t["distance"]), 0)])
+	if card_turn.visible != show:
+		card_turn.visible = show
+		card.reset_size()
 
 
 func _refresh_card() -> void:
 	if director == null:
-		card_title.text = Loc.t("hud.free_mode")
-		card_hint.text = ""
+		card.visible = false
 		return
-	var ex := director.current_exercise()
 	# The preparation checklist has its own panel; the card stays out of the way.
-	card.visible = director.state != ExamDirector.State.PREPARE
+	card.visible = director.state == ExamDirector.State.RUNNING
+	var ex := director.current_exercise()
 	if ex:
 		card_title.text = ex.title()
 		card_hint.text = Loc.t(ex.hint_key, ex.hint_args) if ex.hint_key != "" else ""
 	else:
 		var nxt := director.upcoming_exercise()
 		card_title.text = (Loc.t("hud.next") + ": " + nxt.title()) if nxt else ""
-		card_hint.text = Loc.t("hint.go")
-	card_hint.visible = bool(Settings.get_value("show_hints")) and card_hint.text != ""
+		card_hint.text = ""
+	card_hint.visible = Session.hints_enabled() and card_hint.text != ""
+	card_title.visible = card_title.text != ""
 	card.reset_size()
-
-
-func _on_state() -> void:
-	_refresh_card()
 
 
 func _on_penalty(entry: Dictionary) -> void:
 	var p := PanelContainer.new()
 	var col := UITheme.CAUTION if int(entry["points"]) < 50 else UITheme.STOP
-	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.1, 0.05, 0.05, 0.9), 16, 2, col, 16))
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.1, 0.05, 0.05, 0.88), 14, 2, col, 10))
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 14)
+	h.add_theme_constant_override("separation", 12)
 	p.add_child(h)
-	var pts := UITheme.label("+%d" % int(entry["points"]), 26, col, true)
-	var txt := UITheme.label(PenaltyTable.text(int(entry["no"])), 18, UITheme.TEXT)
+	var pts := UITheme.label("+%d" % int(entry["points"]), 21, col, true)
+	var txt := UITheme.label(PenaltyTable.short_text(int(entry["no"])), 17, UITheme.TEXT)
 	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	txt.custom_minimum_size = Vector2(400, 0)
 	txt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(pts)
 	h.add_child(txt)
-	p.set_meta("life", 5.0)
+	p.set_meta("life", 3.5)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toasts.add_child(p)
 	toasts.move_child(p, 0)
-	while toasts.get_child_count() > 3:
-		toasts.get_child(toasts.get_child_count() - 1).queue_free()
+	while toasts.get_child_count() > 2:
+		var last := toasts.get_child(toasts.get_child_count() - 1)
+		toasts.remove_child(last)
+		last.queue_free()
 
 
 func _on_emergency(on: bool) -> void:
@@ -540,18 +556,12 @@ func show_center(text: String, color: Color, seconds: float) -> void:
 
 
 func _relabel() -> void:
-	if gas:
-		gas.caption = Loc.t("hud.gas")
-		brake_pedal.caption = Loc.t("hud.brake")
-		clutch_pedal.caption = Loc.t("hud.clutch")
-		gas.queue_redraw()
-		brake_pedal.queue_redraw()
-		clutch_pedal.queue_redraw()
-	if ready_btn:
-		ready_btn.text = Loc.t("hud.ready")
-	if demo_badge:
-		(demo_badge.get_node("Text") as Label).text = "▶  " + Loc.t("hud.demo")
-	var title := prepare_panel.find_child("Title", true, false) as Label if prepare_panel else null
-	if title:
-		title.text = Loc.t("hud.prepare")
+	gas.caption = Loc.t("hud.gas")
+	brake_pedal.caption = Loc.t("hud.brake")
+	clutch_pedal.caption = Loc.t("hud.clutch")
+	for p in [gas, brake_pedal, clutch_pedal]:
+		p.queue_redraw()
+	ready_btn.text = Loc.t("hud.ready")
+	(prepare_panel.find_child("Title", true, false) as Label).text = Loc.t("hud.prepare")
+	(demo_badge.get_node("Text") as Label).text = "▶  " + Loc.t("hud.demo")
 	_refresh_card()

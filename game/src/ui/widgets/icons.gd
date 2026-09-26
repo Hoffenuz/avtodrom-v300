@@ -79,6 +79,70 @@ static func draw(ci: CanvasItem, icon: String, c: Vector2, s: float, color: Colo
 			ci.draw_arc(c, s * 0.62, -PI * 0.1, PI * 1.5, 24, color, s * 0.16, true)
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(s * 0.62, -s * 0.5), c + Vector2(s * 0.95, 0.0),
 					c + Vector2(s * 0.3, s * 0.02)]), color)
+		"flag":
+			# Chequered flag on a pole: the exam.
+			ci.draw_line(c + Vector2(-s * 0.7, -s * 0.9), c + Vector2(-s * 0.7, s * 0.95), color, s * 0.13, true)
+			var cell := s * 0.34
+			for yy in 3:
+				for xx in 4:
+					var r := Rect2(c + Vector2(-s * 0.62 + xx * cell, -s * 0.86 + yy * cell), Vector2(cell, cell))
+					if (xx + yy) % 2 == 0:
+						ci.draw_rect(r, color)
+			ci.draw_rect(Rect2(c + Vector2(-s * 0.62, -s * 0.86), Vector2(cell * 4.0, cell * 3.0)), color, false, s * 0.06)
+		"cone":
+			# Traffic cone: the exercises.
+			var body := PackedVector2Array([c + Vector2(-s * 0.2, -s * 0.9), c + Vector2(s * 0.2, -s * 0.9),
+					c + Vector2(s * 0.55, s * 0.62), c + Vector2(-s * 0.55, s * 0.62)])
+			ci.draw_colored_polygon(body, color)
+			ci.draw_rect(Rect2(c + Vector2(-s * 0.85, s * 0.6), Vector2(s * 1.7, s * 0.28)), color)
+			var band := color.darkened(0.55)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s * 0.3, -s * 0.35), c + Vector2(s * 0.3, -s * 0.35),
+					c + Vector2(s * 0.37, -s * 0.08), c + Vector2(-s * 0.37, -s * 0.08)]), band)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s * 0.42, s * 0.16), c + Vector2(s * 0.42, s * 0.16),
+					c + Vector2(s * 0.49, s * 0.42), c + Vector2(-s * 0.49, s * 0.42)]), band)
+		"wheel":
+			# Steering wheel: free driving.
+			ci.draw_arc(c, s * 0.85, 0, TAU, 40, color, s * 0.17, true)
+			ci.draw_circle(c, s * 0.24, color)
+			for a in [PI, 0.0, PI * 0.5]:
+				ci.draw_line(c + Vector2(cos(a), sin(a)) * s * 0.2, c + Vector2(cos(a), sin(a)) * s * 0.78, color,
+						s * 0.15, true)
+		"list":
+			for k in 3:
+				var y := -s * 0.55 + k * s * 0.55
+				ci.draw_circle(c + Vector2(-s * 0.7, y), s * 0.11, color)
+				ci.draw_line(c + Vector2(-s * 0.4, y), c + Vector2(s * 0.85, y), color, s * 0.14, true)
+		"warn":
+			var t := PackedVector2Array([c + Vector2(0, -s * 0.9), c + Vector2(s * 0.95, s * 0.75),
+					c + Vector2(-s * 0.95, s * 0.75), c + Vector2(0, -s * 0.9)])
+			ci.draw_polyline(t, color, s * 0.13, true)
+			ci.draw_line(c + Vector2(0, -s * 0.3), c + Vector2(0, s * 0.22), color, s * 0.15, true)
+			ci.draw_circle(c + Vector2(0, s * 0.48), s * 0.09, color)
+		"gear":
+			for k in 8:
+				var a := k * TAU / 8.0
+				ci.draw_line(c + Vector2(cos(a), sin(a)) * s * 0.55, c + Vector2(cos(a), sin(a)) * s * 0.92, color,
+						s * 0.24, true)
+			ci.draw_arc(c, s * 0.55, 0, TAU, 28, color, s * 0.2, true)
+			ci.draw_arc(c, s * 0.18, 0, TAU, 16, color, s * 0.12, true)
+		"exit":
+			ci.draw_polyline(PackedVector2Array([c + Vector2(s * 0.1, -s * 0.85), c + Vector2(-s * 0.75, -s * 0.85),
+					c + Vector2(-s * 0.75, s * 0.85), c + Vector2(s * 0.1, s * 0.85)]), color, s * 0.13, true)
+			ci.draw_line(c + Vector2(-s * 0.25, 0), c + Vector2(s * 0.8, 0), color, s * 0.15, true)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(s * 0.95, 0), c + Vector2(s * 0.5, -s * 0.38),
+					c + Vector2(s * 0.5, s * 0.38)]), color)
+		"play":
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s * 0.55, -s * 0.8), c + Vector2(s * 0.85, 0),
+					c + Vector2(-s * 0.55, s * 0.8)]), color)
+		"back":
+			ci.draw_polyline(PackedVector2Array([c + Vector2(s * 0.35, -s * 0.75), c + Vector2(-s * 0.4, 0),
+					c + Vector2(s * 0.35, s * 0.75)]), color, s * 0.2, true)
+		"chev_left":
+			ci.draw_polyline(PackedVector2Array([c + Vector2(s * 0.3, -s * 0.7), c + Vector2(-s * 0.35, 0),
+					c + Vector2(s * 0.3, s * 0.7)]), color, s * 0.2, true)
+		"chev_right":
+			ci.draw_polyline(PackedVector2Array([c + Vector2(-s * 0.3, -s * 0.7), c + Vector2(s * 0.35, 0),
+					c + Vector2(-s * 0.3, s * 0.7)]), color, s * 0.2, true)
 		_:
 			_letter(ci, icon, c, s, color)
 

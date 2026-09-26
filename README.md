@@ -3,17 +3,28 @@
 Toshkent imtihon olish markazi (YIM) avtodromidagi amaliy haydovchilik
 imtihonining simulyatori. Android (asosiy) va Windows uchun.
 
-- Avtodrom rasmiy sxema bo'yicha 1:1 masshtabda qurilgan (11 px = 1 m).
+- Avtodrom rasmiy sxema bo'yicha qurilgan (12 px = 1 m; yo'l bo'laklari
+  ~3.2–3.7 m). Marshrutdagi har bir burilishdan oldin buyuruvchi belgi
+  (4.1.x) turadi.
 - 12 ta mashq va imtihon rasmiy 32 bandli jarima jadvali bo'yicha baholanadi
-  (100 balldan kam — "o'tdi").
+  (100 balldan kam — "o'tdi"; 100 ga yetganda imtihon darhol to'xtaydi).
 - Haqiqiy fizika: dvigatel, ilashish (mufta), 5 pog'onali mexanika yoki
   avtomat, shinalar modeli, ABS, osma — hammasi C++ da.
 - Ikki mashina: **Nexia 2** (mexanika, 5 pog'ona) va **Cobalt** (avtomat,
   6 pog'ona) — har biri zavod ma'lumotlari bo'yicha (massa, dvigatel
   momenti, uzatmalar, g'ildirak bazasi, shinalar).
-- Rejimlar: **Imtihon**, **Mashq** (istalgan mashq alohida), **Erkin haydash**
-  va **Namuna** (avtopilot mashqni yoki butun imtihonni to'g'ri bajarib
-  ko'rsatadi).
+- Uch rejim:
+  - **Imtihon** — to'liq marshrut, ko'rsatmalarsiz, natija tarixga yoziladi;
+    imtihon paytida "qaytadan boshlash" yo'q (chiqish = o'tmadi, №26).
+    Kirish sahifasida "Namuna" — butun imtihonni avtopilot topshiradi.
+  - **Mashqlar** — istalgan mashq alohida, qisqa ko'rsatmalar va marshrut
+    chizig'i bilan; har birida "Namuna".
+  - **Erkin haydash**.
+- Maydon atrofida: aylanma yo'l, imtihon markazi binosi va turargoh (turgan
+  mashinalar), teraklar va bog', uzoqda shahar siluetlari.
+- Kamera: kabina, orqadan (yaqin), yuqoridan. Ekranning bo'sh joyini surib
+  360° aylantirish, ikki barmoq / g'ildirak bilan yaqinlashtirish; ustun va
+  belgilar orqasiga tushmaydi.
 - Tillar: o'zbek (lotin), o'zbek (kirill), rus.
 
 ## Texnologiyalar
@@ -43,7 +54,8 @@ game/              Godot loyihasi
   assets/          mashina modeli, teksturalar, belgilar, shrift, shaderlar
   tests/           vehicle_test.gd, render_test, bake_course.gd
 pipeline/          sxemadan avtodrom geometriyasini chiqarish, tarjimalar, ikonka, teksturalar
-  blender/         mashina modellarini o'yinga tayyorlash (build_nexia.py, build_cobalt.py)
+  blender/         mashina modellarini o'yinga tayyorlash (build_nexia.py, build_cobalt.py,
+                   build_car_lod.py — turargohdagi mashinalar uchun yengil versiya)
 reference/         rasmiy sxema va mashqlar jadvallari (manba)
 scripts/           build.py (to'liq yig'ish), run_tests.py (barcha testlar)
 tools/             Godot va eksport shablonlari (git'da emas)
@@ -123,22 +135,28 @@ shu kalit bilan mumkin; zaxira nusxasini xavfsiz joyda saqlang.
 ## Testlar
 
 ```
-python scripts/run_tests.py           # hammasi (~25 daqiqa)
+python scripts/run_tests.py           # hammasi (~35 daqiqa)
 python scripts/run_tests.py --quick   # faqat C++ va avtomobil testlari
 ```
 
 1. C++ simulyator unit testlari (47 ta).
 2. Godot/Jolt avtomobil integratsiya testi (20 ta tekshiruv).
 3. Butun imtihon avtopilot bilan, ikkala mashinada — 0 jarima kutiladi.
-4. Ataylab xato qilish (kamarsiz, to'xtamaslik, qizil chiroq) — to'g'ri jarima
-   bandlari chiqishi kerak.
+4. Ataylab xato qilish (kamarsiz, to'xtamaslik, qizil chiroq, burilish
+   chirog'isiz, tezlikni oshirish) — to'g'ri jarima bandlari chiqishi kerak.
 5. Har bir mashqning "Namuna"si alohida, ikkala mashinada — 0 jarima.
 
 Qo'lda tekshirish uchun buyruq qatori (Godot `--` dan keyin):
 `--mode=practice --exercise=box --demo`, `--car=cobalt_at`, `--camera=chase`, `--autopilot`,
-`--shots=<papka>`, `--quit-after-s=<s>`, `--menu-page=practice`.
+`--seed=<n>` (svetofor fazalari takrorlanadi), `--touch` (telefon ko'rinishi kompyuterda),
+`--shots=<papka>`, `--quit-after-s=<s>`, `--menu-page=exam|practice|rules|history|settings`.
 
 ## Boshqaruv (kompyuter)
+
+Kompyuterda standart holda klaviatura bilan boshqariladi; ekrandagi rul va
+pedallarni Sozlamalar → Boshqaruv → "Ekrandagi rul va pedallar" orqali yoqish
+mumkin (sensorli ekranli noutbuklar uchun). Telefonda rul turi: rul,
+strelkalar yoki telefonni qiyalatish.
 
 | Tugma | Amal |
 |---|---|
@@ -154,9 +172,11 @@ Qo'lda tekshirish uchun buyruq qatori (Godot `--` dan keyin):
 | H | avariya signali |
 | V | kamera |
 | Esc | pauza |
+| sichqoncha bilan surish / g'ildirak | kamerani aylantirish / yaqinlashtirish |
 
-Telefonda: rul (yoki tugmalar), gaz/tormoz/mufta pedallari, uzatma dastagi va
-kabina tugmalari ekranda.
+Telefonda: rul (yoki tugmalar), gaz/tormoz/mufta pedallari, uzatma dastagi,
+kalit/kamar/qo'l tormozi, burilish va avariya chiroqlari; ekranning bo'sh
+joyini surish — kamerani aylantirish.
 
 ## Litsenziyalar va manbalar
 
