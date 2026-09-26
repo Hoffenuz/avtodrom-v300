@@ -130,6 +130,13 @@ func traffic_go(approach: String) -> bool:
 	return a == TrafficLight.Aspect.GREEN or a == TrafficLight.Aspect.GREEN_BLINK
 
 
+## Seconds left before the light for `approach` stops allowing entry.
+func traffic_go_left(approach: String) -> float:
+	if traffic == null:
+		return INF
+	return traffic.time_to_stop("NS" if approach in ["N", "S"] else "EW")
+
+
 ## The candidate confirms readiness (on-screen button).
 func request_start() -> void:
 	ready_requested = true
