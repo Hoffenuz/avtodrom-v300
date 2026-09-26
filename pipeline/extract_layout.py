@@ -37,6 +37,66 @@ def to_world(pts):
     return [[round((float(x) - CX) / PX_PER_M, 3), round((float(y) - CY) / PX_PER_M, 3)] for x, y in pts]
 
 
+def icon_mask(img):
+    """Yo'l belgisi/svetofor ikonkalari egallagan piksellar (kengaytirilgan)."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.int32)
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    sign_blue = (h >= 90) & (h <= 135) & (s > 110) & (v > 90)
+    sign_red = ((h < 12) | (h > 165)) & (s > 110) & (v > 90)
+    lamp_yellow = (h >= 15) & (h <= 32) & (s > 170) & (v > 170)
+    icon = (sign_blue | sign_red | lamp_yellow).astype(np.uint8)
+    icon = cv2.morphologyEx(icon, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    # Belgi yonidagi oq qo'shimcha taxtachalar (7.x) ham ikonka: ular kichik oq
+    # bo'laklar (bordyur esa uzun va katta bo'lgani uchun bu yerga tushmaydi).
+    white = ((s < 45) & (v > 185)).astype(np.uint8)
+    near = cv2.dilate(icon, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(white)
+    for i in range(1, n):
+        x, y, w, h, a = st[i]
+        if w <= 30 and h <= 40 and near[lab == i].any():
+            icon[lab == i] = 1
+    # Ikonkaning oq ramkasi ham qamrab olinadi.
+    return cv2.dilate(icon, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (29, 29)))
+
+
+def heal_under_icons(mask, icons, kernel):
+    """Ikonka ostida qolgan joyni qo'shni shakl bo'yicha tiklaydi.
+
+    Ikonka orol chetini yopib qo'yganda niqobda "tish" yoki uzilish qoladi.
+    Katta yadroli yopish (closing) faqat ikonka zonasida qo'llanadi — boshqa
+    joylardagi haqiqiy botiqliklar o'zgarmaydi.
+    """
+    closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    healed = mask | (closed & icons)
+    # Chuqurroq tishlar uchun: chegaragacha bo'lgan ishorali masofani ikonka zonasi
+    # ichiga garmonik davom ettiramiz — chiziqli maydon (to'g'ri chet) aynan tiklanadi.
+    m = healed.copy()
+    for _ in range(3):
+        sdf = (cv2.distanceTransform(m, cv2.DIST_L2, 5) - cv2.distanceTransform(1 - m, cv2.DIST_L2, 5)).astype(np.float32)
+        sdf = harmonic_fill(cv2.inpaint(sdf, icons, 9, cv2.INPAINT_NS), icons)
+        m = np.where(icons > 0, (sdf > 0).astype(np.uint8), healed)
+    return healed | m
+
+
+def harmonic_fill(f, zone, iters=1500):
+    """`zone` ichidagi qiymatlarni Laplas tenglamasi yechimi bilan almashtiradi (Jacobi)."""
+    f = f.copy()
+    n, lab, st, _ = cv2.connectedComponentsWithStats(zone.astype(np.uint8))
+    for i in range(1, n):
+        x, y, w, h, _ = st[i]
+        x0, y0 = max(x - 1, 0), max(y - 1, 0)
+        x1, y1 = min(x + w + 1, f.shape[1]), min(y + h + 1, f.shape[0])
+        sub = f[y0:y1, x0:x1]
+        z = lab[y0:y1, x0:x1] == i
+        z[0, :] = z[-1, :] = False
+        z[:, 0] = z[:, -1] = False
+        for _ in range(iters):
+            avg = sub.copy()
+            avg[1:-1, 1:-1] = 0.25 * (sub[:-2, 1:-1] + sub[2:, 1:-1] + sub[1:-1, :-2] + sub[1:-1, 2:])
+            sub[z] = avg[z]
+    return f
+
+
 def remove_icons(img):
     """Sxemadagi yo'l belgisi/svetofor ikonkalarini atrofdagi fon bilan to'ldiradi.
 
@@ -146,6 +206,7 @@ def main(debug=False):
     if img is None:
         sys.exit(f"Rasm topilmadi: {SRC}")
     grass, light = classify(remove_icons(img))
+    icons = icon_mask(img)
     inside = inside_fence_mask(img.shape, 6)
     white = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[..., 2] >= 205
 
@@ -153,6 +214,7 @@ def main(debug=False):
     g = (grass & inside).astype(np.uint8)
     g = cv2.morphologyEx(g, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
     g = cv2.morphologyEx(g, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+    g = heal_under_icons(g, icons, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41))) & inside.astype(np.uint8)
     # Belgilar va soyalar qoldirgan teshiklarni yopamiz.
     cnts, _ = cv2.findContours(g * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     filled = np.zeros_like(g)
@@ -165,7 +227,16 @@ def main(debug=False):
     # --- Beton maydonchalar ---------------------------------------------------
     lt = (light & inside).astype(np.uint8)
     lt = cv2.morphologyEx(lt, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
-    lt = cv2.morphologyEx(lt, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
+    # Soya tushgan joylar maydoncha chetida tor "tirqish" qoldiradi — ularni yopamiz.
+    lt = cv2.morphologyEx(lt, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15)))
+    # Belgi ikonkasining oq foni beton bo'lib orolga kirib qolmasin: beton orol
+    # (o't + bordyur) bilan ustma-ust tushmaydi.
+    lt &= (island_mask == 0).astype(np.uint8)
+    # Asfalt ustidagi ikonkalar ham maydonchaga "dum" qo'shmasin: ikonka zonasida
+    # faqat maydonchaning keng (>= 3 m) tanasi qoladi.
+    body = cv2.morphologyEx(lt, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (35, 35)))
+    lt &= ((icons == 0) | (body == 1)).astype(np.uint8)
+    lt = cv2.morphologyEx(lt, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
     pads = []
     for p in [q for q in (smooth_polygon(c, 0.8 * PX_PER_M, 1.0 * PX_PER_M, 0.03 * PX_PER_M)
                           for c in contours_of(lt, 1500, 0.8)) if q is not None]:

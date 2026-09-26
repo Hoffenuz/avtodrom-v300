@@ -79,7 +79,7 @@ for p in layout["pads"]:
     minx, miny, maxx, maxy = poly.bounds
     if miny < 160 and 1070 < minx < 1160:  # the top zebra, not a pad
         continue
-    if 1830 < minx < 1850 and miny > 480:  # partial pocket; pockets are authored below
+    if miny > 480 and maxy < 540:  # parallel-parking pockets are authored below
         continue
     clipped = poly.intersection(_islands_closed_px)
     if clipped.geom_type == "MultiPolygon":
@@ -531,7 +531,7 @@ for l in INTERSECTION["stop_lines"].values():
     add_stop_line(l)
 
 # Painted words are readable by the driver the marking addresses.
-texts.append({"text": "СТАРТ", "pos": w(1392, 136), "yaw": HEAD["W"], "size": 2.6})
+texts.append({"text": "СТАРТ", "pos": w(1448, 136), "yaw": HEAD["W"], "size": 2.6})
 texts.append({"text": "ФИНИШ", "pos": w(1846, 372), "yaw": HEAD["E"], "size": 2.6})
 
 # Start box and the stop-line lane box on the top road.
@@ -579,9 +579,15 @@ def hatch(poly_px, spacing_m=1.4, angle_deg=45, width=0.3):
     add_line(list(poly.exterior.coords), 0.15)
 
 
-hatch([(58, 452), (58, 586), (232, 586), (190, 560), (120, 505)], 1.4, 45)
-hatch([(2044, 412), (2088, 412), (2088, 486), (2044, 470)], 1.2, -45)
-hatch([(1040, 1080), (1108, 1080), (1076, 1040)], 1.0, 45)
+# West gore between the two curved lane lines (left road / zmeyka road).
+hatch([(62, 501), (75, 512), (88, 521), (100, 527), (125, 535), (150, 541), (175, 545), (200, 547), (214, 549),
+       (212, 567), (214, 585), (195, 586), (180, 587), (150, 590), (122, 595), (100, 602), (88, 609), (75, 622),
+       (62, 640)], 1.4, -45)
+# East end of the parallel-parking road: full lane width, next to the island.
+hatch([(2033, 403), (2089, 403), (2089, 534), (2033, 534)], 0.9, 16)
+# Bottom road: the south-leg divider splits into two curved lines.
+hatch([(1080, 1040), (1090, 1051), (1100, 1062), (1110, 1072), (1120, 1081), (1135, 1090), (1150, 1095),
+       (1005, 1095), (1030, 1086), (1050, 1078), (1062, 1066), (1070, 1056), (1076, 1047)], 0.9, 7)
 
 # Parking slots (8 angled bays at the top): borrow the clean auto-traced lines.
 auto = json.loads(MARKINGS_AUTO.read_text(encoding="utf-8"))
@@ -592,22 +598,29 @@ for l in auto["lines"]:
     if min(xs) > 1150 and max(xs) < 1990 and min(ys) > 185 and max(ys) < 305:
         add_line(pts, 0.12)
 
-# Arrows: (x, y px, heading, kind). kind: S, L, R, SL, SR.
+# Arrows: (x, y px, heading, kind). kind: S, L, R, SL, SR. Positions and kinds follow
+# the scheme; where the scheme's arrow contradicts the exam route the route wins
+# and the scheme's kind is noted.
 ARROWS = [
-    (1250, 115, "W", "S"), (1250, 156, "W", "S"),
-    (245, 115, "W", "L"), (245, 156, "W", "L"),
-    (128, 330, "S", "L"), (80, 470, "S", "S"),
-    (130, 598, "W", "L"),
-    (870, 250, "E", "R"), (880, 390, "E", "R"),
-    (1049, 465, "S", "S"), (1049, 438, "S", "SL"),
-    (1200, 351, "E", "S"), (1600, 351, "E", "S"), (1300, 392, "E", "S"), (1620, 392, "E", "S"),
-    (1530, 553, "W", "S"), (1535, 598, "W", "S"), (1290, 598, "W", "SR"),
-    (1290, 640, "E", "SR"), (1740, 640, "E", "SR"),
-    (875, 640, "E", "SR"), (690, 1068, "W", "SR"), (1200, 1068, "W", "S"), (1450, 1068, "W", "S"), (1840, 1068, "W", "S"),
-    (380, 1113, "E", "S"), (1060, 1113, "E", "S"), (1900, 1113, "E", "SL"),
-    (2066, 700, "N", "SL"), (2015, 960, "S", "SR"),
-    (1104, 745, "N", "SL"), (1046, 960, "S", "SR"),
-    (80, 1060, "S", "L"),
+    (1258, 115, "W", "S"), (1258, 156, "W", "S"),
+    (238, 115, "W", "L"), (238, 156, "W", "L"),
+    (132, 352, "S", "L"), (84, 468, "S", "L"),
+    (212, 606, "W", "L"),
+    (884, 250, "E", "R"), (890, 388, "E", "R"),
+    (1049, 466, "S", "SL"),    # scheme: S (pass 1 turns left)
+    (1200, 351, "E", "S"), (1616, 351, "E", "S"), (1201, 390, "E", "SR"), (1616, 390, "E", "S"),
+    (1532, 553, "W", "SR"), (1536, 598, "W", "S"),
+    (1278, 596, "W", "SR"),    # scheme: R (pass 3 goes straight)
+    (1294, 638, "E", "SR"), (1746, 638, "E", "SR"),
+    (876, 640, "E", "SR"),     # scheme: S (pass 2 turns right)
+    (730, 1068, "W", "R"), (967, 1064, "W", "SR"),
+    (1205, 1064, "W", "S"),    # scheme: R (the route goes straight on)
+    (1450, 1070, "W", "SR"), (1853, 1070, "W", "SR"),
+    (372, 1116, "E", "S"), (1215, 1116, "E", "S"), (1920, 1112, "E", "L"),
+    (2063, 725, "N", "L"), (2012, 945, "S", "R"),
+    (1102, 760, "N", "L"),
+    (1050, 966, "S", "SR"),    # scheme: R (pass 2 crosses to the outer lane)
+    (82, 1058, "S", "L"),
 ]
 arrows = [{"pos": w(x, y), "yaw": HEAD[h], "kind": k} for x, y, h, k in ARROWS]
 
@@ -646,31 +659,63 @@ def sign(code, x, y, heading, plates=(), height=2.1, size=0.7):
 
 
 # Top road (westbound): the right-hand side is the north fence line.
-sign("3.24-20", 1470, 84, "W")                    # start: 20 km/h zone
+sign("3.24-20", 1425, 84, "W")                    # start: 20 km/h zone
+sign("4.1.1", 1263, 84, "W")                      # start: straight on
 sign("5.16.1", 1150, 84, "W")                     # pedestrian crossing
 sign("2.5", 1176, 84, "W")
-sign("1.14", 985, 84, "W")                        # steep ascent (estakada)
-sign("2.5", HILL_STOP_X - 2, 91.5, "W")           # STOP on the ramp (stands on the deck)
-sign("1.13", 690, 91.5, "W")                      # steep descent
-sign("1.12.1", 300, 470, "E")                     # 90° corridor
-sign("4.1.3", 1000, 440, "S")                     # intersection, north approach: left (pass 1)
+sign("1.14", 938, 84, "W")                        # steep ascent (estakada)
+# STOP stands at the hill stop line, as in the exercise picture (the scheme draws it on the crest).
+sign("2.5", HILL_STOP_X - 2, 91.5, "W")
+sign("1.13", 616, 91.5, "W")                      # steep descent
+# Scheme icons are drawn rotated so that the top of the sign points the way its
+# traffic drives; a map arrow is read in that frame (down for southbound = straight).
+sign("4.1.3", 38, 358, "S")                       # left road: left into the 90° corridor
+sign("1.12.2", 224, 482, "E")                     # 90° corridor (upper): first turn left
+sign("1.12.2", 523, 564, "E")                     # 90° corridor (lower): first turn left
+sign("4.1.3", 266, 566, "W")                      # the gore: left onto the left road
+sign("4.1.2", 892, 293, "E")                      # top loop: right
+sign("3.19", 936, 317, "E")
+sign("4.1.2", 934, 414, "E")                      # onto the north leg: right, yield
+sign("2.4", 934, 430, "E")
+sign("4.1.1", 1000, 440, "S")                     # north approach: straight
+sign("5.15", 1202, 436, "E", plates=("7.6.4",))    # parking strip on the finish island
+sign("4.1.1", 1277, 690, "E")                     # box island, north side: straight
 sign("1.12.2", 910, 955, "N")                     # zmeyka B entrance (as on the scheme)
 sign("1.12.2", 690, 955, "N")                     # zmeyka A entrance
-sign("2.4", 720, 695, "N")                        # zmeyka B exit: yield
-sign("2.4", 380, 700, "N")                        # zmeyka A exit: yield
-sign("5.15", 1392, 752, "S", plates=("7.6.1",))    # boxes
-sign("5.15", 1705, 752, "S", plates=("7.6.1",))
+sign("4.1.1", 696, 993, "N")
+sign("2.4", 720, 695, "N")                        # zmeyka B exit: yield, keep right
+sign("4.2.1", 703, 712, "N")
+sign("2.4", 380, 700, "N")                        # zmeyka A exit: yield, keep right
+sign("4.2.1", 362, 718, "N")
+sign("3.18.1", 572, 672, "E")                     # no right turn into zmeyka A
+sign("5.15", 1382, 760, "S")                      # boxes
+sign("5.15", 1769, 753, "S")
+sign("5.15", 1359, 994, "N")
+sign("5.15", 1762, 991, "N")
+sign("2.4", 1517, 700, "N")                       # box exits (north): yield, right only
+sign("4.1.2", 1517, 718, "N")
+sign("2.4", 1876, 716, "N")
+sign("4.1.2", 1876, 734, "N")
+sign("4.1.2", 1245, 980, "S")                     # box exits (south): right only, yield
+sign("2.4", 1245, 997, "S")
+sign("4.1.2", 1650, 1001, "S")
+sign("2.4", 1650, 1018, "S")
+sign("4.1.1", 1178, 1006, "N")                    # south leg, northbound
+sign("4.1.3", 1148, 759, "N")                     # south approach: left
+sign("4.1.2", 1943, 702, "E")
 sign("5.15", 1990, 520, "W", plates=("7.6.4",))    # parallel pockets
 sign("5.15", 1740, 520, "W", plates=("7.6.4",))
 sign("5.15", 1490, 520, "W", plates=("7.6.4",))
+sign("4.1.3", 2110, 554, "N")                     # right road: left onto the parking road
 sign("1.3.1", 38, 900, "S")                       # railway (St Andrew's cross)
 sign("2.5", 38, 925, "S")
 sign("1.2", 38, 760, "S")
+sign("4.1.3", 36, 1069, "S")                      # left road: left onto the bottom road
 sign("3.24-40", 418, 1150, "E")                   # acceleration section
 sign("4.7-20", 430, 1150, "E", height=1.35)
 sign("3.24-20", 1325, 1150, "E")
+sign("4.1.3", 2004, 1150, "E")                    # bottom road: left up the right road
 sign("4.2.1", 1142, 474, "S")                     # on the nose of the finish-road island
-sign("3.19", 950, 330, "E")
 sign("4.1.2", 1760, 690, "E")
 
 # Mandatory-direction signs before every junction turn of the exam route
@@ -696,8 +741,10 @@ LIGHTS = [
     {"id": "E", "pos": w(1206, 520), "yaw": HEAD["W"], "group": "EW"},
 ]
 
-LAMP_POSTS = wl([(40, 60), (560, 55), (1000, 55), (1560, 60), (2140, 60), (2150, 330), (2150, 700), (2150, 1000),
-                 (2150, 1190), (1600, 1180), (1060, 1185), (520, 1180), (40, 1190), (30, 780), (30, 450)])
+# Lamp posts where the scheme shows them (the pole foot, next to the fence; the
+# scheme is a perspective render, so the lamp heads lean away from its centre).
+LAMP_POSTS = wl([(608, 50), (1350, 80), (2025, 80), (2110, 395), (2110, 888), (2021, 1145), (1346, 1145),
+                 (670, 1142), (40, 1120), (45, 630), (45, 138)])
 
 
 def check_street_furniture():
