@@ -58,6 +58,7 @@ struct WheelOutput {
 	double slip_long = 0.0;
 	double slip_lat = 0.0;
 	bool sliding = false;
+	double slide_speed = 0.0; // m/s the contact patch rubs over the road (0 when rolling freely)
 	double brake_torque = 0.0; // N·m actually applied (for brake-light / ABS display)
 };
 

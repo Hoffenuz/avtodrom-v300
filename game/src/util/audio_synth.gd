@@ -2,7 +2,7 @@ class_name AudioSynth
 extends RefCounted
 ## Small procedural sound effects (no audio files needed): relay clicks for
 ## the indicators, the seat-belt chime, the emergency beeper, tyre squeal and
-## impact thumps. Generated once and cached.
+## scrub, and impact thumps. Generated once and cached.
 
 const RATE := 32000
 
@@ -82,25 +82,121 @@ static func beeper() -> AudioStreamWAV:
 	return _cache["beeper"]
 
 
-## Band-limited noise loop for tyre squeal / scrub.
+## Tyre squeal loop: white noise rung through three narrow, inharmonic
+## resonances whose pitch and strength wander slowly, like a tread block
+## stick-slipping on asphalt. (A plain sine sounds like a whistle.)
 static func squeal() -> AudioStreamWAV:
 	if _cache.has("squeal"):
 		return _cache["squeal"]
-	var n := RATE
+	var xf := int(RATE * 0.15)
+	var n := int(RATE * 1.5) + xf
 	var s := PackedFloat32Array()
 	s.resize(n)
 	var r := _rng()
-	var lp := 0.0
-	var hp := 0.0
+	var freqs := [780.0, 1180.0, 1590.0]
+	var gains := [1.0, 0.7, 0.45]
+	var bq: Array[_Biquad] = []
+	var drift := []
+	for k in 3:
+		bq.append(_Biquad.new())
+		drift.append(0.0)
+	var hiss := _Biquad.new()
+	hiss.bandpass(3200.0, 0.8, RATE)
+	var chatter := 0.0
+	var chatter_target := 0.0
 	for i in n:
-		var t := float(i) / RATE
-		var x := r.randf_range(-1, 1)
-		lp += (x - lp) * 0.25
-		hp = lp - hp * 0.2
-		var tone := sin(TAU * 1150.0 * t + sin(TAU * 7.0 * t) * 2.0) * 0.35
-		s[i] = (hp * 0.5 + tone) * 0.5
-	_cache["squeal"] = _wav(s, true)
+		if i % 32 == 0:
+			for k in 3:
+				# Slow random walk of each resonance, about ±4 %.
+				drift[k] = clampf(drift[k] + r.randf_range(-1.0, 1.0) * 0.004, -0.04, 0.04)
+				bq[k].bandpass(freqs[k] * (1.0 + drift[k]), 28.0, RATE)
+			if i % 640 == 0:
+				chatter_target = r.randf()
+		chatter += (chatter_target - chatter) * 0.0015
+		var x := r.randf_range(-1.0, 1.0)
+		var y := 0.0
+		for k in 3:
+			y += bq[k].tick(x) * gains[k]
+		s[i] = y * (0.6 + 0.4 * chatter) + hiss.tick(x) * 0.05
+	_cache["squeal"] = _wav(_seamless(_normalize(s, 0.8), xf), true)
 	return _cache["squeal"]
+
+
+## Rubber scrub loop: the dull, gritty rasp of a locked or sliding tyre at
+## low speed (handbrake turns, parking-speed skids).
+static func scrub() -> AudioStreamWAV:
+	if _cache.has("scrub"):
+		return _cache["scrub"]
+	var xf := int(RATE * 0.1)
+	var n := int(RATE * 1.5) + xf
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var r := _rng()
+	var body := _Biquad.new()
+	body.bandpass(360.0, 1.1, RATE)
+	var grit := _Biquad.new()
+	grit.bandpass(1100.0, 2.0, RATE)
+	var grain := 0.0
+	for i in n:
+		var x := r.randf_range(-1.0, 1.0)
+		# Sparse grains (~80/s) give the texture of rubber tearing over grit.
+		if r.randf() < 80.0 / RATE:
+			grain = r.randf_range(0.5, 1.0)
+		grain *= 0.994
+		s[i] = body.tick(x) * (0.7 + grain) + grit.tick(x * grain) * 0.5
+	_cache["scrub"] = _wav(_seamless(_normalize(s, 0.8), xf), true)
+	return _cache["scrub"]
+
+
+## Scales a buffer so its peak is `peak`.
+static func _normalize(s: PackedFloat32Array, peak: float) -> PackedFloat32Array:
+	var m := 0.0
+	for v in s:
+		m = maxf(m, absf(v))
+	if m > 0.0:
+		for i in s.size():
+			s[i] *= peak / m
+	return s
+
+
+## Turns a buffer into a click-free loop: the last `xf` samples are
+## cross-faded (equal power) into the first `xf` and then dropped.
+static func _seamless(s: PackedFloat32Array, xf: int) -> PackedFloat32Array:
+	var n := s.size() - xf
+	var out := s.slice(0, n)
+	for i in xf:
+		var a := float(i) / xf
+		out[i] = s[i] * sqrt(a) + s[n + i] * sqrt(1.0 - a)
+	return out
+
+
+## RBJ band-pass biquad (constant 0 dB peak gain).
+class _Biquad:
+	var b0 := 0.0
+	var b2 := 0.0
+	var a1 := 0.0
+	var a2 := 0.0
+	var x1 := 0.0
+	var x2 := 0.0
+	var y1 := 0.0
+	var y2 := 0.0
+
+	func bandpass(freq: float, q: float, rate: float) -> void:
+		var w := TAU * freq / rate
+		var alpha := sin(w) / (2.0 * q)
+		var a0 := 1.0 + alpha
+		b0 = alpha / a0
+		b2 = -alpha / a0
+		a1 = -2.0 * cos(w) / a0
+		a2 = (1.0 - alpha) / a0
+
+	func tick(x: float) -> float:
+		var y := b0 * x + b2 * x2 - a1 * y1 - a2 * y2
+		x2 = x1
+		x1 = x
+		y2 = y1
+		y1 = y
+		return y
 
 
 ## Dull impact.
