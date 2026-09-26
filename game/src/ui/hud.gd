@@ -258,6 +258,20 @@ func _build_touch() -> void:
 var _steer_dir := 0
 
 
+## Lets go of every on-screen control (the app lost focus mid-touch).
+func release_touch() -> void:
+	_steer_dir = 0
+	for c in [gas, brake_pedal, clutch_pedal, wheel, gears, btn_steer_left, btn_steer_right, b_ind_left,
+			b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_lights, b_camera, b_map, b_pause]:
+		if c:
+			c.release_touch()
+
+
+## Settings that move or hide touch controls changed during the drive.
+func relayout() -> void:
+	_layout()
+
+
 func _steer_button(d: int) -> void:
 	_steer_dir = d
 
@@ -383,7 +397,8 @@ func _process(delta: float) -> void:
 				-car.get_steering_lock(), car.get_steering_lock())
 		controls.touch_steer_active = true
 	elif btn_steer_left.visible:
-		controls.touch_steer_deg = move_toward(controls.touch_steer_deg, 0.0, 480.0 * delta)
+		if bool(Settings.get_value("steering_autocenter")):
+			controls.touch_steer_deg = move_toward(controls.touch_steer_deg, 0.0, 480.0 * delta)
 		controls.touch_steer_active = true
 	wheel.car_speed = car.get_forward_speed()
 	wheel.autocenter = bool(Settings.get_value("steering_autocenter"))

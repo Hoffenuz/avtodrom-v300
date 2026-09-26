@@ -156,9 +156,22 @@ func _apply_graphics() -> void:
 	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][clampi(quality, 0, 2)]
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	Engine.max_fps = int(Settings.get_value("fps_limit"))
+	var sun := get_node_or_null("Sun") as DirectionalLight3D
+	if sun:
+		sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows"))
+
+
+func _on_setting_changed(key: String) -> void:
+	if key == "auto_clutch" and car:
+		car.auto_clutch = bool(Settings.get_value("auto_clutch"))
+	if key == "steering_mode" and controls:
+		controls.touch_steer_active = false # let tilt / keys take over again
+	if key in ["auto_clutch", "left_handed", "steering_mode"] and hud:
+		hud.relayout()
 
 
 func _connect_controls() -> void:
+	Settings.changed.connect(_on_setting_changed)
 	controls.indicator_pressed.connect(func(dir: int) -> void: car.toggle_indicator(dir))
 	controls.hazard_pressed.connect(func() -> void: car.set_hazard(not car.hazard))
 	controls.seatbelt_pressed.connect(func() -> void: car.seatbelt = not car.seatbelt)
@@ -243,6 +256,46 @@ func _indicator_self_cancel() -> void:
 		car.set_indicator(Car.Indicator.OFF)
 
 
+## Android "back": close whatever is open on top, otherwise pause. It never
+## leaves a running exam by itself (the pause menu warns about rule №26).
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			if results == null or results.visible:
+				return
+			if pause_menu.visible:
+				if not pause_menu.back():
+					_resume()
+			else:
+				_pause()
+		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT:
+			# A call or the home button: no finger-up events will arrive, so let
+			# go of every on-screen control and stop the clock.
+			if controls:
+				controls.release_touch()
+			if hud:
+				hud.release_touch()
+			if results and not results.visible and Settings.is_mobile():
+				_pause()
+
+
+## Dragging over the free part of the screen turns the driver's head.
+var _look_touch := -1
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if rig == null:
+		return
+	if event is InputEventScreenTouch:
+		if event.pressed and _look_touch < 0:
+			_look_touch = event.index
+		elif not event.pressed and event.index == _look_touch:
+			_look_touch = -1
+			rig.release_look()
+	elif event is InputEventScreenDrag and event.index == _look_touch:
+		rig.look(event.relative)
+
+
 func _pause() -> void:
 	if results.visible:
 		return
@@ -252,6 +305,8 @@ func _pause() -> void:
 
 func _resume() -> void:
 	get_tree().paused = false
+	_look_touch = -1
+	rig.release_look()
 	pause_menu.close()
 
 

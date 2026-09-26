@@ -10,6 +10,8 @@ var _panel_stack: Array[Control] = []
 var _stats: Label
 var _car_buttons := {}
 var _menu_car: Car
+var _on_home := true
+var _settings_panel: SettingsPanel
 
 
 func _ready() -> void:
@@ -96,6 +98,7 @@ func _clear_content() -> void:
 
 func _show_home() -> void:
 	_clear_content()
+	_on_home = true
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 40)
 	_content.add_child(h)
@@ -228,6 +231,7 @@ func _start(mode: Session.Mode, exercise := "", demo := false) -> void:
 # ------------------------------------------------------------------ sub-screens
 func _screen(title_key: String) -> VBoxContainer:
 	_clear_content()
+	_on_home = false
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
 	_content.add_child(v)
@@ -373,8 +377,25 @@ func _show_help() -> void:
 
 func _show_settings() -> void:
 	_clear_content()
+	_on_home = false
 	var s := SettingsPanel.new()
 	s.closed.connect(func() -> void:
 		s.queue_free()
+		_settings_panel = null
 		_show_home())
 	_ui.add_child(s)
+	_settings_panel = s
+
+
+## Android "back": a sub-page goes back to the home page; on the home page the
+## app closes, as Android users expect (the project turns off Godot's own
+## quit-on-back so a drive in progress is never closed by it).
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST or _content == null:
+		return
+	if _settings_panel:
+		_settings_panel.closed.emit()
+	elif not _on_home:
+		_show_home()
+	else:
+		get_tree().quit()

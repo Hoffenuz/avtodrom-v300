@@ -45,6 +45,11 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+## The app lost focus mid-touch: no finger-up will arrive.
+func release_touch() -> void:
+	_touch = -1
+
+
 func is_held() -> bool:
 	return _touch >= 0
 

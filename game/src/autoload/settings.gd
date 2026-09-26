@@ -3,7 +3,7 @@ extends Node
 ##
 ## Every value has a default here; the file only stores what the user changed.
 ## Graphics settings are applied immediately to the viewport/environment by
-## whoever listens to `changed` (see src/game/graphics.gd).
+## whoever listens to `changed` (see src/game/drive.gd).
 
 signal changed(key: String)
 
@@ -14,7 +14,6 @@ const DEFAULTS := {
 	"language": "uz_latn", # uz_latn | uz_cyrl | ru
 	"car": "nexia2", # nexia2 (mexanika) | cobalt_at (avtomat)
 	"auto_clutch": true, # manual gearbox: the simulation works the clutch
-	"abs": true,
 	"steering_mode": "wheel", # wheel | tilt | buttons
 	"steering_sensitivity": 1.0,
 	"steering_autocenter": true,
@@ -29,10 +28,7 @@ const DEFAULTS := {
 	"vol_master": 0.9,
 	"vol_engine": 0.8,
 	"vol_effects": 0.8,
-	"vol_voice": 1.0,
-	"haptics": true,
 	"left_handed": false,
-	"ui_scale": 1.0,
 	"exam_time_limit_min": 25,
 }
 

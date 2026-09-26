@@ -8,6 +8,7 @@ extends Exercise
 ##              on green). Indicators are checked by the director's turn list.
 
 const STOP_SPEED := 0.12
+const STABLE_STOP := 0.4 # a crawl through zero speed while creeping up is not a stop
 
 var line: Dictionary
 var travel := Vector2.ZERO
@@ -18,7 +19,7 @@ var stop_gap := -1.0
 var green_since := -1.0
 var green_flagged := false
 var red_flagged := false
-var gap_checked := false
+var gap_judged := false
 
 
 func _on_begin() -> void:
@@ -52,11 +53,15 @@ func _tick(dt: float, p: CarProbe) -> void:
 				green_since = director.exam_time
 		elif not go:
 			green_since = -1.0
-		if not go and absf(p.speed) < STOP_SPEED and front_past > -6.0 and front_past <= 0.0 and not gap_checked:
-			gap_checked = true
+		# The last proper stop before the line counts: pulling up closer after
+		# a first stop further back is allowed.
+		if not go and absf(p.speed) < STOP_SPEED and p.stopped_time > STABLE_STOP \
+				and front_past > -6.0 and front_past <= 0.0:
 			stop_gap = -front_past
+		if front_past > 0.0 and not gap_judged:
+			gap_judged = true
 			if stop_gap > float(def.get("max_gap", 1.0)):
-				penalize(4)
+				penalize(4, "stopped %.2f m before the line" % stop_gap)
 		if front_past > 0.0:
 			if not go and not red_flagged:
 				red_flagged = true

@@ -57,6 +57,11 @@ func set_current(g: int) -> void:
 		queue_redraw()
 
 
+## The app lost focus mid-touch: no finger-up will arrive.
+func release_touch() -> void:
+	_touch = -1
+
+
 func reject() -> void:
 	reject_flash = 0.6
 	queue_redraw()

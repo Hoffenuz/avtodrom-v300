@@ -9,7 +9,7 @@ var _list: VBoxContainer
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UITheme.get_theme()
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_rebuild()
@@ -156,7 +156,8 @@ func _build() -> void:
 	_row("set.time_limit", _slider("exam_time_limit_min", 15, 40, 1, "%d", 1.0))
 
 	_section("set.graphics")
-	_row("set.quality", _segmented("quality", [[0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]))
+	_row("set.quality", _segmented("quality", [[0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]),
+			"set.quality_desc")
 	_row("set.render_scale", _slider("render_scale", 0.5, 1.0, 0.05))
 	_row("set.fps", _segmented("fps_limit", [[30, "30"], [60, "60"]]))
 	_row("set.shadows", _toggle("shadows"))

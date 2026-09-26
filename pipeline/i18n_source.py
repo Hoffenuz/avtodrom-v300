@@ -61,6 +61,8 @@ S = {
     "set.q0": ("Past", "Паст", "Низкое"),
     "set.q1": ("O‘rta", "Ўрта", "Среднее"),
     "set.q2": ("Yuqori", "Юқори", "Высокое"),
+    "set.quality_desc": ("Keyingi haydashdan boshlab qo‘llanadi", "Кейинги ҳайдашдан бошлаб қўлланади",
+                         "Применяется со следующей поездки"),
     "set.render_scale": ("Tasvir aniqligi", "Тасвир аниқлиги", "Разрешение рендера"),
     "set.fps": ("Kadrlar chastotasi", "Кадрлар частотаси", "Частота кадров"),
     "set.shadows": ("Soyalar", "Соялар", "Тени"),

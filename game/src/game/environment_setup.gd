@@ -42,7 +42,7 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 	sun.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(150.0), 0.0)
 	sun.light_energy = 1.25
 	sun.light_color = Color(1.0, 0.97, 0.92)
-	sun.shadow_enabled = quality >= 1 or bool(Settings.get_value("shadows"))
+	sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows"))
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.2
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if quality < 2 \

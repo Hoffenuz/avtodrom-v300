@@ -179,6 +179,11 @@
   "uz_cyrl": "Юқори",
   "ru": "Высокое"
  },
+ "set.quality_desc": {
+  "uz_latn": "Keyingi haydashdan boshlab qo‘llanadi",
+  "uz_cyrl": "Кейинги ҳайдашдан бошлаб қўлланади",
+  "ru": "Применяется со следующей поездки"
+ },
  "set.render_scale": {
   "uz_latn": "Tasvir aniqligi",
   "uz_cyrl": "Тасвир аниқлиги",
