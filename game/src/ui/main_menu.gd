@@ -48,6 +48,9 @@ func _build_world() -> void:
 	_world.add_child(_cam)
 	_cam.current = true
 	get_viewport().msaa_3d = Viewport.MSAA_2X
+	# The menu background is a slow orbit: 30 fps is plenty and keeps the phone
+	# cool (the drive scene sets its own limit from the settings).
+	Engine.max_fps = 30
 
 
 func _process(delta: float) -> void:

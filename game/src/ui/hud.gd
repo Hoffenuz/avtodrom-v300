@@ -23,6 +23,7 @@ var card: PanelContainer
 var card_title: Label
 var card_hint: Label
 var card_turn: Label
+var signal_badge: SignalBadge
 var status: PanelContainer
 var status_penalty: Label
 var status_time: Label
@@ -115,6 +116,10 @@ func _build() -> void:
 	cv.add_child(card_hint)
 	cv.add_child(card_turn)
 	root.add_child(card)
+
+	signal_badge = SignalBadge.new()
+	signal_badge.visible = false
+	root.add_child(signal_badge)
 
 	status = PanelContainer.new()
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -309,6 +314,7 @@ func _layout() -> void:
 	card.custom_minimum_size = Vector2(card_w, 0)
 	card_hint.custom_minimum_size = Vector2(card_w - 48.0, 0)
 	card.reset_size()
+	signal_badge.size = signal_badge.custom_minimum_size
 	status.custom_minimum_size = Vector2(240, 0)
 	status.position = Vector2(L + W * 0.5 - 120 + (W * 0.1 if W < 1300 else 0.0), T)
 	demo_badge.reset_size()
@@ -422,6 +428,7 @@ func _process(delta: float) -> void:
 		status_penalty.add_theme_color_override("font_color",
 				UITheme.GO if director.total == 0 else (UITheme.CAUTION if director.total < 50 else UITheme.STOP))
 		status_time.text = UITheme.clock(director.exam_time)
+		_update_signal_badge()
 		_update_prepare()
 		_update_turn()
 	# A wrapped label can report a tall minimum while its width is still being
@@ -481,6 +488,18 @@ func _update_turn() -> void:
 	var dir_txt := Loc.t("hud.turn_left") if t["dir"] == "left" else Loc.t("hud.turn_right")
 	var arrow := "⟵ " if t["dir"] == "left" else "⟶ "
 	card_turn.text = arrow + dir_txt + " · " + Loc.t("hud.in_m", [maxi(int(t["distance"]), 0)])
+
+
+## Shows the light of the junction the car is in (see SignalBadge).
+func _update_signal_badge() -> void:
+	var ex := director.current_exercise()
+	var at_light := ex is ExIntersection and director.traffic != null \
+			and director.state == ExamDirector.State.RUNNING and not (ex as ExIntersection).entered
+	signal_badge.visible = at_light
+	if at_light:
+		# Under the exercise card, whose height follows its text.
+		signal_badge.position = card.position + Vector2(0.0, card.size.y + 10.0)
+		signal_badge.aspect = director.traffic.aspect_for_approach((ex as ExIntersection).approach)
 
 
 func _refresh_card() -> void:
