@@ -1,8 +1,8 @@
 class_name ProcGeo
 extends RefCounted
-## Small solid-shape builders for props (traffic lights, buildings, trees).
+## Small solid-shape builders for props (traffic lights).
 ## Everything goes through a SurfaceTool with explicit normals and vertex
-## colours, so a whole prop can share one material (one draw call).
+## colours, so a whole prop is one mesh with one material (one draw call).
 ## Winding is fixed per triangle from the normals (Godot: clockwise = front).
 
 
@@ -34,35 +34,6 @@ static func quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3
 	else:
 		tri(st, a, b, c, n, n, n, col)
 		tri(st, a, c, d, n, n, n, col)
-
-
-## Axis-aligned box (in `xf` space) from `lo` to `hi`. `skip_bottom` drops the
-## face nobody ever sees. Wall UVs are in metres (u along the wall, v up).
-static func box(st: SurfaceTool, xf: Transform3D, lo: Vector3, hi: Vector3, col: Color, skip_bottom := true,
-		top_col := Color(-1, 0, 0)) -> void:
-	var b := xf.basis
-	var p := func(x: float, y: float, z: float) -> Vector3: return xf * Vector3(x, y, z)
-	var sx := hi.x - lo.x
-	var sz := hi.z - lo.z
-	var y0 := lo.y
-	var y1 := hi.y
-	var tc := col if top_col.r < 0.0 else top_col
-	# +x, -x, +z, -z walls
-	quad(st, p.call(hi.x, y0, lo.z), p.call(hi.x, y0, hi.z), p.call(hi.x, y1, hi.z), p.call(hi.x, y1, lo.z),
-			(b * Vector3.RIGHT).normalized(), col, PackedVector2Array([Vector2(0, y0), Vector2(sz, y0), Vector2(sz, y1), Vector2(0, y1)]))
-	quad(st, p.call(lo.x, y0, hi.z), p.call(lo.x, y0, lo.z), p.call(lo.x, y1, lo.z), p.call(lo.x, y1, hi.z),
-			(b * Vector3.LEFT).normalized(), col, PackedVector2Array([Vector2(0, y0), Vector2(sz, y0), Vector2(sz, y1), Vector2(0, y1)]))
-	quad(st, p.call(hi.x, y0, hi.z), p.call(lo.x, y0, hi.z), p.call(lo.x, y1, hi.z), p.call(hi.x, y1, hi.z),
-			(b * Vector3.BACK).normalized(), col, PackedVector2Array([Vector2(0, y0), Vector2(sx, y0), Vector2(sx, y1), Vector2(0, y1)]))
-	quad(st, p.call(lo.x, y0, lo.z), p.call(hi.x, y0, lo.z), p.call(hi.x, y1, lo.z), p.call(lo.x, y1, lo.z),
-			(b * Vector3.FORWARD).normalized(), col, PackedVector2Array([Vector2(0, y0), Vector2(sx, y0), Vector2(sx, y1), Vector2(0, y1)]))
-	# Roofs get UV (-1, -1): no windows there.
-	var roof_uv := PackedVector2Array([Vector2(-1, -1), Vector2(-1, -1), Vector2(-1, -1), Vector2(-1, -1)])
-	quad(st, p.call(lo.x, y1, lo.z), p.call(hi.x, y1, lo.z), p.call(hi.x, y1, hi.z), p.call(lo.x, y1, hi.z),
-			(b * Vector3.UP).normalized(), tc, roof_uv)
-	if not skip_bottom:
-		quad(st, p.call(lo.x, y0, lo.z), p.call(hi.x, y0, lo.z), p.call(hi.x, y0, hi.z), p.call(lo.x, y0, hi.z),
-				(b * Vector3.DOWN).normalized(), col, roof_uv)
 
 
 ## Cylinder / cone frustum along +y from `base`, smooth sides, optional caps.
@@ -179,43 +150,3 @@ static func visor(st: SurfaceTool, xf: Transform3D, centre: Vector3, r: float, t
 		# Front lip.
 		var f := (xf.basis * Vector3.BACK).normalized()
 		quad(st, i0f, o0f, o1f, i1f, f, col)
-
-
-## Lumpy low-poly ellipsoid (tree crowns). `rng` jitters the radius so no two
-## crowns look alike; the shading stays smooth.
-static func blob(st: SurfaceTool, xf: Transform3D, centre: Vector3, radii: Vector3, seg: int, rings: int,
-		col: Color, rng: RandomNumberGenerator, jitter := 0.12, bottom_col := Color(-1, 0, 0)) -> void:
-	var grid := []
-	for j in rings + 1:
-		var row := []
-		var v := float(j) / rings
-		var phi := PI * v
-		for i in seg:
-			var th := TAU * i / seg
-			var d := Vector3(sin(phi) * cos(th), cos(phi), sin(phi) * sin(th))
-			var k := 1.0 if (j == 0 or j == rings) else 1.0 + rng.randf_range(-jitter, jitter)
-			row.append(d * k)
-		grid.append(row)
-	var bc := col if bottom_col.r < 0.0 else bottom_col
-	for j in rings:
-		var ca := col.lerp(bc, float(j) / rings)
-		var cb := col.lerp(bc, float(j + 1) / rings)
-		for i in seg:
-			var i2 := (i + 1) % seg
-			var d00: Vector3 = grid[j][i]
-			var d01: Vector3 = grid[j][i2]
-			var d10: Vector3 = grid[j + 1][i]
-			var d11: Vector3 = grid[j + 1][i2]
-			var p00 := xf * (centre + d00 * radii)
-			var p01 := xf * (centre + d01 * radii)
-			var p10 := xf * (centre + d10 * radii)
-			var p11 := xf * (centre + d11 * radii)
-			var n00 := (xf.basis * (d00 / radii)).normalized()
-			var n01 := (xf.basis * (d01 / radii)).normalized()
-			var n10 := (xf.basis * (d10 / radii)).normalized()
-			var n11 := (xf.basis * (d11 / radii)).normalized()
-			var cc := ca.lerp(cb, 0.5)
-			if j > 0:
-				tri(st, p00, p01, p11, n00, n01, n11, cc)
-			if j < rings - 1:
-				tri(st, p00, p11, p10, n00, n11, n10, cc)

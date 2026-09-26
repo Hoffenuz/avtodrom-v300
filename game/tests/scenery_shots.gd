@@ -1,5 +1,5 @@
 extends Node
-## Renders the course as the game loads it (baked course + scenery) from the
+## Renders the course as the game loads it (baked course + surroundings) from the
 ## driver's chase view and a few aerial views, and prints draw/primitive
 ## counts per shot (needs a GPU, not --headless):
 ##   godot --path game res://tests/scenery_shots.tscn -- <out_dir> [quality]
@@ -30,12 +30,6 @@ func _ready() -> void:
 	course = CourseBuilder.load_or_build(CourseData.get_default(), quality)
 	print("course load %.1f ms" % ((Time.get_ticks_usec() - t0) / 1000.0))
 	world.add_child(course)
-	var scenery := course.get_node_or_null("Scenery")
-	if scenery:
-		var tris := 0
-		for mi in scenery.get_children():
-			tris += (mi as MeshInstance3D).mesh.surface_get_array_index_len(0) / 3
-		print("scenery: %d meshes, %d triangles" % [scenery.get_child_count(), tris])
 	car = Car.new()
 	world.add_child(car)
 	car.configure("nexia2")

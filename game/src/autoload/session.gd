@@ -46,6 +46,20 @@ func back_to_menu() -> void:
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
+## Instructions on the exercise card and the yellow lines: practice and the
+## demonstrations only — the exam is taken without prompts, like the real one.
+func hints_enabled() -> bool:
+	return mode == Mode.PRACTICE or demo
+
+
+## The blue route line: always in practice and the demonstrations, optional
+## in the exam, never in free driving.
+func route_visible() -> bool:
+	if mode == Mode.PRACTICE or demo:
+		return true
+	return mode == Mode.EXAM and bool(Settings.get_value("show_route"))
+
+
 func car_id() -> String:
 	return car_override if car_override != "" else str(Settings.get_value("car"))
 

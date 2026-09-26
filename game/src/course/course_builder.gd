@@ -2,8 +2,7 @@ class_name CourseBuilder
 extends Node3D
 ## Builds the avtodrom scene from CourseData: ground, concrete pads, grass
 ## islands with kerbs, the estakada, all road paint, the railway crossing,
-## signs, traffic lights, lamp posts, fence and collision. Trees, streets and
-## buildings outside the fence are Scenery.
+## signs, traffic lights, lamp posts, fence, trees and collision.
 ##
 ## Static geometry is merged by material (a handful of draw calls for the
 ## whole site) so it stays cheap on phones.
@@ -32,20 +31,17 @@ var _rng := RandomNumberGenerator.new()
 
 ## Loads the pre-built course (tests/bake_course.gd) or, if it is missing,
 ## builds it on the spot. Returns the course root, already configured.
-## The surroundings outside the fence (Scenery) are added as a child.
 static func load_or_build(p_data: CourseData, p_quality: int) -> CourseBuilder:
-	var course: CourseBuilder = null
 	if ResourceLoader.exists(BAKED_PATH):
 		var scene: PackedScene = load(BAKED_PATH)
-		course = scene.instantiate() as CourseBuilder
-		if course:
-			course.attach(p_data, p_quality)
-	if course == null:
-		course = CourseBuilder.new()
-		course.name = "Course"
-		course.build(p_data, p_quality)
-	Scenery.create(course, course, p_quality)
-	return course
+		var baked := scene.instantiate() as CourseBuilder
+		if baked:
+			baked.attach(p_data, p_quality)
+			return baked
+	var fresh := CourseBuilder.new()
+	fresh.name = "Course"
+	fresh.build(p_data, p_quality)
+	return fresh
 
 
 ## Re-links runtime state after the baked scene is instantiated.
@@ -54,6 +50,51 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 	quality = p_quality
 	_est = data.raw["estakada"]
 	traffic = get_node_or_null("TrafficController") as TrafficController
+	_rebuild_lost_surroundings()
+	if p_quality <= 1:
+		# Small casters are not worth a shadow pass on medium and low.
+		for n in ["FencePosts", "LampPostMesh", "GuardRailPosts", "Surroundings/ParkTreeCrowns",
+				"Surroundings/ParkTreeTrunks", "Surroundings/PoplarCrowns", "Surroundings/PoplarTrunks"]:
+			var gi := get_node_or_null(n) as GeometryInstance3D
+			if gi:
+				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if p_quality == 0:
+		# Low-end phones: half the trees and city blocks, no tree shadows.
+		for n in ["ParkTreeCrowns", "ParkTreeTrunks", "City", "ParkedCars0", "ParkedCars1"]:
+			var mmi := get_node_or_null("Surroundings/" + n) as MultiMeshInstance3D
+			if mmi:
+				mmi.multimesh.visible_instance_count = mmi.multimesh.instance_count / 2
+		for n in ["ParkTreeCrowns", "ParkTreeTrunks", "PoplarCrowns", "PoplarTrunks", "ParkedCars0", "ParkedCars1"]:
+			var gi := get_node_or_null("Surroundings/" + n) as GeometryInstance3D
+			if gi:
+				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## The course is baked headless (tests/bake_course.gd), and the headless
+## renderer keeps no MultiMesh instance data, so the baked trees, city blocks
+## and parked cars load with every transform zeroed and never show. When
+## that is the case, build the surroundings again here (deterministic, a
+## few ms) instead of using the baked copy.
+func _rebuild_lost_surroundings() -> void:
+	var old := get_node_or_null("Surroundings")
+	if old == null or not _has_empty_multimesh(old):
+		return
+	remove_child(old)
+	old.free()
+	_make_materials()
+	var around := Surroundings.new()
+	add_child(around)
+	around.build(_fence_rect(), quality, mat)
+
+
+static func _has_empty_multimesh(node: Node) -> bool:
+	for child in node.get_children():
+		var mmi := child as MultiMeshInstance3D
+		if mmi and mmi.multimesh and mmi.multimesh.instance_count > 0:
+			var t := mmi.multimesh.get_instance_transform(0)
+			if t.basis.determinant() == 0.0:
+				return true
+	return false
 
 
 func build(p_data: CourseData, p_quality: int) -> void:
@@ -72,6 +113,9 @@ func build(p_data: CourseData, p_quality: int) -> void:
 	_build_traffic_lights()
 	_build_lamp_posts()
 	_build_fence()
+	var around := Surroundings.new()
+	add_child(around)
+	around.build(_fence_rect(), quality, mat)
 	_build_collision()
 
 
@@ -92,7 +136,11 @@ func _make_materials() -> void:
 	mat["asphalt"] = _ground_material("asphalt", Color(0.78, 0.8, 0.84), 0.8, 0.30)
 	mat["concrete"] = _ground_material("concrete", Color(1.05, 1.05, 1.05), 0.7, 0.20)
 	mat["kerb"] = _ground_material("concrete", Color(1.25, 1.25, 1.22), 0.5, 0.10)
-	mat["grass"] = _ground_material("grass", Color(0.92, 1.0, 0.9), 1.0, 0.35)
+	var grass := ShaderMaterial.new()
+	grass.shader = load("res://assets/shaders/grass.gdshader")
+	grass.set_shader_parameter("albedo_tex", load("res://assets/textures/grass/albedo.jpg"))
+	grass.set_shader_parameter("normal_tex", load("res://assets/textures/grass/normal.jpg"))
+	mat["grass"] = grass
 	var paint := ShaderMaterial.new()
 	paint.shader = load("res://assets/shaders/marking.gdshader")
 	paint.set_shader_parameter("wear_tex", load("res://assets/textures/asphalt/albedo.jpg"))
@@ -152,8 +200,9 @@ func _build_ground() -> void:
 			Vector2(r.position.x, r.end.y)]), 0.0, TILE_ASPHALT)
 	_mesh_instance(_finish(st, mat["asphalt"]), "Asphalt", false)
 
-	# Lawn around the fenced area (a frame, so it never overlaps the asphalt).
-	var big := r.grow(160.0)
+	# Lawn around the fenced area (a frame, so it never overlaps the asphalt),
+	# out to where the fog hides the edge.
+	var big := r.grow(650.0)
 	var g := _begin()
 	var y := -0.002
 	for q in [
@@ -381,8 +430,10 @@ func _build_markings() -> void:
 func _add_text(text: String, pos: Vector2, yaw_deg: float, size: float) -> void:
 	var l := Label3D.new()
 	l.text = text
-	l.font_size = 256
-	l.pixel_size = size / 256.0 * 0.9
+	# 96 px glyphs are sharp enough for paint seen from a car and keep the
+	# font atlas small (256 px glyphs cost tens of MB of video memory).
+	l.font_size = 96
+	l.pixel_size = size / 96.0 * 0.9
 	l.modulate = Color(0.93, 0.93, 0.9)
 	l.outline_size = 0
 	l.shaded = true
@@ -559,7 +610,8 @@ func _build_fence() -> void:
 	post.top_radius = 0.035
 	post.bottom_radius = 0.035
 	post.height = height + 0.1
-	post.radial_segments = 6
+	post.radial_segments = 5
+	post.rings = 0
 	var fence_body := StaticBody3D.new()
 	fence_body.name = "FenceBody"
 	fence_body.collision_layer = LAYER_OBSTACLE
