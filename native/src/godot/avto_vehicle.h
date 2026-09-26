@@ -91,6 +91,7 @@ public:
 	Vector3 get_wheel_ground_point(int i) const; // world, last contact point (or wheel bottom)
 	int get_wheel_surface(int i) const;
 	float get_wheel_slip(int i) const; // combined normalised slip, >1 = sliding
+	float get_wheel_slide_speed(int i) const; // m/s the tyre rubs over the road
 	bool is_wheel_sliding(int i) const;
 	float get_wheel_load(int i) const;
 	float get_wheel_brake_torque(int i) const;

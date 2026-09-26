@@ -48,6 +48,12 @@ var _blink_t := 0.0
 var _engine_sound: EngineSound
 var _click: AudioStreamPlayer
 var _squeal: AudioStreamPlayer
+var _scrub: AudioStreamPlayer
+## Smoothed 0..1 levels of the two tyre layers and the effects volume.
+var _squeal_lvl := 0.0
+var _scrub_lvl := 0.0
+var _fx_gain := 1.0
+var _interior := false
 var _thump: AudioStreamPlayer3D
 var _chime: AudioStreamPlayer
 var _chime_t := 0.0
@@ -239,11 +245,13 @@ func _setup_audio() -> void:
 	_click = AudioStreamPlayer.new()
 	_click.volume_db = -6.0
 	add_child(_click)
+	# Tyre layers are looped and only play while audible (see _set_loop).
 	_squeal = AudioStreamPlayer.new()
 	_squeal.stream = AudioSynth.squeal()
-	_squeal.volume_db = -60.0
 	add_child(_squeal)
-	_squeal.play()
+	_scrub = AudioStreamPlayer.new()
+	_scrub.stream = AudioSynth.scrub()
+	add_child(_scrub)
 	_thump = AudioStreamPlayer3D.new()
 	_thump.stream = AudioSynth.thump()
 	add_child(_thump)
@@ -258,7 +266,8 @@ func _setup_audio() -> void:
 func _apply_volumes() -> void:
 	var master := float(Settings.get_value("vol_master"))
 	_engine_sound.volume_db = linear_to_db(maxf(master * float(Settings.get_value("vol_engine")), 0.0001))
-	var fx := linear_to_db(maxf(master * float(Settings.get_value("vol_effects")), 0.0001))
+	_fx_gain = master * float(Settings.get_value("vol_effects"))
+	var fx := linear_to_db(maxf(_fx_gain, 0.0001))
 	_click.volume_db = fx - 6.0
 	_thump.volume_db = fx
 	_chime.volume_db = fx - 8.0
@@ -266,6 +275,7 @@ func _apply_volumes() -> void:
 
 func set_interior_audio(inside: bool) -> void:
 	_engine_sound.interior = 1.0 if inside else 0.0
+	_interior = inside
 
 
 # --------------------------------------------------------------------------- cabin controls
@@ -361,14 +371,8 @@ func _update_audio(delta: float) -> void:
 	_engine_sound.load = get_throttle_opening()
 	_engine_sound.running = is_engine_running()
 	_engine_sound.cranking = is_engine_cranking()
-	var slip := 0.0
-	for i in 4:
-		if get_wheel_contact(i):
-			slip = maxf(slip, get_wheel_slip(i))
 	var speed := absf(get_forward_speed())
-	var squeal := clampf((slip - 1.1) * 1.2, 0.0, 1.0) * clampf(speed / 4.0, 0.0, 1.0)
-	_squeal.volume_db = linear_to_db(maxf(squeal * 0.5, 0.0001))
-	_squeal.pitch_scale = 0.9 + squeal * 0.25
+	_update_tyre_audio(delta, speed)
 	# Seat-belt reminder chime while moving unbelted, like the real car.
 	if not seatbelt and ignition and speed > 2.0:
 		_chime_t -= delta
@@ -377,6 +381,60 @@ func _update_audio(delta: float) -> void:
 			_chime_t = 2.0
 	else:
 		_chime_t = 0.0
+
+
+## Tyre noise from how fast each contact patch rubs over the road. Two
+## layers, like a real car:
+## - squeal: the tonal scream of tyres sliding past their grip limit at speed
+##   (a fast corner, a skid from 40 km/h);
+## - scrub: the dull rasp of a locked or sliding tyre at low speed (handbrake,
+##   full lock at parking speed), much quieter.
+## The normalised slip saturates at 3 as soon as a tyre lets go, so it cannot
+## tell a slight slide from a locked wheel; the old code screamed at full
+## volume for both, even in a 10 km/h turn.
+func _update_tyre_audio(delta: float, speed: float) -> void:
+	var squeal := 0.0
+	var scrub := 0.0
+	var nominal_load := mass * 9.81 * 0.25
+	for i in 4:
+		if not get_wheel_contact(i):
+			continue
+		var s := get_wheel_slip(i)
+		if s < 0.9:
+			continue
+		var slide := get_wheel_slide_speed(i)
+		var load := clampf(get_wheel_load(i) / nominal_load, 0.0, 1.5)
+		squeal += smoothstep(0.9, 1.5, s) * smoothstep(0.8, 4.0, slide) * load
+		scrub += smoothstep(1.0, 2.5, s) * smoothstep(0.2, 5.0, slide) * load
+	# Two wheels sliding is "full"; the scream needs real speed (fades in
+	# from ~10 km/h, full above ~45 km/h).
+	squeal = clampf(squeal * 0.5, 0.0, 1.0) * smoothstep(3.0, 12.0, speed)
+	# Scrub stays a soft background rasp at parking speeds.
+	scrub = clampf(scrub * 0.5, 0.0, 1.0) * (0.35 + 0.65 * smoothstep(3.0, 10.0, speed))
+	# Fast attack, slower release: no clicks or stutter when slip flickers.
+	_squeal_lvl = _follow(_squeal_lvl, squeal, delta)
+	_scrub_lvl = _follow(_scrub_lvl, scrub, delta)
+	var muffle := 0.5 if _interior else 1.0
+	_set_loop(_squeal, _squeal_lvl * 0.32 * muffle, 0.94 + 0.1 * _squeal_lvl)
+	_set_loop(_scrub, _scrub_lvl * 0.4 * muffle, 0.75 + clampf(speed / 20.0, 0.0, 0.45))
+
+
+static func _follow(current: float, target: float, delta: float) -> float:
+	var tau := 0.05 if target > current else 0.2
+	return lerpf(current, target, 1.0 - exp(-delta / tau))
+
+
+func _set_loop(p: AudioStreamPlayer, gain: float, pitch: float) -> void:
+	var g := gain * _fx_gain
+	if g < 0.003:
+		if p.playing:
+			p.stop()
+		return
+	p.volume_db = linear_to_db(g)
+	p.pitch_scale = pitch
+	if not p.playing:
+		# Start somewhere random in the loop so repeats don't sound identical.
+		p.play(randf() * p.stream.get_length())
 
 
 func _on_body_entered(body: Node) -> void:

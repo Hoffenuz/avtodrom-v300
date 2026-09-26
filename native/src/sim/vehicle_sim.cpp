@@ -571,6 +571,9 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 			o.fx -= rr * std::tanh(contacts[k].vx / 0.25);
 		}
 		o.omega = omega_[b];
+		o.slide_speed = contacts[k].contact
+				? std::hypot(omega_[b] * params_.tire.radius - contacts[k].vx, contacts[k].vy)
+				: 0.0;
 		o.slip_long = tire_[k].slip_long;
 		o.slip_lat = tire_[k].slip_lat;
 		o.sliding = tire_[k].sliding;

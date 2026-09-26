@@ -329,6 +329,27 @@ int main() {
 					check(h.sim.telemetry().gear >= 3, "in 3rd or higher after 10 s", h.sim.telemetry().gear);
 					check_range(h.forward_speed() * 3.6, 40.0, 90.0, "speed (km/h)");
 				} },
+		{ "Tyre slide speed: ~0 rolling, ~road speed with the handbrake locked",
+				[&] {
+					auto h = make(cobalt, true);
+					h.sim.request_gear(static_cast<int>(AutoSelector::Drive), 0.0);
+					h.input.throttle = 0.3;
+					while (h.forward_speed() * 3.6 < 30.0) {
+						h.step(1.0 / 120.0);
+					}
+					h.input.throttle = 0.0;
+					h.run(0.5);
+					double rolling = 0.0;
+					for (int i = 0; i < 4; ++i) {
+						rolling = std::max(rolling, h.sim.wheels()[static_cast<size_t>(i)].slide_speed);
+					}
+					check_range(rolling, 0.0, 0.2, "coasting, max slide (m/s)");
+					h.input.handbrake = 1.0;
+					h.run(0.5);
+					const double v = h.forward_speed();
+					check_range(h.sim.wheels()[2].slide_speed / v, 0.8, 1.2, "locked rear wheel slide / speed");
+					check_range(h.sim.wheels()[0].slide_speed, 0.0, 0.5, "front wheel still rolling (m/s)");
+				} },
 		{ "Automatic: Park holds on a 16 % ramp",
 				[&] {
 					auto h = make(cobalt, true);
