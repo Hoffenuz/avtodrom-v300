@@ -106,7 +106,6 @@ S = {
                           "Для переключения выжмите сцепление"),
     "hud.clutch_to_start": ("Debriyajni bosing yoki neytralni qo‘ying", "Дебриажни босинг ёки нейтрални қўйинг",
                             "Выжмите сцепление или включите нейтраль"),
-    "hud.brake_to_shift": ("Tormozni bosib turing", "Тормозни босиб туринг", "Удерживайте тормоз"),
     "hud.turn_left": ("Chapga", "Чапга", "Налево"),
     "hud.turn_right": ("O‘ngga", "Ўнгга", "Направо"),
     "hud.in_m": ("{0} m", "{0} м", "{0} м"),

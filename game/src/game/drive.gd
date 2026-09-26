@@ -207,12 +207,8 @@ func _on_starter(held: bool) -> void:
 
 
 func _on_gear(g: int) -> void:
-	if car.is_automatic():
-		var leaving_park := car.get_selector() == AvtoGear.PARK and g != AvtoGear.PARK
-		if leaving_park and car.brake < 0.2 and car.is_engine_running():
-			hud.show_center(Loc.t("hud.brake_to_shift"), UITheme.CAUTION, 1.8)
-			hud.gears.reject()
-			return
+	# The real Cobalt wants the brake pedal to leave P; on a phone that needs a
+	# second finger for no benefit, so the selector moves freely.
 	if not car.request_gear(g):
 		hud.gears.reject()
 		if not car.is_automatic():

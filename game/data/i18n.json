@@ -374,11 +374,6 @@
   "uz_cyrl": "Дебриажни босинг ёки нейтрални қўйинг",
   "ru": "Выжмите сцепление или включите нейтраль"
  },
- "hud.brake_to_shift": {
-  "uz_latn": "Tormozni bosib turing",
-  "uz_cyrl": "Тормозни босиб туринг",
-  "ru": "Удерживайте тормоз"
- },
  "hud.turn_left": {
   "uz_latn": "Chapga",
   "uz_cyrl": "Чапга",
