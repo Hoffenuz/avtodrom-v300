@@ -76,7 +76,7 @@ jobs:
             --autopilot-test --quit-after-s=1500 --car=${{ matrix.car }} 2>&1 | tee exam.log
           code=${PIPESTATUS[0]}
           set -e
-          grep -E '^(PENALTY|RESULT|  )' exam.log >> "$GITHUB_STEP_SUMMARY" || true
+          { echo '### ${{ matrix.car }}'; echo '```'; grep -E '^(PENALTY|RESULT|  [a-z0-9_]+ +performed=)' exam.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true
           if ! grep -q '^RESULT .*penalty=0 ' exam.log; then
             echo "::error::No clean RESULT line (expected completed exam with penalty=0)"
             exit 1
