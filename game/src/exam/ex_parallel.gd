@@ -10,6 +10,9 @@ enum Phase { APPROACH, IN_POCKET, LEAVING }
 
 const FIX_TOUCH := 0.06 + 0.0925 # line half-width + tyre half-width
 const STABLE_STOP := 0.8
+## A car standing crooked in the pocket has still performed the exercise; the
+## crooked stance is judged by the fixation line (№17), not as "not done" (№27).
+const MAX_ANGLE := 35.0
 
 var phase: Phase = Phase.APPROACH
 var pocket := PackedVector2Array()
@@ -38,7 +41,7 @@ func _right_wheels_on_line(p: CarProbe) -> bool:
 
 func _tick(_dt: float, p: CarProbe) -> void:
 	var inside := p.inside(pocket, 0.35)
-	var aligned := p.heading_error_deg(float(def["park_heading"])) < 12.0
+	var aligned := p.heading_error_deg(float(def["park_heading"])) < MAX_ANGLE
 	match phase:
 		Phase.APPROACH:
 			if inside and aligned and p.stopped_time > STABLE_STOP:

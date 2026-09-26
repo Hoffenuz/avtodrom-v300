@@ -51,6 +51,12 @@ func _set_value(v: float) -> void:
 	queue_redraw()
 
 
+## The app lost focus mid-touch: no finger-up will arrive.
+func release_touch() -> void:
+	_touch = -1
+	_set_value(0.0)
+
+
 func is_held() -> bool:
 	return _touch >= 0
 

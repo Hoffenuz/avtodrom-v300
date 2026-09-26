@@ -273,6 +273,19 @@ func _build_touch() -> void:
 	b_pause.tapped.connect(func() -> void: pause_requested.emit())
 	for b in [b_ind_left, b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_camera, b_map, b_pause]:
 		root.add_child(b)
+## Lets go of every on-screen control (the app lost focus mid-touch, e.g.
+## the Android back button or a notification).
+func release_touch() -> void:
+	_steer_dir = 0
+	for c in [gas, brake_pedal, clutch_pedal, wheel, gears, btn_steer_left, btn_steer_right, b_ind_left,
+			b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_camera, b_map, b_pause]:
+		if c and c.has_method("release_touch"):
+			c.release_touch()
+
+
+## Settings that move or hide touch controls changed during the drive.
+func relayout() -> void:
+	_layout()
 
 
 # ------------------------------------------------------------------ layout
@@ -398,7 +411,8 @@ func _process(delta: float) -> void:
 				-car.get_steering_lock(), car.get_steering_lock())
 		controls.touch_steer_active = true
 	elif btn_steer_left.visible:
-		controls.touch_steer_deg = move_toward(controls.touch_steer_deg, 0.0, 480.0 * delta)
+		if bool(Settings.get_value("steering_autocenter")):
+			controls.touch_steer_deg = move_toward(controls.touch_steer_deg, 0.0, 480.0 * delta)
 		controls.touch_steer_active = true
 	wheel.car_speed = car.get_forward_speed()
 	wheel.sensitivity = float(Settings.get_value("steering_sensitivity"))

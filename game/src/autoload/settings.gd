@@ -3,7 +3,7 @@ extends Node
 ##
 ## Every value has a default here; the file only stores what the user changed.
 ## Graphics settings are applied immediately to the viewport/environment by
-## whoever listens to `changed` (see src/game/graphics.gd).
+## whoever listens to `changed` (see src/game/drive.gd).
 
 signal changed(key: String)
 
@@ -34,10 +34,7 @@ const DEFAULTS := {
 	"vol_master": 0.9,
 	"vol_engine": 0.8,
 	"vol_effects": 0.8,
-	"vol_voice": 1.0,
-	"haptics": true,
 	"left_handed": false,
-	"ui_scale": 1.0,
 	"exam_time_limit_min": 25,
 }
 

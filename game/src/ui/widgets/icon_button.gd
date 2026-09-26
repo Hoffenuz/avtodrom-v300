@@ -43,6 +43,13 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+## The app lost focus mid-touch: forget the finger without firing the button.
+func release_touch() -> void:
+	_touch = -1
+	_down = false
+	queue_redraw()
+
+
 func _press() -> void:
 	_down = true
 	pressed_down.emit()

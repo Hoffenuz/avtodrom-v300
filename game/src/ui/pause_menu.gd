@@ -71,6 +71,17 @@ func close() -> void:
 		_settings = null
 
 
+## Android "back" while the menu is open: closes the settings page if it is
+## showing and returns true; false means the caller should resume.
+func back() -> bool:
+	if _settings:
+		_settings.queue_free()
+		_settings = null
+		_panel.visible = true
+		return true
+	return false
+
+
 func _open_settings() -> void:
 	_panel.visible = false
 	_settings = SettingsPanel.new()

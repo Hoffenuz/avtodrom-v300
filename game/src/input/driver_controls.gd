@@ -195,6 +195,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			JOY_BUTTON_RIGHT_SHOULDER: seatbelt_pressed.emit()
 
 
+## Lets go of every on-screen control (the app lost focus mid-touch).
+func release_touch() -> void:
+	touch_throttle = 0.0
+	touch_brake = 0.0
+	touch_clutch = 0.0
+	touch_steer_active = false
+	if _starter_held:
+		starter_changed.emit(false)
+	_starter_held = false
+	_ignition_key_t = -1.0
+
+
 ## On-screen key: press/release (tap = ON/OFF, hold = start).
 func key_down() -> void:
 	_ignition_key_t = 0.0
