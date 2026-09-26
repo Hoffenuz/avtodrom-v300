@@ -17,8 +17,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-GODOT = ROOT / "tools" / "godot" / "Godot_v4.7.2-stable_win64_console.exe"
+from host import EXE, ROOT, godot
+
+GODOT = godot()
 GAME = ROOT / "game"
 NATIVE = ROOT / "native"
 
@@ -45,11 +46,16 @@ def main() -> int:
         print(out)
         failures.append("build sim_tests")
     else:
-        code, out = run([str(NATIVE / "bin" / "sim_tests.exe")], NATIVE)
+        code, out = run([str(NATIVE / "bin" / ("sim_tests" + EXE))], NATIVE)
         print(out.strip().splitlines()[-1])
         if code != 0:
             print(out)
             failures.append("sim_tests")
+
+    if not GODOT.exists():
+        print(f"\nGodot not found at {GODOT}; set GODOT=/path/to/godot (see scripts/host.py)")
+        print("FAILED:", ", ".join(failures + ["godot missing"]))
+        return 1
 
     print("== 2. Godot vehicle integration test")
     run([str(GODOT), "--headless", "--path", str(GAME), "--import"], GAME)
