@@ -28,7 +28,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extract_layout import CX, CY, FENCE_PX, PX_PER_M, ROOT  # noqa: E402
 
 LAYOUT = ROOT / "game" / "data" / "layout_auto.json"
-MARKINGS_AUTO = ROOT / "game" / "data" / "markings_auto.json"
 OUT = ROOT / "game" / "data" / "course.json"
 GRID_DIR = ROOT / "game" / "data"
 SCHEME = ROOT / "reference" / "scheme_landscape.jpg"
@@ -65,7 +64,96 @@ def seg(p0, p1):
 
 # ----------------------------------------------------------------------------- layout
 layout = json.loads(LAYOUT.read_text(encoding="utf-8"))
-islands_w = [p for p in layout["islands"]]
+
+# The scheme draws signs, plates and the estakada piers on top of the kerbs, so the
+# traced outlines keep a few dents (V notches, waists) and bumps (a kerb bulging
+# round an icon) there. Each fix is a point next to the defect: the dent is filled
+# by a 2 m closing, the bump shaved by a 2 m opening, and only the part touching
+# that point changes. The kerb corners at the pads are left alone.
+DENT_FIX_PX = [(1795, 1014), (1849, 1003), (676, 987), (1230, 542), (1521, 520), (1969, 497),
+               (1220, 455), (1862, 417), (750, 197), (559, 197), (943, 315)]
+BUMP_FIX_PX = [(710, 1001), (685, 715), (1266, 994), (1220, 566), (945, 339), (940, 298),
+               (1869, 411), (1855, 411)]
+# Where an outline must be convex (a rounded island nose, the two thin gore islands
+# necked by their signs, a straight kerb under a pier or a sign plate) the part inside the box is replaced by its convex hull.
+HULL_BOX_PX = [(240, 545, 300, 590), (490, 540, 560, 590), (915, 290, 962, 345), (735, 188, 765, 215), (545, 188, 575, 215), (1848, 405, 1876, 432)]
+# The box island's grass runs on under the two direction signs at its NE corner,
+# but the tracer splits it there: the islands this patch touches become one, with
+# the straight top kerb and the rounded corner of the scheme.
+ISLAND_JOIN_PX = [[(1700, 655), (1755, 655), (1766, 658), (1774, 665), (1779, 675), (1781, 686), (1700, 686)]]
+# Behind each parallel-parking pocket the kerb steps down to the road and runs
+# straight under the P sign and its plates: (x0, y0, x1, y1) is island, below y1 is road.
+KERB_STEP_BOX_PX = [(1480, 495, 1550, 531), (1725, 495, 1800, 528), (1975, 495, 2012, 516)]
+FIX_R_PX = 2.0 * S
+
+
+def _parts(g):
+    return list(g.geoms) if hasattr(g, "geoms") else ([g] if not g.is_empty else [])
+
+
+def _near_fix(part, points):
+    """A small piece (under 4 m2) lying next to one of the fix points."""
+    return part.area < 4.0 * S * S and any(part.distance(Point(q)) < 1.5 * S for q in points)
+
+
+def _round_chamfers(pts, keep_out, iters=3):
+    """Corner-cutting on the shallow bends (4-60 deg) the tracer leaves as facets;
+    sharp corners and vertices next to a pad keep their place."""
+    for _ in range(iters):
+        out = []
+        n = len(pts)
+        for i in range(n):
+            a, b, c = np.array(pts[i - 1]), np.array(pts[i]), np.array(pts[(i + 1) % n])
+            u, v = b - a, c - b
+            lu, lv = np.linalg.norm(u), np.linalg.norm(v)
+            if lu < 1e-6 or lv < 1e-6:
+                continue
+            ang = math.degrees(math.acos(np.clip(u @ v / lu / lv, -1, 1)))
+            if 4 < ang < 60 and keep_out.distance(Point(b)) > 0.5 * S:
+                out.append(tuple(b - u / lu * min(0.25 * lu, 1.5 * S)))
+                out.append(tuple(b + v / lv * min(0.25 * lv, 1.5 * S)))
+            else:
+                out.append(tuple(b))
+        pts = out
+    return pts
+
+
+def join_islands(polys_px):
+    for patch in ISLAND_JOIN_PX:
+        bridge = Polygon(patch)
+        hit = [p for p in polys_px if p.intersects(bridge)]
+        polys_px = [p for p in polys_px if p not in hit] + [unary_union(hit + [bridge])]
+    return polys_px
+
+
+def clean_island(P, pads_px):
+    closed = P.buffer(FIX_R_PX, join_style=1).buffer(-FIX_R_PX, join_style=1)
+    add = [c for c in _parts(closed.difference(P)) if _near_fix(c, DENT_FIX_PX)]
+    P = unary_union([P] + add)
+    opened = P.buffer(-FIX_R_PX, join_style=1).buffer(FIX_R_PX, join_style=1)
+    cut = [c for c in _parts(P.difference(opened)) if _near_fix(c, BUMP_FIX_PX)]
+    Q = P.difference(unary_union(cut)) if cut else P
+    for x0, y0, x1, y1 in HULL_BOX_PX:
+        piece = Q.intersection(box(x0, y0, x1, y1))
+        if not piece.is_empty:
+            Q = Q.union(piece.convex_hull)
+    for x0, y0, x1, y1 in KERB_STEP_BOX_PX:
+        if Q.intersects(box(x0, y0, x1, y0 + 2)):
+            Q = Q.union(box(x0, y0, x1, y1)).difference(box(x0, y1, x1, y1 + 20))
+    Q = Q.difference(pads_px)
+    Q = max(_parts(Q.buffer(0)), key=lambda g: g.area)
+    Q = Polygon(_round_chamfers(list(Q.exterior.coords)[:-1], pads_px)).buffer(0)
+    # A 0.15 m close + open removes the slivers and teeth left where pieces were joined.
+    r = 0.15 * S
+    Q = max(_parts(Q.buffer(r, join_style=1).buffer(-2 * r, join_style=1).buffer(r, join_style=1)),
+            key=lambda g: g.area)
+    Q = max(_parts(Q.difference(pads_px)), key=lambda g: g.area).simplify(0.05 * S)
+    return [w(x, y) for x, y in list(Q.exterior.coords)[:-1]]
+
+
+_layout_pads_px = unary_union([Polygon([px_of(q) for q in p]).buffer(0) for p in layout["pads"]])
+islands_w = [clean_island(p, _layout_pads_px) for p in
+             join_islands([Polygon([px_of(q) for q in isl]).buffer(0) for isl in layout["islands"]])]
 islands_px = [Polygon([px_of(p) for p in isl]).buffer(0) for isl in islands_w]
 islands_union_px = unary_union(islands_px)
 
@@ -82,6 +170,19 @@ for p in layout["pads"]:
 POCKETS_PX = [(1335, 497, 1480, 530), (1590, 497, 1725, 530), (1840, 497, 1975, 530)]
 for x0, y0, x1, y1 in POCKETS_PX:
     pads_out.append(wl([(x0 + 4, y0 + 3), (x1 - 4, y0 + 3), (x1 - 4, y1), (x0 + 4, y1)]))
+
+
+def tuck_under_islands(pad_w):
+    """Pads and islands are traced separately, so thin asphalt slivers can show
+    between a pad and its kerb. Each pad grows up to 0.5 m, but only over the gap
+    to a kerb and under the island, where the kerb and grass hide it."""
+    P = Polygon([px_of(q) for q in pad_w]).buffer(0)
+    grown = P.union(P.buffer(0.5 * S, join_style=2).intersection(islands_union_px.buffer(0.55 * S)))
+    grown = max(_parts(grown.buffer(0)), key=lambda g: g.area).simplify(0.03 * S)
+    return [w(x, y) for x, y in list(grown.exterior.coords)[:-1]]
+
+
+pads_out = [tuck_under_islands(p) for p in pads_out]
 
 
 # ----------------------------------------------------------------------------- route
@@ -522,8 +623,8 @@ for l in INTERSECTION["stop_lines"].values():
     add_stop_line(l)
 
 # Painted words are readable by the driver the marking addresses.
-texts.append({"text": "СТАРТ", "pos": w(1448, 136), "yaw": HEAD["W"], "size": 2.6})
-texts.append({"text": "ФИНИШ", "pos": w(1846, 372), "yaw": HEAD["E"], "size": 2.6})
+texts.append({"text": "СТАРТ", "pos": w(1448, 136), "yaw": HEAD["W"], "size": 2.1})
+texts.append({"text": "ФИНИШ", "pos": w(1852, 367), "yaw": HEAD["E"], "size": 2.1})
 
 # Start box and the stop-line lane box on the top road.
 add_line([(1170, 95), (1419, 95)], 0.15)
@@ -580,14 +681,20 @@ hatch([(2033, 403), (2089, 403), (2089, 534), (2033, 534)], 0.9, 16)
 hatch([(1080, 1040), (1090, 1051), (1100, 1062), (1110, 1072), (1120, 1081), (1135, 1090), (1150, 1095),
        (1005, 1095), (1030, 1086), (1050, 1078), (1062, 1066), (1070, 1056), (1076, 1047)], 0.9, 7)
 
-# Parking slots (8 angled bays at the top): borrow the clean auto-traced lines.
-auto = json.loads(MARKINGS_AUTO.read_text(encoding="utf-8"))
-for l in auto["lines"]:
-    pts = [px_of(p) for p in l["p"]]
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
-    if min(xs) > 1150 and max(xs) < 1990 and min(ys) > 185 and max(ys) < 305:
-        add_line(pts, 0.12)
+# Parking slots: 8 angled bays at the top, fitted to the scheme (7.0 x 8.9 m,
+# 7.3 m apart). The outline runs once more over its first side so every corner
+# gets a mitred join.
+BAY_TOP_LEFT_PX = (1250.5, 182.5)
+BAY_TOP_PX = (75.8, 12.5)
+BAY_SIDE_PX = (-34.2, 91.8)
+BAY_PITCH_PX = 80.0
+for k in range(8):
+    ax, ay = BAY_TOP_LEFT_PX[0] + k * BAY_PITCH_PX, BAY_TOP_LEFT_PX[1]
+    a = (ax, ay)
+    b = (ax + BAY_TOP_PX[0], ay + BAY_TOP_PX[1])
+    c = (b[0] + BAY_SIDE_PX[0], b[1] + BAY_SIDE_PX[1])
+    d = (ax + BAY_SIDE_PX[0], ay + BAY_SIDE_PX[1])
+    add_line([a, b, c, d, a, b], 0.12)
 
 # Arrows: (x, y px, heading, kind). kind: S, L, R, SL, SR. Positions and kinds follow
 # the scheme; where the scheme's arrow contradicts the exam route the route wins
