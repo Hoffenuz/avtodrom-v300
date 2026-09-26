@@ -9,7 +9,9 @@ var _list: VBoxContainer
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Already in the tree here: the offsets must be reset too, otherwise the
+	# panel keeps its 0×0 rect.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = UITheme.get_theme()
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_rebuild()
@@ -37,16 +39,16 @@ func _rebuild() -> void:
 	margin.add_child(v)
 	var head := HBoxContainer.new()
 	v.add_child(head)
-	var back := UITheme.button("‹  " + Loc.t("menu.back"), 24, 70)
-	back.custom_minimum_size.x = 200
+	var back := UITheme.button("‹  " + Loc.t("menu.back"), 21, 60)
+	back.custom_minimum_size.x = 170
 	back.pressed.connect(func() -> void: closed.emit())
 	head.add_child(back)
-	var title := UITheme.label(Loc.t("set.title"), 34, UITheme.TEXT, true)
+	var title := UITheme.label(Loc.t("set.title"), 32, UITheme.TEXT, true)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.add_child(title)
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(200, 0)
+	spacer.custom_minimum_size = Vector2(170, 0)
 	head.add_child(spacer)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -107,12 +109,33 @@ func _segmented(key: String, options: Array) -> Control:
 	return h
 
 
+## Like _segmented, but the shown choice is given (for "automatic" values).
+func _segmented_int(key: String, options: Array, current: int) -> Control:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	var group := ButtonGroup.new()
+	for opt in options:
+		var b := UITheme.button(str(opt[1]), 20, 60)
+		b.toggle_mode = true
+		b.button_group = group
+		b.custom_minimum_size.x = 120
+		b.button_pressed = current == int(opt[0])
+		var value: int = opt[0]
+		b.pressed.connect(func() -> void:
+			Settings.set_value(key, value)
+			# The control rows below depend on it.
+			for c in _list.get_children():
+				c.queue_free()
+			_build.call_deferred())
+		h.add_child(b)
+	return h
+
+
 func _toggle(key: String) -> Control:
 	var c := CheckButton.new()
 	c.button_pressed = bool(Settings.get_value(key))
 	c.focus_mode = Control.FOCUS_NONE
-	c.scale = Vector2(1.4, 1.4)
-	c.custom_minimum_size = Vector2(80, 50)
+	c.custom_minimum_size = Vector2(90, 50)
 	c.toggled.connect(func(on: bool) -> void: Settings.set_value(key, on))
 	return c
 
@@ -138,26 +161,30 @@ func _slider(key: String, lo: float, hi: float, step: float, fmt := "%.0f%%", mu
 
 
 func _build() -> void:
-	_section("set.language")
+	var touch := Settings.screen_controls_on()
+	_section("set.general")
 	_row("set.language", _segmented("language", [["uz_latn", "O‘zbekcha"], ["uz_cyrl", "Ўзбекча"], ["ru", "Русский"]]))
-	_row("menu.car", _segmented("car", [["nexia2", "Nexia 2"], ["cobalt_at", "Cobalt AT"]]))
+	_row("menu.car", _segmented("car", [["nexia2", Loc.t("car.nexia2")], ["cobalt_at", Loc.t("car.cobalt_at")]]))
 
 	_section("set.controls")
-	_row("set.steering", _segmented("steering_mode", [["wheel", Loc.t("set.steer_wheel")],
-			["tilt", Loc.t("set.steer_tilt")], ["buttons", Loc.t("set.steer_buttons")]]))
-	_row("set.sensitivity", _slider("steering_sensitivity", 0.5, 2.0, 0.05, "%.2f", 1.0))
-	_row("set.autocenter", _toggle("steering_autocenter"))
-	_row("set.auto_clutch", _toggle("auto_clutch"), "set.auto_clutch_desc")
-	_row("set.left_handed", _toggle("left_handed"))
-
-	_section("set.learning")
-	_row("set.hints", _toggle("show_hints"))
+	if not Settings.is_mobile():
+		_row("set.screen_controls", _segmented_int("screen_controls", [[0, Loc.t("set.off")], [1, Loc.t("set.on")]],
+				1 if touch else 0))
+	if touch:
+		var modes := [["wheel", Loc.t("set.steer_wheel")], ["buttons", Loc.t("set.steer_buttons")]]
+		if Settings.is_mobile():
+			modes.append(["tilt", Loc.t("set.steer_tilt")])
+		_row("set.steering", _segmented("steering_mode", modes))
+		_row("set.sensitivity", _slider("steering_sensitivity", 0.75, 3.0, 0.05, "%.2f", 1.0))
+	_row("set.auto_clutch", _toggle("auto_clutch"))
+	if touch:
+		_row("set.left_handed", _toggle("left_handed"))
 	_row("set.route", _toggle("show_route"))
-	_row("set.time_limit", _slider("exam_time_limit_min", 15, 40, 1, "%d", 1.0))
 
 	_section("set.graphics")
 	_row("set.quality", _segmented("quality", [[0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]))
-	_row("set.render_scale", _slider("render_scale", 0.5, 1.0, 0.05))
+	_row("set.render_scale", _segmented("render_scale", [[-1.0, Loc.t("set.auto")], [0.6, "60%"], [0.75, "75%"],
+			[1.0, "100%"]]))
 	_row("set.fps", _segmented("fps_limit", [[30, "30"], [60, "60"]]))
 	_row("set.shadows", _toggle("shadows"))
 	_row("set.mirrors", _toggle("mirrors"))
@@ -165,9 +192,25 @@ func _build() -> void:
 	_section("set.sound")
 	_row("set.vol_master", _slider("vol_master", 0.0, 1.0, 0.05))
 	_row("set.vol_engine", _slider("vol_engine", 0.0, 1.0, 0.05))
-	_row("set.vol_effects", _slider("vol_effects", 0.0, 1.0, 0.05))
 
-	var reset := UITheme.button(Loc.t("set.reset"), 22, 70)
+	if not Settings.is_mobile():
+		_section("set.keys")
+		for pair in [["W A S D / ↑ ← ↓ →", "key.drive"], ["Shift / C", "key.clutch"], ["1–5, R, N", "key.gears"],
+				["P R N G", "key.auto"], ["Q / E", "key.indicators"], ["H", "key.hazard"], ["B", "key.belt"],
+				["I", "key.key"], ["Space", "key.handbrake"], ["V", "key.camera"], ["Esc", "key.pause"],
+				[Loc.t("key.mouse"), "key.look"]]:
+			var h := HBoxContainer.new()
+			h.add_theme_constant_override("separation", 16)
+			var k := UITheme.label(pair[0], 19, UITheme.CAUTION, true)
+			k.custom_minimum_size = Vector2(230, 0)
+			h.add_child(k)
+			var a := UITheme.label(Loc.t(pair[1]), 19, UITheme.TEXT)
+			a.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			h.add_child(a)
+			_list.add_child(h)
+
+	var reset := UITheme.button(Loc.t("set.reset"), 20, 60)
 	reset.pressed.connect(func() -> void:
 		Settings.reset_to_defaults()
 		for c in _list.get_children():

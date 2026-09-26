@@ -41,6 +41,19 @@ func _ready() -> void:
 	cam.far = 1500
 	world.add_child(cam)
 	var sp := CourseData.v2(start["pos"])
+	if args.has("tiles"):
+		# Top-down orthographic tiles of the whole course (inspection of kerbs
+		# and paint): 4 × 3 tiles of 22 × 12.4 m... sized to the fence.
+		var fence := builder._fence_rect()
+		var cols := 4
+		var rows := 3
+		for r in rows:
+			for c in cols:
+				var cx := fence.position.x + fence.size.x * (c + 0.5) / cols
+				var cz := fence.position.y + fence.size.y * (r + 0.5) / rows
+				shots.append(["tile_%d_%d" % [r, c], Vector3(cx, 120, cz), Vector3(cx, 0, cz - 0.001),
+						"ortho", fence.size.x / cols])
+		return
 	shots = [
 		["overview", Vector3(0, 140, 95), Vector3(0, 0, 0)],
 		["start_chase", Vector3(sp.x + 9, 3.2, sp.y + 2.5), Vector3(sp.x - 3, 0.8, sp.y)],
@@ -50,6 +63,9 @@ func _ready() -> void:
 		["zmeyka", Vector3(-12, 9, 35), Vector3(-25, 0, 26)],
 		["boxes", Vector3(40, 13, 5), Vector3(40, 0, 25)],
 		["car_close", Vector3(sp.x + 3.5, 1.4, sp.y + 4.0), Vector3(sp.x, 0.7, sp.y)],
+		["exam_centre", Vector3(40, 6, -52), Vector3(22, 4, -95)],
+		["from_field", Vector3(-20, 1.6, -30), Vector3(10, 3, -110)],
+		["aerial", Vector3(-150, 60, 110), Vector3(0, 0, -20)],
 		# Car-relative views (body frame: +x right, -z forward).
 		["car_front", Vector3(-2.6, 1.3, -5.2), Vector3(0, 0.6, 0), true],
 		["car_rear", Vector3(2.4, 1.5, 5.4), Vector3(0, 0.7, 0), true],
@@ -75,6 +91,11 @@ func _process(delta: float) -> void:
 		var xf := car.global_transform
 		cam.global_transform = Transform3D(xf.basis * Basis(Vector3.RIGHT, -0.07), xf * car.cockpit_eye)
 		cam.fov = 72
+	elif s.size() > 4 and s[3] == "ortho":
+		cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+		cam.size = float(s[4]) * 0.5625 * 1.02
+		cam.global_position = s[1]
+		cam.look_at(s[2], Vector3(0, 0, -1))
 	elif s.size() > 3:
 		var xf := car.global_transform
 		cam.fov = 45

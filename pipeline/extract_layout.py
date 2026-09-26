@@ -7,7 +7,8 @@ Chiqish: game/data/layout_auto.json — metrlardagi poligonlar:
   * fence    — maydon chegarasi
 
 Koordinatalar: dunyo X = o'ngga (rasm x), dunyo Z = pastga (rasm y),
-markaz — to'siq to'rtburchagining markazi. Masshtab: 11 px = 1 m.
+markaz — to'siq to'rtburchagining markazi. Masshtab: 12 px = 1 m (yo'l bo'laklari ~3.2–3.7 m,
+mashq maydonchalari real o'lchamlarga yaqin).
 
 Ishlatish:  python pipeline/extract_layout.py [--debug]
 """
@@ -17,12 +18,13 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from shapely.geometry import MultiPolygon, Polygon
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "reference" / "scheme_landscape.jpg"
 OUT = ROOT / "game" / "data" / "layout_auto.json"
 
-PX_PER_M = 11.0
+PX_PER_M = 12.0
 # To'siq (oq chegara chizig'i) — rasmdagi piksel koordinatalari.
 FENCE_PX = (51.0, 89.0, 2095.0, 1137.0)  # x0, y0, x1, y1
 CX = (FENCE_PX[0] + FENCE_PX[2]) / 2.0
@@ -86,6 +88,59 @@ def contours_of(mask, min_area_px, eps_px):
     return polys
 
 
+def _resample_closed(pts, step):
+    p = np.asarray(pts, np.float64)
+    seg = np.diff(np.vstack([p, p[:1]]), axis=0)
+    L = np.hypot(seg[:, 0], seg[:, 1])
+    s = np.concatenate([[0.0], np.cumsum(L)])
+    total = s[-1]
+    n = max(int(total / step), 12)
+    t = np.linspace(0.0, total, n, endpoint=False)
+    pc = np.vstack([p, p[:1]])
+    return np.stack([np.interp(t, s, pc[:, 0]), np.interp(t, s, pc[:, 1])], 1)
+
+
+def _gauss_closed(p, sigma_samples):
+    """Circular Gaussian filter along a closed, evenly sampled outline."""
+    if sigma_samples < 0.5:
+        return p
+    r = int(3 * sigma_samples)
+    k = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma_samples) ** 2)
+    k /= k.sum()
+    out = np.empty_like(p)
+    for d in range(2):
+        ext = np.concatenate([p[-r:, d], p[:, d], p[:r, d]])
+        out[:, d] = np.convolve(ext, k, "valid")
+    return out
+
+
+def smooth_polygon(pts, r_close, sigma, tol):
+    """Clean kerb outline from a traced, pixel-stepped one.
+    1. closing (radius r_close) fills notches and steps;
+    2. a Gaussian filter along the outline (sigma, pixels) irons out the
+       lumps left by painted-out sign icons and the pixel staircase, and
+       rounds the corners like real kerb stones; thin islands get a
+       gentler filter so they do not shrink;
+    3. light simplification. Radii in pixels."""
+    p = Polygon(pts).buffer(0)
+    if p.is_empty:
+        return None
+    q = p.buffer(r_close, quad_segs=16).buffer(-r_close, quad_segs=16)
+    if isinstance(q, MultiPolygon):
+        q = max(q.geoms, key=lambda g: g.area)
+    # Thin shapes (narrow strips between lanes) keep their width.
+    thin = q.buffer(-2.2 * sigma).is_empty
+    sg = sigma * (0.4 if thin else 1.0)
+    step = 0.2 * PX_PER_M
+    ring = _resample_closed(np.asarray(q.exterior.coords[:-1]), step)
+    sm = _gauss_closed(ring, sg / step)
+    out = Polygon(sm).buffer(0)
+    if isinstance(out, MultiPolygon):
+        out = max(out.geoms, key=lambda g: g.area)
+    out = out.simplify(tol, preserve_topology=True)
+    return np.array(out.exterior.coords[:-1], np.float64)
+
+
 def main(debug=False):
     img = cv2.imread(str(SRC))
     if img is None:
@@ -104,14 +159,16 @@ def main(debug=False):
     cv2.drawContours(filled, cnts, -1, 1, -1)
     # Bordyur halqasini qo'shamiz (orol = o't + bordyur).
     island_mask = cv2.dilate(filled, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * CURB_PX + 1, 2 * CURB_PX + 1)))
-    islands = contours_of(island_mask, 400, 1.2)
+    islands = [q for q in (smooth_polygon(p, 1.2 * PX_PER_M, 1.3 * PX_PER_M, 0.03 * PX_PER_M)
+                           for p in contours_of(island_mask, 400, 0.6)) if q is not None]
 
     # --- Beton maydonchalar ---------------------------------------------------
     lt = (light & inside).astype(np.uint8)
     lt = cv2.morphologyEx(lt, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
     lt = cv2.morphologyEx(lt, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
     pads = []
-    for p in contours_of(lt, 1500, 1.5):
+    for p in [q for q in (smooth_polygon(c, 0.8 * PX_PER_M, 1.0 * PX_PER_M, 0.03 * PX_PER_M)
+                          for c in contours_of(lt, 1500, 0.8)) if q is not None]:
         # Zebra (piyodalar o'tish joyi) chiziqlari ham "och" sinfga tushadi —
         # ichidagi oq bo'yoq ulushi katta bo'lsa, bu maydoncha emas.
         m = np.zeros(lt.shape, np.uint8)
