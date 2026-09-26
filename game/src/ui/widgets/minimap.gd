@@ -10,12 +10,15 @@ var director: ExamDirector
 var metres_per_px := 0.28
 var _islands: Array[PackedVector2Array] = []
 var _pads: Array[PackedVector2Array] = []
+var _drawn_xf := Transform3D()
+var _drawn_ex: Object
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	clip_contents = true
-	custom_minimum_size = Vector2(250, 250)
+	# The HUD sizes the map to the space it has; a larger minimum would override that.
+	custom_minimum_size = Vector2(120, 120)
 
 
 func setup(p_data: CourseData, p_car: Car, p_director: ExamDirector) -> void:
@@ -26,10 +29,20 @@ func setup(p_data: CourseData, p_car: Car, p_director: ExamDirector) -> void:
 		_islands.append(isl)
 	for p in data.pads:
 		_pads.append(p)
+	Settings.changed.connect(func(_k: String) -> void: queue_redraw())
 
 
 func _process(_delta: float) -> void:
-	if car and is_visible_in_tree():
+	if car == null or not is_visible_in_tree():
+		return
+	# A parked car shows the same map; only repaint when it moves or the
+	# next exercise changes.
+	var xf := car.get_global_transform_interpolated()
+	var ex: Object = director.upcoming_exercise() if director else null
+	if xf.origin.distance_squared_to(_drawn_xf.origin) > 0.0004 or not xf.basis.is_equal_approx(_drawn_xf.basis) \
+			or ex != _drawn_ex:
+		_drawn_xf = xf
+		_drawn_ex = ex
 		queue_redraw()
 
 

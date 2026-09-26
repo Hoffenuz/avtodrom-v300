@@ -183,9 +183,17 @@ func _apply_materials(root: Node) -> void:
 			var key := src.resource_name if src else ""
 			if table.has(key):
 				m.set_surface_override_material(s, table[key])
-		# The interior only matters from the driver's seat; the body shell never
-		# needs to receive its own shadow twice.
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		# Only the body, wheels and cabin cast shadows. Glass would block the sun
+		# as if it were opaque, and lamps, hubs and mirror glass sit inside the
+		# body's silhouette: each extra caster is drawn again in every shadow
+		# split, which on phones costs more than it adds.
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if _casts_shadow(m) \
+				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+static func _casts_shadow(m: MeshInstance3D) -> bool:
+	var n := String(m.name)
+	return not (n.begins_with("Lamp_") or n.begins_with("Hub_") or n in ["Glass", "MirrorGlass"])
 
 
 func _emissive(color: Color, energy: float) -> StandardMaterial3D:

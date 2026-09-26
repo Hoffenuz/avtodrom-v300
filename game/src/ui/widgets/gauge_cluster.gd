@@ -9,11 +9,15 @@ var speed_kmh := 0.0
 var rpm := 0.0
 var gear_text := "N"
 var _blink := false
+var _drawn := [] # what the last _draw showed; redraw only when it changes
+var _bg_box := UITheme.box(Color(0.05, 0.06, 0.08, 0.82), 28, 1, UITheme.LINE, 0)
+var _gear_box := UITheme.box(Color(1, 1, 1, 0.07), 12, 0, UITheme.LINE, 0)
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(430, 190)
+	Loc.language_changed.connect(queue_redraw)
 
 
 func _process(_delta: float) -> void:
@@ -23,7 +27,13 @@ func _process(_delta: float) -> void:
 	rpm = car.get_rpm() if car.ignition else 0.0
 	gear_text = AvtoGear.label(car)
 	_blink = car.blink_lit
-	queue_redraw()
+	# The dials move in visible steps of ~0.1 km/h and 20 rpm; below that a
+	# redraw would repaint the same picture.
+	var shown := [roundi(speed_kmh * 10.0), roundi(rpm / 20.0), gear_text, car.left_lit(), car.right_lit(),
+			car.ignition, car.seatbelt, car.handbrake > 0.5, car.is_engine_running(), car.is_abs_active()]
+	if shown != _drawn:
+		_drawn = shown
+		queue_redraw()
 
 
 func _dial(c: Vector2, r: float, a0: float, a1: float, value: float, vmax: float, color: Color, width: float) -> void:
@@ -40,7 +50,7 @@ func _tick_mark(c: Vector2, r: float, a: float, len_: float, color: Color, w: fl
 
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
-	draw_style_box(UITheme.box(Color(0.05, 0.06, 0.08, 0.82), 28, 1, UITheme.LINE, 0), rect)
+	draw_style_box(_bg_box, rect)
 	var f := UITheme.bold()
 	var fr := UITheme.regular()
 
@@ -90,7 +100,7 @@ func _draw() -> void:
 
 	# Gear.
 	var gbox := Rect2(tc2.x - 34, size.y - 58, 68, 46)
-	draw_style_box(UITheme.box(Color(1, 1, 1, 0.07), 12, 0, UITheme.LINE, 0), gbox)
+	draw_style_box(_gear_box, gbox)
 	var gw := f.get_string_size(gear_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 32).x
 	draw_string(f, gbox.get_center() + Vector2(-gw * 0.5, 12), gear_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 32,
 			UITheme.CAUTION if gear_text == "R" else UITheme.TEXT)

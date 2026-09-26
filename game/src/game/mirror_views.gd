@@ -9,6 +9,13 @@ const SIZE := Vector2i(360, 200)
 # The eye sits just behind each mirror glass (Car.mirror_eye, per model) so
 # the housing itself stays out of view.
 const TOE := 0.22 # radians, mirrors are angled outwards
+# Directional shadows are rendered again for every camera, so a mirror lit by
+# the real sun would redraw the whole shadow map twice more. The mirrors see
+# the world lit by a shadowless copy of the sun instead; each light sits on a
+# render layer that only its own cameras include.
+const LAYER_SUN := 1 << 18 # layer 19
+const LAYER_MIRROR_SUN := 1 << 19 # layer 20
+const FAR := 120.0
 
 var car: Car
 var quality := 1
@@ -20,9 +27,12 @@ var _frame_count := 0
 var _visible := false
 
 
-func setup(p_car: Car, hud_root: Control, p_quality: int) -> void:
+func setup(p_car: Car, hud_root: Control, p_quality: int, sun: DirectionalLight3D = null,
+		main_camera: Camera3D = null) -> void:
 	car = p_car
 	quality = p_quality
+	if sun and main_camera:
+		_split_sun(sun, main_camera)
 	for side in 2:
 		var vp := SubViewport.new()
 		vp.size = SIZE
@@ -33,7 +43,8 @@ func setup(p_car: Car, hud_root: Control, p_quality: int) -> void:
 		var cam := Camera3D.new()
 		cam.fov = 38.0
 		cam.near = 0.05
-		cam.far = 250.0
+		cam.far = FAR
+		cam.cull_mask = cam.cull_mask & ~LAYER_SUN if _mirror_sun else cam.cull_mask
 		cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		vp.add_child(cam)
 		_vps.append(vp)
@@ -56,6 +67,20 @@ func setup(p_car: Car, hud_root: Control, p_quality: int) -> void:
 		_frames.append(frame)
 	hud_root.get_viewport().size_changed.connect(_layout)
 	_layout()
+
+
+var _mirror_sun: DirectionalLight3D
+
+
+func _split_sun(sun: DirectionalLight3D, main_camera: Camera3D) -> void:
+	var copy := sun.duplicate() as DirectionalLight3D
+	copy.name = "MirrorSun"
+	copy.shadow_enabled = false
+	copy.layers = LAYER_MIRROR_SUN
+	sun.get_parent().add_child(copy)
+	sun.layers = LAYER_SUN
+	main_camera.cull_mask &= ~LAYER_MIRROR_SUN
+	_mirror_sun = copy
 
 
 func _layout() -> void:

@@ -26,7 +26,7 @@ func _ready() -> void:
 	quality = int(Settings.get_value("quality"))
 	_apply_graphics()
 	Settings.changed.connect(func(_k: String) -> void: _apply_graphics())
-	EnvironmentSetup.create(self, quality)
+	var sun := EnvironmentSetup.create(self, quality)
 	course = CourseBuilder.load_or_build(data, quality)
 	add_child(course)
 	var rng := RandomNumberGenerator.new()
@@ -92,7 +92,7 @@ func _ready() -> void:
 
 	mirrors = MirrorViews.new()
 	add_child(mirrors)
-	mirrors.setup(car, hud.root, quality)
+	mirrors.setup(car, hud.root, quality, sun, rig.camera)
 
 	pause_menu = PauseMenu.new()
 	add_child(pause_menu)
