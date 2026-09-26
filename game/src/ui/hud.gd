@@ -396,6 +396,9 @@ func _layout() -> void:
 	minimap.visible = _map_on and data != null
 	var mm := 190.0 if touch_mode else 220.0
 	if touch_mode:
+		# On short (~720 px tall) layouts a full-size map would reach down over
+		# the gear lever; keep clear of it.
+		mm = clampf(minf(mm, gear_pos.y - 12.0 - (T + (96.0 if demo else 58.0))), 120.0, mm)
 		_place(minimap, Vector2(L + W * 0.5 - mm * 0.5, T + (96 if demo else 58)), Vector2(mm, mm))
 	else:
 		_place(minimap, Vector2(R - mm, T + 72), Vector2(mm, mm))
@@ -431,7 +434,7 @@ func _process(delta: float) -> void:
 	# Status.
 	if director:
 		status_penalty.text = "%s %d" % [Loc.t("hud.penalty"), director.total]
-		status_penalty.add_theme_color_override("font_color",
+		_font_color(status_penalty,
 				UITheme.GO if director.total == 0 else (UITheme.CAUTION if director.total < 50 else UITheme.STOP))
 		status_time.text = UITheme.clock(director.exam_time)
 		_update_prepare()
@@ -463,6 +466,14 @@ func _process(delta: float) -> void:
 			t.queue_free()
 
 
+## Re-setting an override, even to the same colour, makes the label and its
+## containers recompute their layout, so the per-frame updates only touch it
+## when the colour really changes.
+func _font_color(l: Label, color: Color) -> void:
+	if not l.has_theme_color_override("font_color") or l.get_theme_color("font_color") != color:
+		l.add_theme_color_override("font_color", color)
+
+
 func _update_prepare() -> void:
 	var preparing := director.state == ExamDirector.State.PREPARE
 	if prepare_panel.visible != preparing:
@@ -482,7 +493,7 @@ func _update_prepare() -> void:
 		var ok: bool = checks[key]
 		var l: Label = prep_items[key]
 		l.text = ("✓  " if ok else "○  ") + Loc.t(key) + ("" if touch_mode else "  [%s]" % keys[key])
-		l.add_theme_color_override("font_color", UITheme.GO if ok else UITheme.TEXT)
+		_font_color(l, UITheme.GO if ok else UITheme.TEXT)
 	ready_btn.disabled = not car.is_engine_running()
 
 
