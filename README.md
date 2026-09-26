@@ -93,7 +93,19 @@ blender -b --python pipeline/blender/build_cobalt.py -- <chevrolet_cobalt_ltz.gl
 Skript haqiqiy o'lchamlarga moslaydi (Cobalt: uzunlik 4479 mm, baza 2620 mm),
 g'ildiraklarni `Wheel_XX/Spin_XX`, chiroqlarni `Lamp_*`, rulni
 `SteeringPivot/SteeringWheel` qilib ajratadi, uchburchaklar sonini mobil
-byudjetgacha kamaytiradi (~110k) va to'qnashuv qobig'ini yasaydi. Chiqqan
+byudjetgacha kamaytiradi (~110k) va to'qnashuv qobig'ini yasaydi.
+Keyin `refine_car.py` tozalash bosqichi kuzov normallarini qayta hisoblaydi
+(eshik va bagajdagi qora dog'lar yo'qoladi), kuzovni ~34–40k uchburchakgacha
+yengillashtiradi va buzilgan torpedoni sodda modellangan torpedo, jonli
+spidometr va taxometr (`GaugeSpeed`/`GaugeRpm`, `gauge.gdshader`) bilan
+almashtiradi:
+
+```
+blender -b --python pipeline/blender/refine_car.py -- cobalt.glb game/assets/cars/cobalt/cobalt.glb cobalt_at
+```
+
+Natijani tekshirish: `godot --path game res://tests/car_render_test.tscn -- <papka> <nexia2|cobalt_at>`
+(tashqi va saloni suratlari). Chiqqan
 o'lchamlar (bamperlargacha masofa, ko'zgu nuqtasi) `game/src/vehicle/car.gd`
 dagi `MODELS` ga, g'ildirak bazasi/koleya C++ presetiga yoziladi.
 
