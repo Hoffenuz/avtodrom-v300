@@ -20,6 +20,8 @@ imtihonining simulyatori. Android (asosiy) va Windows uchun.
   - **Mashqlar** — istalgan mashq alohida, qisqa ko'rsatmalar va marshrut
     chizig'i bilan; har birida "Namuna".
   - **Erkin haydash**.
+- Maydon atrofida: aylanma yo'l, imtihon markazi binosi va turargoh (turgan
+  mashinalar), teraklar va bog', uzoqda shahar siluetlari.
 - Kamera: kabina, orqadan (yaqin), yuqoridan. Ekranning bo'sh joyini surib
   360° aylantirish, ikki barmoq / g'ildirak bilan yaqinlashtirish; ustun va
   belgilar orqasiga tushmaydi.
@@ -52,7 +54,8 @@ game/              Godot loyihasi
   assets/          mashina modeli, teksturalar, belgilar, shrift, shaderlar
   tests/           vehicle_test.gd, render_test, bake_course.gd
 pipeline/          sxemadan avtodrom geometriyasini chiqarish, tarjimalar, ikonka, teksturalar
-  blender/         mashina modellarini o'yinga tayyorlash (build_nexia.py, build_cobalt.py)
+  blender/         mashina modellarini o'yinga tayyorlash (build_nexia.py, build_cobalt.py,
+                   build_car_lod.py — turargohdagi mashinalar uchun yengil versiya)
 reference/         rasmiy sxema va mashqlar jadvallari (manba)
 scripts/           build.py (to'liq yig'ish), run_tests.py (barcha testlar)
 tools/             Godot va eksport shablonlari (git'da emas)
@@ -137,6 +140,11 @@ Qo'lda tekshirish uchun buyruq qatori (Godot `--` dan keyin):
 `--shots=<papka>`, `--quit-after-s=<s>`, `--menu-page=exam|practice|rules|history|settings`.
 
 ## Boshqaruv (kompyuter)
+
+Kompyuterda standart holda klaviatura bilan boshqariladi; ekrandagi rul va
+pedallarni Sozlamalar → Boshqaruv → "Ekrandagi rul va pedallar" orqali yoqish
+mumkin (sensorli ekranli noutbuklar uchun). Telefonda rul turi: rul,
+strelkalar yoki telefonni qiyalatish.
 
 | Tugma | Amal |
 |---|---|

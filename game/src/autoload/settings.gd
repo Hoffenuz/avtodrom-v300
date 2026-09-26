@@ -15,7 +15,10 @@ const DEFAULTS := {
 	"car": "nexia2", # nexia2 (mexanika) | cobalt_at (avtomat)
 	"auto_clutch": true, # manual gearbox: the simulation works the clutch
 	"abs": true,
-	"steering_mode": "wheel", # wheel | tilt | buttons
+	"steering_mode": "wheel", # wheel | tilt | buttons (on-screen controls)
+	# On-screen wheel, pedals and switches: -1 = automatic (phones and
+	# tablets yes, computers no), 0 = off, 1 = on.
+	"screen_controls": -1,
 	# On-screen wheel: 1.5 = one full turn of the finger gives the car's full
 	# lock (1.5 steering-wheel turns on the Nexia).
 	"steering_sensitivity": 1.5,
@@ -99,6 +102,12 @@ func detect_quality() -> int:
 	if cores >= 8:
 		return 1
 	return 0
+
+
+## Whether the on-screen driving controls are shown.
+func screen_controls_on() -> bool:
+	var v := int(get_value("screen_controls"))
+	return is_mobile() if v < 0 else v == 1
 
 
 func is_mobile() -> bool:

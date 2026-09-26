@@ -80,7 +80,7 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 	controls = p_controls
 	director = p_director
 	data = p_data
-	touch_mode = Settings.is_mobile() or DisplayServer.is_touchscreen_available()
+	touch_mode = Settings.screen_controls_on()
 	_map_on = not touch_mode
 	_build()
 	if director:
@@ -93,6 +93,12 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 	car.engine_stalled.connect(func() -> void: show_center(Loc.t("hud.stalled"), UITheme.CAUTION, 2.0))
 	Loc.language_changed.connect(_relabel)
 	get_viewport().size_changed.connect(_layout)
+	Settings.changed.connect(func(k: String) -> void:
+		if k in ["screen_controls", "steering_mode", "left_handed", "auto_clutch"]:
+			touch_mode = Settings.screen_controls_on()
+			if not touch_mode:
+				controls.touch_steer_active = false
+			_layout())
 	_relabel()
 	_layout()
 
@@ -456,10 +462,12 @@ func _update_prepare() -> void:
 		"prep.handbrake": car.handbrake > 0.5,
 		"prep.signal": car.signalling_left(),
 	}
+	# Without the on-screen switches, say which key does it.
+	var keys := {"prep.belt": "B", "prep.engine": "I", "prep.handbrake": Loc.t("key.space"), "prep.signal": "Q"}
 	for key in prep_items:
 		var ok: bool = checks[key]
 		var l: Label = prep_items[key]
-		l.text = ("✓  " if ok else "○  ") + Loc.t(key)
+		l.text = ("✓  " if ok else "○  ") + Loc.t(key) + ("" if touch_mode else "  [%s]" % keys[key])
 		l.add_theme_color_override("font_color", UITheme.GO if ok else UITheme.TEXT)
 	ready_btn.disabled = not car.is_engine_running()
 

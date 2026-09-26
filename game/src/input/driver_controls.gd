@@ -30,8 +30,8 @@ const BRAKE_UP := 2.2
 const BRAKE_DOWN := 4.0
 const CLUTCH_DOWN := 4.0 # pressing the clutch is quick...
 const CLUTCH_UP := 1.4 # ...letting it out should not be
-const STEER_RATE := 420.0 # deg/s at the steering wheel
-const CENTER_RATE := 540.0
+const STEER_RATE := 600.0 # deg/s at the steering wheel
+const CENTER_RATE := 420.0
 
 var steering_lock := 540.0
 var automatic := false
@@ -84,13 +84,16 @@ func _physics_process(delta: float) -> void:
 	var v := absf(car_speed)
 	if left != right:
 		var target := steering_lock if right else -steering_lock
-		# Quick at parking speed, calmer when driving on (no twitchy lane changes).
-		var rate := STEER_RATE * clampf(sens, 0.75, 2.0) / (1.0 + v / 9.0)
+		# Full lock in about 0.9 s at parking speed, a little calmer when
+		# driving on; turning back through the centre is twice as quick.
+		var rate := STEER_RATE * clampf(sens / 1.5, 0.6, 1.6) / (1.0 + v / 14.0)
+		if signf(target) != signf(_kb_steer) and absf(_kb_steer) > 1.0:
+			rate *= 2.0
 		_kb_steer = move_toward(_kb_steer, target, rate * delta)
 	else:
-		# Caster: the wheel only returns by itself while the car rolls, and the
-		# faster it rolls the quicker — a parked car keeps the wheel where it is.
-		_kb_steer = move_toward(_kb_steer, 0.0, clampf(v * 90.0, 0.0, CENTER_RATE) * delta)
+		# Keys released: the wheel comes back to the centre (quicker when
+		# rolling, like the caster does), so the car drives straight again.
+		_kb_steer = move_toward(_kb_steer, 0.0, (CENTER_RATE + v * 60.0) * delta)
 
 	# Gamepad (first connected pad).
 	var pad_throttle := 0.0

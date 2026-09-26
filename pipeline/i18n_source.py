@@ -16,6 +16,7 @@ OUT = Path(__file__).resolve().parent.parent / "game" / "data" / "i18n.json"
 S = {
     # ------------------------------------------------------------------ menu
     "app.title": ("Avtodrom", "Автодром", "Автодром"),
+    "app.tagline": ("Amaliy imtihon trenajyori", "Амалий имтиҳон тренажёри", "Тренажёр практического экзамена"),
     "menu.exam": ("Imtihon", "Имтиҳон", "Экзамен"),
     "menu.practice": ("Mashqlar", "Машқлар", "Упражнения"),
     "menu.free": ("Erkin haydash", "Эркин ҳайдаш", "Свободная езда"),
@@ -52,7 +53,10 @@ S = {
     "set.controls": ("Boshqaruv", "Бошқарув", "Управление"),
     "set.steering": ("Rul", "Рул", "Руль"),
     "set.steer_wheel": ("Rul", "Рул", "Руль"),
-    "set.steer_buttons": ("Tugmalar", "Тугмалар", "Кнопки"),
+    "set.steer_buttons": ("Strelkalar", "Стрелкалар", "Стрелки"),
+    "set.screen_controls": ("Ekrandagi rul va pedallar", "Экрандаги рул ва педаллар", "Экранный руль и педали"),
+    "set.on": ("Yoqilgan", "Ёқилган", "Вкл"),
+    "set.off": ("O‘chiq", "Ўчиқ", "Выкл"),
     "set.steer_tilt": ("Qiyalatish", "Қиялатиш", "Наклон"),
     "set.sensitivity": ("Rul sezgirligi", "Рул сезгирлиги", "Чувствительность руля"),
     "set.auto_clutch": ("Avtomatik mufta", "Автоматик муфта", "Автосцепление"),
@@ -84,6 +88,7 @@ S = {
     "key.camera": ("Kamera", "Камера", "Камера"),
     "key.pause": ("Pauza", "Пауза", "Пауза"),
     "key.mouse": ("Sichqoncha", "Сичқонча", "Мышь"),
+    "key.space": ("Probel", "Пробел", "Пробел"),
     "key.look": ("Surish — kamerani aylantirish, g‘ildirak — yaqinlashtirish",
                  "Суриш — камерани айлантириш, ғилдирак — яқинлаштириш",
                  "Перетаскивание — поворот камеры, колесо — зум"),

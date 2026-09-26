@@ -69,15 +69,24 @@ islands_w = [p for p in layout["islands"]]
 islands_px = [Polygon([px_of(p) for p in isl]).buffer(0) for isl in islands_w]
 islands_union_px = unary_union(islands_px)
 
+# Each island with its notches closed: the concrete pads sit in those notches
+# and must end on the island's line, not spill onto the road in blobs.
+_islands_closed_px = unary_union([i.buffer(4.0 * S).buffer(-4.0 * S) for i in islands_px]).buffer(0.15 * S)
+
 pads_out = []
 for p in layout["pads"]:
-    poly = Polygon([px_of(q) for q in p])
+    poly = Polygon([px_of(q) for q in p]).buffer(0)
     minx, miny, maxx, maxy = poly.bounds
     if miny < 160 and 1070 < minx < 1160:  # the top zebra, not a pad
         continue
     if 1830 < minx < 1850 and miny > 480:  # partial pocket; pockets are authored below
         continue
-    pads_out.append(p)
+    clipped = poly.intersection(_islands_closed_px)
+    if clipped.geom_type == "MultiPolygon":
+        clipped = max(clipped.geoms, key=lambda g: g.area)
+    if clipped.geom_type == "Polygon" and clipped.area > 0.6 * poly.area:
+        poly = clipped.simplify(0.03 * S)
+    pads_out.append([w(x, y) for x, y in poly.exterior.coords[:-1]])
 
 POCKETS_PX = [(1335, 497, 1480, 530), (1590, 497, 1725, 530), (1840, 497, 1975, 530)]
 for x0, y0, x1, y1 in POCKETS_PX:

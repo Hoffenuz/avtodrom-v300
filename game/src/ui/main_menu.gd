@@ -1,5 +1,6 @@
 extends Node
-## Main menu over a slowly orbiting view of the avtodrom.
+## Main menu: the chosen car on the avtodrom, the camera slowly circling it
+## (a "garage" view), with the menu over the left half of the screen.
 ##   Home      — three modes (exam, exercises, free drive), the car, and
 ##               results / penalties / settings;
 ##   Exam      — what the exam is in four lines, then start (or watch it);
@@ -12,8 +13,10 @@ var _orbit := 0.0
 var _ui: Control
 var _content: Control
 var _stats: Label
-var _car_buttons := {}
 var _menu_car: Car
+var _car_name: Label
+var _car_type: Label
+var _car_focus := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -42,10 +45,12 @@ func _build_world() -> void:
 	car.configure(Session.car_id())
 	_menu_car = car
 	var sp: Dictionary = data.exercise("start")["spawn"]
-	car.teleport(course.spawn_transform(CourseData.v2(sp["pos"]), float(sp["yaw"])), false)
+	var xf := course.spawn_transform(CourseData.v2(sp["pos"]), float(sp["yaw"]))
+	car.teleport(xf, false)
 	car.freeze = true
+	_car_focus = xf.origin + Vector3.UP * 0.75
 	_cam = Camera3D.new()
-	_cam.fov = 50.0
+	_cam.fov = 42.0
 	_cam.far = 1200.0
 	_world.add_child(_cam)
 	_cam.current = true
@@ -53,11 +58,21 @@ func _build_world() -> void:
 
 
 func _process(delta: float) -> void:
-	_orbit += delta * 0.045
-	var centre := Vector3(11.0, 0.0, -11.0)
-	var r := 70.0
-	_cam.global_position = centre + Vector3(cos(_orbit) * r, 31.0, sin(_orbit) * r)
-	_cam.look_at(centre + Vector3(0, -6, 0), Vector3.UP)
+	_orbit += delta * 0.12
+	var r := 8.2
+	_cam.global_position = _car_focus + Vector3(cos(_orbit) * r, 1.55, sin(_orbit) * r)
+	_cam.look_at(_car_focus, Vector3.UP)
+	# The car sits in the right half of the screen, clear of the menu.
+	_cam.h_offset = -r * tan(deg_to_rad(_cam.fov * 0.5)) * _aspect() * 0.42
+
+
+func _vw() -> float:
+	return get_viewport().get_visible_rect().size.x
+
+
+func _aspect() -> float:
+	var s := get_viewport().get_visible_rect().size
+	return s.x / maxf(s.y, 1.0)
 
 
 # ------------------------------------------------------------------ UI
@@ -75,9 +90,20 @@ func _build_ui() -> void:
 func _rebuild_ui() -> void:
 	for c in _ui.get_children():
 		c.queue_free()
-	var shade := ColorRect.new()
+	# Dark on the menu side, clear over the car.
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.02, 0.03, 0.05, 0.82))
+	grad.set_color(1, Color(0.02, 0.03, 0.05, 0.0))
+	grad.add_point(0.45, Color(0.02, 0.03, 0.05, 0.45))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.width = 256
+	gt.height = 4
+	var shade := TextureRect.new()
+	shade.texture = gt
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.color = Color(0.02, 0.03, 0.05, 0.4)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(shade)
 	var safe := UITheme.safe_margins(_ui.get_viewport())
@@ -99,82 +125,146 @@ func _clear_content() -> void:
 
 func _show_home() -> void:
 	_clear_content()
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 18)
-	_content.add_child(v)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 24)
+	_content.add_child(h)
 
-	# Title (left) and the car (right).
-	var top := HBoxContainer.new()
-	v.add_child(top)
-	var title := UITheme.label(Loc.t("app.title"), 54, UITheme.TEXT, true)
-	title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.5))
-	title.add_theme_constant_override("outline_size", 6)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(title)
-	top.add_child(_car_picker())
-
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(spacer)
-
-	# The three modes.
-	var modes := HBoxContainer.new()
-	modes.add_theme_constant_override("separation", 16)
-	v.add_child(modes)
-	modes.add_child(_mode_card("menu.exam", true, _show_exam))
-	modes.add_child(_mode_card("menu.practice", false, _show_practice))
-	modes.add_child(_mode_card("menu.free", false, func() -> void: _start(Session.Mode.FREE)))
-
-	# Secondary actions.
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(minf(520.0, _vw() * 0.42), 0)
+	left.add_theme_constant_override("separation", 14)
+	h.add_child(left)
+	left.add_child(_logo())
+	var gap := Control.new()
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left.add_child(gap)
+	var stats := ""
+	if not Session.history.is_empty():
+		stats = Loc.t("menu.stats", [Session.history.size(), Session.pass_count()])
+	var exam := MenuCard.new(Loc.t("menu.exam"), "flag", UITheme.GO, true, stats)
+	exam.custom_minimum_size.y = 104
+	exam.pressed.connect(_show_exam)
+	left.add_child(exam)
+	var practice := MenuCard.new(Loc.t("menu.practice"), "cone", Color(1.0, 0.6, 0.2))
+	practice.pressed.connect(_show_practice)
+	left.add_child(practice)
+	var free := MenuCard.new(Loc.t("menu.free"), "wheel", UITheme.INFO)
+	free.pressed.connect(func() -> void: _start(Session.Mode.FREE))
+	left.add_child(free)
+	var gap2 := Control.new()
+	gap2.custom_minimum_size = Vector2(0, 4)
+	left.add_child(gap2)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	v.add_child(row)
-	var items := [["menu.history", _show_history], ["menu.rules", _show_rules], ["menu.settings", _show_settings]]
+	row.add_theme_constant_override("separation", 6)
+	left.add_child(row)
+	var items := [["menu.history", "list", _show_history], ["menu.rules", "warn", _show_rules],
+			["menu.settings", "gear", _show_settings]]
 	if not OS.has_feature("mobile"):
-		items.append(["menu.quit", func() -> void: get_tree().quit()])
-	for pair in items:
-		var b := UITheme.button(Loc.t(pair[0]), 20, 58)
+		items.append(["menu.quit", "exit", func() -> void: get_tree().quit()])
+	for it in items:
+		var b := MenuCard.RoundAction.new(Loc.t(it[0]), it[1])
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.pressed.connect(pair[1])
+		b.pressed.connect(it[2])
 		row.add_child(b)
-	_stats = UITheme.label("", 17, UITheme.TEXT_DIM)
-	_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(_stats)
-	_update_stats()
+
+	# Right: the car (3D, behind) and its switch at the bottom.
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(right)
+	var fill := Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(fill)
+	var car_row := HBoxContainer.new()
+	car_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_child(car_row)
+	car_row.add_child(_car_carousel())
+	_stats = null
 
 
-func _mode_card(key: String, primary: bool, action: Callable) -> Button:
-	var b := UITheme.primary_button(Loc.t(key), 30, 132) if primary else UITheme.button(Loc.t(key), 28, 132)
-	if not primary:
-		b.add_theme_font_override("font", UITheme.bold())
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.pressed.connect(action)
+func _logo() -> Control:
+	var box := HBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	var badge := Control.new()
+	badge.custom_minimum_size = Vector2(64, 64)
+	badge.draw.connect(func() -> void:
+		var sb := StyleBoxFlat.new()
+		sb.set_corner_radius_all(18)
+		sb.bg_color = UITheme.GO
+		sb.shadow_color = Color(0, 0, 0, 0.35)
+		sb.shadow_size = 8
+		sb.anti_aliasing = true
+		badge.draw_style_box(sb, Rect2(Vector2.ZERO, badge.size))
+		Icons.draw(badge, "wheel", badge.size * 0.5, 22.0, Color.WHITE))
+	box.add_child(badge)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", -4)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	var t := UITheme.label(Loc.t("app.title").to_upper(), 40, UITheme.TEXT, true)
+	t.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
+	t.add_theme_constant_override("outline_size", 6)
+	v.add_child(t)
+	var tag := UITheme.label(Loc.t("app.tagline"), 17, Color(1, 1, 1, 0.8))
+	tag.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
+	tag.add_theme_constant_override("outline_size", 4)
+	v.add_child(tag)
+	box.add_child(v)
+	return box
+
+
+## ‹ Nexia 2 · mexanika › — switches the car (and the model on screen).
+func _car_carousel() -> Control:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.08, 0.1, 0.13, 0.86), 26, 1, UITheme.LINE, 10))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	p.add_child(h)
+	var prev := _chevron("chev_left")
+	h.add_child(prev)
+	var v := VBoxContainer.new()
+	v.custom_minimum_size = Vector2(190, 0)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", -2)
+	_car_name = UITheme.label("", 26, UITheme.TEXT, true)
+	_car_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_car_type = UITheme.label("", 16, UITheme.TEXT_DIM)
+	_car_type.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(_car_name)
+	v.add_child(_car_type)
+	h.add_child(v)
+	var next := _chevron("chev_right")
+	h.add_child(next)
+	prev.pressed.connect(func() -> void: _switch_car())
+	next.pressed.connect(func() -> void: _switch_car())
+	_show_car_name()
+	return p
+
+
+func _chevron(icon: String) -> Button:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(56, 56)
+	b.draw.connect(func() -> void:
+		var hov := b.is_hovered()
+		b.draw_circle(b.size * 0.5, 24.0, Color(1, 1, 1, 0.14 if hov else 0.07))
+		Icons.draw(b, icon, b.size * 0.5, 11.0, UITheme.TEXT))
+	b.mouse_entered.connect(b.queue_redraw)
+	b.mouse_exited.connect(b.queue_redraw)
 	return b
 
 
-## Two-way switch: Nexia 2 (manual) / Cobalt (automatic).
-func _car_picker() -> Control:
-	var box := HBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_car_buttons.clear()
-	for id in ["nexia2", "cobalt_at"]:
-		var b := UITheme.button("", 19, 60)
-		b.toggle_mode = true
-		b.custom_minimum_size.x = 170
-		b.text = Loc.t("car." + id) + "\n" + Loc.t("car." + id + "_desc")
-		b.add_theme_font_size_override("font_size", 18)
-		b.button_pressed = str(Settings.get_value("car")) == id
-		var cid: String = id
-		b.pressed.connect(func() -> void:
-			Settings.set_value("car", cid)
-			if _menu_car:
-				_menu_car.configure(cid)
-			for k in _car_buttons:
-				_car_buttons[k].button_pressed = k == cid)
-		_car_buttons[id] = b
-		box.add_child(b)
-	return box
+func _switch_car() -> void:
+	var cid := "cobalt_at" if str(Settings.get_value("car")) == "nexia2" else "nexia2"
+	Settings.set_value("car", cid)
+	if _menu_car:
+		_menu_car.configure(cid)
+	_show_car_name()
+
+
+func _show_car_name() -> void:
+	var cid := str(Settings.get_value("car"))
+	if _car_name:
+		_car_name.text = Loc.t("car." + cid)
+		_car_type.text = Loc.t("car." + cid + "_desc")
 
 
 func _update_stats() -> void:
@@ -204,17 +294,16 @@ func _screen(title_key: String) -> VBoxContainer:
 	_content.add_child(v)
 	var head := HBoxContainer.new()
 	v.add_child(head)
-	var back := UITheme.button("‹  " + Loc.t("menu.back"), 21, 60)
-	back.custom_minimum_size.x = 170
+	head.add_theme_constant_override("separation", 14)
+	var back := _chevron("back")
+	back.custom_minimum_size = Vector2(64, 64)
 	back.pressed.connect(_show_home)
 	head.add_child(back)
-	var t := UITheme.label(Loc.t(title_key), 32, UITheme.TEXT, true)
+	var t := UITheme.label(Loc.t(title_key), 34, UITheme.TEXT, true)
+	t.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
+	t.add_theme_constant_override("outline_size", 6)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.add_child(t)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(170, 0)
-	head.add_child(spacer)
 	return v
 
 
@@ -234,55 +323,70 @@ func _scroll_list(parent: Control) -> VBoxContainer:
 
 func _show_exam() -> void:
 	var v := _screen("exam.title")
-	var center := CenterContainer.new()
-	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(center)
+	var split := HBoxContainer.new()
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(split)
+	var body := VBoxContainer.new()
+	body.custom_minimum_size = Vector2(minf(600.0, _vw() * 0.45), 0)
+	body.add_theme_constant_override("separation", 12)
+	split.add_child(body)
+	var rest := Control.new()
+	rest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rest.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	split.add_child(rest)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(minf(620.0, _ui.size.x - 120.0), 0)
-	center.add_child(panel)
+	panel.add_theme_stylebox_override("panel", UITheme.box(Color(0.08, 0.1, 0.13, 0.88), 22, 1, UITheme.LINE, 22))
+	body.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
 	var minutes := int(Settings.get_value("exam_time_limit_min"))
-	for line in [Loc.t("exam.rule_route"), Loc.t("exam.rule_pass"), Loc.t("exam.rule_time", [minutes]),
-			Loc.t("exam.rule_hints")]:
-		var l := UITheme.label("•  " + line, 21, UITheme.TEXT)
+	var rows := [["flag", Loc.t("exam.rule_route")], ["warn", Loc.t("exam.rule_pass")],
+			["list", Loc.t("exam.rule_time", [minutes])], ["cone", Loc.t("exam.rule_hints")]]
+	for r in rows:
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 14)
+		var ic := Control.new()
+		ic.custom_minimum_size = Vector2(30, 30)
+		var icon_name: String = r[0]
+		ic.draw.connect(func() -> void: Icons.draw(ic, icon_name, ic.size * 0.5, 11.0, UITheme.CAUTION))
+		h.add_child(ic)
+		var l := UITheme.label(r[1], 21, UITheme.TEXT)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		box.add_child(l)
-	var car_id := str(Settings.get_value("car"))
-	box.add_child(UITheme.label("%s: %s (%s)" % [Loc.t("menu.car"), Loc.t("car." + car_id),
-			Loc.t("car." + car_id + "_desc")], 19, UITheme.TEXT_DIM))
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(l)
+		box.add_child(h)
+	var fill := Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(fill)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
-	box.add_child(row)
-	var go := UITheme.primary_button(Loc.t("menu.start"), 26, 76)
+	body.add_child(row)
+	var go := MenuCard.new(Loc.t("menu.start"), "flag", UITheme.GO, true)
 	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	go.size_flags_stretch_ratio = 2.0
 	go.pressed.connect(func() -> void: _start(Session.Mode.EXAM))
 	row.add_child(go)
-	var demo := UITheme.button("▶  " + Loc.t("menu.demo"), 21, 76)
-	demo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var demo := MenuCard.RoundAction.new(Loc.t("menu.demo"), "play")
 	demo.pressed.connect(func() -> void: _start(Session.Mode.EXAM, "", true))
 	row.add_child(demo)
 
 
 func _show_practice() -> void:
 	var v := _screen("menu.practice")
-	var bg := PanelContainer.new()
-	bg.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(bg)
 	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	bg.add_child(scroll)
+	v.add_child(scroll)
 	var grid := GridContainer.new()
-	grid.columns = 3 if _ui.size.x >= 1150.0 else 2
+	grid.columns = 3 if _vw() >= 1500.0 else 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 12)
 	scroll.add_child(grid)
 	var data := CourseData.get_default()
 	var n := 0
 	var seen := {}
+	var accents := [UITheme.GO, Color(1.0, 0.6, 0.2), UITheme.INFO, UITheme.CAUTION]
 	for e in data.exercises:
 		var id := str(e["id"])
 		var key := "intersection" if id.begins_with("intersection") else id
@@ -292,17 +396,15 @@ func _show_practice() -> void:
 		n += 1
 		var cell := HBoxContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cell.add_theme_constant_override("separation", 6)
-		var b := UITheme.button("%d.  %s" % [n, Loc.pick(e["name"])], 20, 72)
+		cell.add_theme_constant_override("separation", 4)
+		var b := MenuCard.new(Loc.pick(e["name"]), str(n), accents[(n - 1) % accents.size()])
+		b.custom_minimum_size = Vector2(0, 84)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var ex_id := id
 		b.pressed.connect(func() -> void: _start(Session.Mode.PRACTICE, ex_id))
 		cell.add_child(b)
 		# Watch the instructor (autopilot) do it first.
-		var demo := UITheme.button("▶ " + Loc.t("menu.demo"), 17, 72)
-		demo.custom_minimum_size.x = 118
+		var demo := MenuCard.RoundAction.new(Loc.t("menu.demo"), "play")
 		demo.pressed.connect(func() -> void: _start(Session.Mode.PRACTICE, ex_id, true))
 		cell.add_child(demo)
 		grid.add_child(cell)
@@ -389,7 +491,7 @@ func _history_row(r: Dictionary) -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 16)
 	var badge := UITheme.label("✓" if passed else "✗", 24, UITheme.GO if passed else UITheme.STOP, true)
-	var date := str(r.get("date", "")).replace("T", "  ").substr(0, 17)
+	var date := str(r.get("date", "")).replace("T", " ").substr(0, 16)
 	var info := UITheme.label(date, 19, UITheme.TEXT)
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var car_id := str(r.get("car", ""))

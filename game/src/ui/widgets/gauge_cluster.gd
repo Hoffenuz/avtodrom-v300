@@ -2,9 +2,9 @@ class_name GaugeCluster
 extends Control
 ## Compact instrument strip: speed (amber above 20 km/h, red above 40 — the
 ## avtodrom limits), the selected gear and the indicator arrows. Warning lamps
-## (belt, handbrake, engine, ABS) appear above it only while they are lit.
+## (belt, handbrake, engine, ABS) light up inside the strip, left of the speed.
 
-const W := 290.0
+const W := 320.0
 const H := 62.0
 
 var car: Car
@@ -42,7 +42,7 @@ func _draw() -> void:
 	var st := "%d" % int(round(kmh))
 	var fs := 34
 	var sw := f.get_string_size(st, HORIZONTAL_ALIGNMENT_RIGHT, -1, fs).x
-	var sx := 112.0 # right edge of the number
+	var sx := 150.0 # right edge of the number
 	draw_string(f, Vector2(sx - sw, cy + 12), st, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	draw_string(fr, Vector2(sx + 5, cy + 11), Loc.t("hud.kmh"), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UITheme.TEXT_DIM)
 	# Gear.
@@ -52,22 +52,14 @@ func _draw() -> void:
 	var gw := f.get_string_size(gear, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
 	draw_string(f, gbox.get_center() + Vector2(-gw * 0.5, 9), gear, HORIZONTAL_ALIGNMENT_LEFT, -1, 24,
 			UITheme.CAUTION if gear == "R" else UITheme.TEXT)
-	# Lit warning lamps only, centred above the strip.
-	var lamps := []
-	if car.ignition and not car.seatbelt:
-		lamps.append(["belt", UITheme.STOP])
-	if car.ignition and car.handbrake > 0.5:
-		lamps.append(["handbrake", UITheme.STOP])
-	if car.ignition and not car.is_engine_running():
-		lamps.append(["engine", UITheme.CAUTION])
-	if car.is_abs_active():
-		lamps.append(["abs", UITheme.CAUTION])
-	if lamps.is_empty():
-		return
-	var step := 30.0
-	var x := size.x * 0.5 - (lamps.size() - 1) * step * 0.5
-	var bg := Rect2(x - 20, -34, (lamps.size() - 1) * step + 40, 28)
-	draw_style_box(UITheme.box(Color(0.05, 0.06, 0.08, 0.8), 14, 0, UITheme.LINE, 0), bg)
-	for l in lamps:
-		Icons.draw(self, l[0], Vector2(x, -20), 9.0, l[1])
-		x += step
+	# Warning lamps: a 2 × 2 block between the left arrow and the speed.
+	var lamps := [
+		["belt", UITheme.STOP, car.ignition and not car.seatbelt],
+		["handbrake", UITheme.STOP, car.ignition and car.handbrake > 0.5],
+		["engine", UITheme.CAUTION, car.ignition and not car.is_engine_running()],
+		["abs", UITheme.CAUTION, car.is_abs_active()],
+	]
+	for i in lamps.size():
+		var l: Array = lamps[i]
+		var c := Vector2(58.0 + (i % 2) * 22.0, cy - 11.0 + (i / 2) * 22.0)
+		Icons.draw(self, l[0], c, 7.5, l[1] if l[2] else Color(1, 1, 1, 0.1))

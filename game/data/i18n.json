@@ -4,6 +4,11 @@
   "uz_cyrl": "Автодром",
   "ru": "Автодром"
  },
+ "app.tagline": {
+  "uz_latn": "Amaliy imtihon trenajyori",
+  "uz_cyrl": "Амалий имтиҳон тренажёри",
+  "ru": "Тренажёр практического экзамена"
+ },
  "menu.exam": {
   "uz_latn": "Imtihon",
   "uz_cyrl": "Имтиҳон",
@@ -160,9 +165,24 @@
   "ru": "Руль"
  },
  "set.steer_buttons": {
-  "uz_latn": "Tugmalar",
-  "uz_cyrl": "Тугмалар",
-  "ru": "Кнопки"
+  "uz_latn": "Strelkalar",
+  "uz_cyrl": "Стрелкалар",
+  "ru": "Стрелки"
+ },
+ "set.screen_controls": {
+  "uz_latn": "Ekrandagi rul va pedallar",
+  "uz_cyrl": "Экрандаги рул ва педаллар",
+  "ru": "Экранный руль и педали"
+ },
+ "set.on": {
+  "uz_latn": "Yoqilgan",
+  "uz_cyrl": "Ёқилган",
+  "ru": "Вкл"
+ },
+ "set.off": {
+  "uz_latn": "O‘chiq",
+  "uz_cyrl": "Ўчиқ",
+  "ru": "Выкл"
  },
  "set.steer_tilt": {
   "uz_latn": "Qiyalatish",
@@ -318,6 +338,11 @@
   "uz_latn": "Sichqoncha",
   "uz_cyrl": "Сичқонча",
   "ru": "Мышь"
+ },
+ "key.space": {
+  "uz_latn": "Probel",
+  "uz_cyrl": "Пробел",
+  "ru": "Пробел"
  },
  "key.look": {
   "uz_latn": "Surish — kamerani aylantirish, g‘ildirak — yaqinlashtirish",
