@@ -41,12 +41,18 @@ SPEC = {
         "cut_z": 0.50, "cut_keep_x": 0.64, "hood_w": 0.36, "gauge_r": 0.058, "gauge_z": 0.895,
         "body_tris": 34000,
         "tunnel": True,  # the decimated gear-lever tunnel is spiky: rebuilt with a manual lever
+        "seats": None,  # the Nexia's own seats survived the decimation
     },
     "cobalt_at": {
         "half_width": 0.76, "y_back": 0.72, "z_top": 0.95, "z_knee": 0.58, "z_floor": 0.45,
         "cut_z": 0.50, "cut_keep_x": 0.66, "hood_w": 0.38, "gauge_r": 0.060, "gauge_z": 0.895,
         "body_tris": 40000,  # below this the bonnet edge creases
         "tunnel": False,  # keeps the model's own console and selector
+        # The decimated seats are crumpled: replaced by simple modelled ones.
+        # Front seat centre |x|, cushion/back/headrest y and z; rear bench y/z.
+        "seats": {"front_x": 0.35, "front_w": 0.48, "cushion": (0.32, 0.40), "back": (-0.01, 0.64),
+                  "head": (-0.13, 1.02), "rear_cushion": (-0.70, 0.45), "rear_back": (-1.08, 0.68),
+                  "rear_head": (-1.2, 0.99), "rear_w": 1.2},
     },
 }[CAR]
 
@@ -160,7 +166,11 @@ for f in bm.faces:
     in_dash = c.z > SPEC["cut_z"] and abs(c.x) < SPEC["cut_keep_x"]
     in_console = c.z > SPEC["cut_z"] - 0.2 and abs(c.x) < 0.14
     in_tunnel = SPEC["tunnel"] and abs(c.x) < 0.13 and y_back - 0.5 < c.y and 0.3 < c.z < 0.75
-    if (c.y > y_back - 0.06 and (in_dash or in_console)) or in_tunnel:
+    seats = SPEC["seats"]
+    in_seat = bool(seats) and (
+        (0.09 < abs(c.x) < 0.64 and -0.22 < c.y < 0.58 and 0.3 < c.z < 1.16)
+        or (abs(c.x) < 0.66 and -1.33 < c.y < -0.46 and 0.36 < c.z < 1.12))
+    if (c.y > y_back - 0.06 and (in_dash or in_console)) or in_tunnel or in_seat:
         dead.append(f)
 bmesh.ops.delete(bm, geom=dead, context="FACES")
 loose = [v for v in bm.verts if not v.link_faces]
@@ -310,9 +320,53 @@ collection.objects.link(dash)
 for p in dash_me.polygons:
     p.use_smooth = False
 
-# Join the dashboard into Interior (one draw per material).
+
+# --- 3b. Simple seats (rounded boxes) --------------------------------------------------------
+seat_parts = []
+if SPEC["seats"]:
+    st = SPEC["seats"]
+    seat_me = bpy.data.meshes.new("Seats")
+    seat_me.materials.append(bpy.data.materials["interior"])
+    bm = bmesh.new()
+
+    def rounded_box(centre, size, tilt_deg=0.0, radius=0.035):
+        """A box with rounded edges; tilt leans its top rearwards (about x)."""
+        geom = bmesh.ops.create_cube(bm, size=1.0)["verts"]
+        m = (Matrix.Translation(Vector(centre)) @ Matrix.Rotation(math.radians(tilt_deg), 4, "X")
+             @ Matrix.Diagonal((*size, 1.0)))
+        bmesh.ops.transform(bm, matrix=m, verts=geom)
+        edges = list({e for v in geom for e in v.link_edges})
+        bmesh.ops.bevel(bm, geom=edges, offset=radius, segments=2, affect="EDGES", profile=0.5)
+
+    fw = st["front_w"]
+    for side in (-1, 1):
+        cx = side * st["front_x"]
+        rounded_box((cx, st["cushion"][0], st["cushion"][1]), (fw, 0.5, 0.12), 4.0)
+        rounded_box((cx, st["back"][0], st["back"][1]), (fw, 0.13, 0.56), 14.0)
+        rounded_box((cx, st["head"][0], st["head"][1]), (0.26, 0.08, 0.16), 8.0, 0.03)
+        # side bolsters on the backrest
+        for b in (-1, 1):
+            rounded_box((cx + b * (fw / 2 - 0.03), st["back"][0] + 0.04, st["back"][1] - 0.02),
+                        (0.07, 0.1, 0.46), 14.0, 0.025)
+    rw = st["rear_w"]
+    rounded_box((0.0, st["rear_cushion"][0], st["rear_cushion"][1]), (rw, 0.46, 0.13), 4.0)
+    rounded_box((0.0, st["rear_back"][0], st["rear_back"][1]), (rw, 0.12, 0.52), 16.0)
+    for hx in (-0.36, 0.36):
+        rounded_box((hx, st["rear_head"][0], st["rear_head"][1]), (0.24, 0.07, 0.13), 10.0, 0.025)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(seat_me)
+    bm.free()
+    seat_obj = bpy.data.objects.new("Seats", seat_me)
+    collection.objects.link(seat_obj)
+    activate(seat_obj)
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(40))
+    seat_parts.append(seat_obj)
+
+# Join the dashboard (and seats) into Interior (one draw per material).
 activate(interior)
 dash.select_set(True)
+for o in seat_parts:
+    o.select_set(True)
 bpy.ops.object.join()
 interior = bpy.context.view_layer.objects.active
 interior.name = "Interior"
@@ -346,6 +400,8 @@ wheel = obj["SteeringWheel"]
 for i, m in enumerate(wheel.data.materials):
     if m and m.name == "trim_black":
         wheel.data.materials[i] = material("interior_black", (0.03, 0.03, 0.03))
+    elif m and m.name == "interior_light":  # Cobalt spokes: dark plastic, not light grey
+        wheel.data.materials[i] = bpy.data.materials["interior"]
 for i, m in enumerate(interior.data.materials):
     if m and m.name == "trim_black":
         interior.data.materials[i] = material("interior_black", (0.03, 0.03, 0.03))
