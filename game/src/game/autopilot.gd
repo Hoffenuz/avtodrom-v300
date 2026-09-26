@@ -131,9 +131,11 @@ func _rear_axle() -> Vector2:
 ## Pure pursuit, forwards or backwards. Returns steering-wheel degrees.
 ## Forwards along the route the reference is the body centre (midway between
 ## the axles), so in tight bends the front swings out and the rear cuts in by
-## the same small amount instead of one axle taking all of it.
-func _pursue(target: Vector2, reverse: bool, ref_centre := false) -> float:
-	var ref := _pos() if ref_centre else _rear_axle()
+## the same small amount instead of one axle taking all of it. `ref_back`
+## moves that reference towards the rear axle (narrow corridors: the rear
+## wheels, which cut the bends, then stay nearer the middle).
+func _pursue(target: Vector2, reverse: bool, ref_centre := false, ref_back := 0.0) -> float:
+	var ref := (_pos() - _fwd() * ref_back) if ref_centre else _rear_axle()
 	var v := target - ref
 	var ld := maxf(v.length(), 0.5)
 	var d := -_fwd() if reverse else _fwd()
@@ -343,8 +345,11 @@ func _drive_route(dt: float, ex: Exercise) -> void:
 			break
 		break
 	var la := clampf(2.4 + car.get_forward_speed() * 0.6, 2.6, 7.0)
+	var back := 0.0
+	if ex and ex.type == "corridor":
+		back = WHEELBASE * 0.3
 	var target := _lookahead_route(la)
-	var steer := _pursue(target, false, true)
+	var steer := _pursue(target, false, true, back)
 	var tb := _speed_control(v_target, dt)
 	_set_controls(tb.x, tb.y, steer)
 

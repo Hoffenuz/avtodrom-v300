@@ -38,6 +38,14 @@ static func text(no: int) -> String:
 	return Loc.pick(item(no).get("text", {}))
 
 
+## A few words for the HUD notices and the result protocol; the official
+## wording (text()) is in the penalty table screen.
+static func short_text(no: int) -> String:
+	var key := "pen.%d" % no
+	var s := Loc.t(key)
+	return s if s != key else text(no)
+
+
 static func groups() -> Array:
 	_load()
 	return _groups

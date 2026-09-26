@@ -88,7 +88,10 @@ func _ready() -> void:
 	add_child(hud)
 	hud.setup(car, controls, director, data)
 	hud.pause_requested.connect(_pause)
-	hud.camera_requested.connect(func() -> void: rig.cycle())
+	hud.camera_requested.connect(_cycle_camera)
+	hud.look_drag.connect(func(d: Vector2, w: float) -> void: rig.drag(d, w))
+	hud.look_end.connect(func() -> void: rig.drag_end())
+	hud.look_zoom.connect(func(f: float) -> void: rig.zoom_by(f))
 
 	mirrors = MirrorViews.new()
 	add_child(mirrors)
@@ -120,6 +123,7 @@ func _ready() -> void:
 ##   --autopilot-test    drive the whole exam, print the protocol, exit 0 if clean
 ##   --faults=<a,b>      autopilot with deliberate mistakes (see Autopilot.faults)
 ##   --seed=<n>          fixed traffic-light phases (reproducible runs)
+##   --open-pause        open the pause menu at once (screenshots)
 func _debug_options() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--camera="):
@@ -127,6 +131,8 @@ func _debug_options() -> void:
 			rig.set_mode(m.get(arg.substr(9), CameraRig.Mode.CHASE))
 		elif arg == "--autopilot":
 			start_autopilot()
+		elif arg == "--open-pause":
+			_pause.call_deferred()
 		elif arg.begins_with("--faults="):
 			start_autopilot()
 			autopilot.faults = arg.substr(9).split(",")
@@ -148,14 +154,9 @@ var _test_mode := false
 
 func _apply_graphics() -> void:
 	quality = int(Settings.get_value("quality"))
-	var vp := get_viewport()
-	var scale := float(Settings.get_value("render_scale"))
-	vp.scaling_3d_scale = clampf(scale, 0.5, 1.0)
-	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if (scale < 0.99 and quality >= 1) \
-			else Viewport.SCALING_3D_MODE_BILINEAR
-	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][clampi(quality, 0, 2)]
-	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
-	Engine.max_fps = int(Settings.get_value("fps_limit"))
+	EnvironmentSetup.apply_viewport(get_viewport(), quality)
+	if not DebugShots.perf:
+		Engine.max_fps = int(Settings.get_value("fps_limit"))
 
 
 func _connect_controls() -> void:
@@ -164,7 +165,7 @@ func _connect_controls() -> void:
 	controls.seatbelt_pressed.connect(func() -> void: car.seatbelt = not car.seatbelt)
 	controls.headlights_pressed.connect(func() -> void: car.headlights = not car.headlights)
 	controls.handbrake_pressed.connect(func() -> void: car.handbrake = 0.0 if car.handbrake > 0.5 else 1.0)
-	controls.camera_pressed.connect(func() -> void: rig.cycle())
+	controls.camera_pressed.connect(_cycle_camera)
 	controls.pause_pressed.connect(_pause)
 	controls.ignition_pressed.connect(func() -> void:
 		car.ignition = not car.ignition
@@ -176,6 +177,12 @@ func _connect_controls() -> void:
 		# The automatic selector runs P(0) R(1) N(2) D(3); "up" means towards P.
 		var delta := -d if car.is_automatic() else d
 		_on_gear(AvtoGear.step(cur, delta, car.is_automatic(), car.get_forward_gear_count())))
+
+
+## Next camera view; the choice is remembered for the next drive.
+func _cycle_camera() -> void:
+	rig.cycle()
+	Settings.set_value("camera", ["cockpit", "chase", "top"][rig.mode])
 
 
 func _on_starter(held: bool) -> void:
@@ -220,6 +227,7 @@ func start_autopilot() -> void:
 func _physics_process(_delta: float) -> void:
 	if car == null:
 		return
+	controls.car_speed = car.get_forward_speed()
 	if autopilot and autopilot.active:
 		return
 	car.throttle = controls.throttle
@@ -247,7 +255,8 @@ func _pause() -> void:
 	if results.visible:
 		return
 	get_tree().paused = true
-	pause_menu.open(director != null and not director.practice and director.state == ExamDirector.State.RUNNING)
+	var exam_running := director != null and not director.practice and not Session.demo 			and director.state == ExamDirector.State.RUNNING
+	pause_menu.open(exam_running)
 
 
 func _resume() -> void:

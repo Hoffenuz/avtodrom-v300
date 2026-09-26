@@ -16,9 +16,9 @@ enum Indicator { OFF, LEFT, RIGHT }
 ## to the bumpers, half_width = body side (without mirrors), mirror = right
 ## door-mirror eye point (the left one is mirrored).
 const MODELS := {
-	"nexia2": {"path": "res://assets/cars/nexia2/nexia2.glb", "front": 2.18, "rear": 2.31, "half_width": 0.83,
+	"nexia2": {"path": "res://assets/cars/nexia2/nexia2.glb", "lod": "res://assets/cars/lod/nexia2_lod.glb", "front": 2.18, "rear": 2.31, "half_width": 0.83,
 			"mirror": Vector3(0.88, 0.93, -0.37)},
-	"cobalt_at": {"path": "res://assets/cars/cobalt/cobalt.glb", "front": 2.22, "rear": 2.26, "half_width": 0.86,
+	"cobalt_at": {"path": "res://assets/cars/cobalt/cobalt.glb", "lod": "res://assets/cars/lod/cobalt_lod.glb", "front": 2.22, "rear": 2.26, "half_width": 0.86,
 			"mirror": Vector3(0.936, 1.043, -0.53)},
 }
 const BLINK_HZ := 1.5 # 90 flashes per minute (UNECE R48)
@@ -117,8 +117,30 @@ func _load_model() -> void:
 			_lamps[n] = mi
 	_apply_materials(model)
 	_make_collision()
+	_add_shadow_proxy(spec)
 	_make_lamp_materials()
 	_update_lamps(0.0)
+
+
+## Invisible 2.5k-triangle copy of the car that only casts the shadow.
+func _add_shadow_proxy(spec: Dictionary) -> void:
+	if not spec.has("lod") or not ResourceLoader.exists(spec["lod"]):
+		return
+	var src := (load(spec["lod"]) as PackedScene).instantiate()
+	for mi in src.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		var proxy := MeshInstance3D.new()
+		proxy.name = "ShadowProxy"
+		proxy.mesh = m.mesh
+		proxy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		var t := Transform3D()
+		var n: Node = m
+		while n != src and n is Node3D:
+			t = (n as Node3D).transform * t
+			n = n.get_parent()
+		proxy.transform = t
+		model.add_child(proxy)
+	src.free()
 
 
 func _make_collision() -> void:
@@ -183,9 +205,9 @@ func _apply_materials(root: Node) -> void:
 			var key := src.resource_name if src else ""
 			if table.has(key):
 				m.set_surface_override_material(s, table[key])
-		# The interior only matters from the driver's seat; the body shell never
-		# needs to receive its own shadow twice.
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		# The shadow comes from the light proxy (see _add_shadow_proxy): the
+		# full model would cost ~100k triangles again in the shadow pass.
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _emissive(color: Color, energy: float) -> StandardMaterial3D:

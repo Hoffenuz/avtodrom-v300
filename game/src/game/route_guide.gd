@@ -38,7 +38,7 @@ func _process(delta: float) -> void:
 	_mesh.clear_surfaces()
 	if director == null or director.state != ExamDirector.State.RUNNING:
 		return
-	var show_route := bool(Settings.get_value("show_route"))
+	var show_route := Session.route_visible()
 	var s0 := director.tracker.s + 2.0
 	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	var wrote := false
@@ -57,7 +57,7 @@ func _process(delta: float) -> void:
 			_quad(a + n, a - n, b + n, b - n, ca, ca, cb, cb)
 			wrote = true
 			s += step
-	if Settings.get_value("show_hints"):
+	if Session.hints_enabled():
 		var ex := director.current_exercise()
 		if ex:
 			for line in ex.highlight:
