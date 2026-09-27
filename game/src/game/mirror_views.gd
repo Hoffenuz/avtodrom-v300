@@ -8,7 +8,10 @@ extends Node
 const SIZE := Vector2i(360, 200)
 # The eye sits just behind each mirror glass (Car.mirror_eye, per model) so
 # the housing itself stays out of view.
-const TOE := 0.22 # radians, mirrors are angled outwards
+# Radians. Angled outwards far enough that the car's own flank is only a thin
+# strip at the inner edge (~1/8 of the glass), as a correctly set mirror shows.
+const TOE := 0.42
+const PITCH := -0.10 # slightly down, so the kerb and the lines near the car show
 # Directional shadows are rendered again for every camera, so a mirror lit by
 # the real sun would redraw the whole shadow map twice more. The mirrors see
 # the world lit by a shadowless copy of the sun instead; each light sits on a
@@ -117,7 +120,7 @@ func _process(_delta: float) -> void:
 		# Yaw PI looks backwards; a further +angle would turn the left mirror
 		# inwards (towards +x), so the outward toe is negative on the left.
 		var toe := -TOE if i == 0 else TOE
-		var basis := xf.basis * Basis(Vector3.UP, PI + toe) * Basis(Vector3.RIGHT, -0.16)
+		var basis := xf.basis * Basis(Vector3.UP, PI + toe) * Basis(Vector3.RIGHT, PITCH)
 		_cams[i].global_transform = Transform3D(basis, xf * pos)
 	# Phones: refresh the mirrors every other frame.
 	_frame_count += 1
