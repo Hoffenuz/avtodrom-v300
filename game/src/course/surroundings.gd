@@ -221,8 +221,10 @@ func _build_exam_centre() -> void:
 func _park_cars(bays: Array) -> void:
 	var paints := [Color(0.95, 0.95, 0.96), Color(0.93, 0.93, 0.94), Color(0.1, 0.1, 0.11), Color(0.62, 0.64, 0.66),
 			Color(0.55, 0.08, 0.08), Color(0.12, 0.2, 0.42), Color(0.75, 0.73, 0.68), Color(0.2, 0.22, 0.24)]
-	var models := ["res://assets/cars/lod/nexia2_lod.glb", "res://assets/cars/lod/cobalt_lod.glb"]
+	var models := ["res://assets/cars/lod/nexia2_parked.glb", "res://assets/cars/lod/cobalt_parked.glb"]
 	var picks := [[], []]
+	var paint_mat := ShaderMaterial.new()
+	paint_mat.shader = load("res://assets/shaders/car_parked.gdshader")
 	for bay in bays:
 		if _rng.randf() < 0.62:
 			picks[_rng.randi() % 2].append(bay)
@@ -239,34 +241,13 @@ func _park_cars(bays: Array) -> void:
 		var mesh := mi.mesh.duplicate() as ArrayMesh
 		var local := _chain(mi, src)
 		src.free()
+		# One surface; the look is in the vertex colours, the paint per instance.
 		for s in mesh.get_surface_count():
-			var sm := mesh.surface_get_material(s)
-			var key := sm.resource_name if sm else ""
-			var nm := StandardMaterial3D.new()
-			match key:
-				"lod_paint":
-					nm.albedo_color = Color.WHITE
-					nm.vertex_color_use_as_albedo = true
-					nm.metallic = 0.2
-					nm.roughness = 0.3
-				"lod_glass":
-					nm.albedo_color = Color(0.06, 0.08, 0.1)
-					nm.roughness = 0.08
-					nm.metallic = 0.4
-				"lod_bright":
-					nm.albedo_color = Color(0.75, 0.76, 0.78)
-					nm.metallic = 0.8
-					nm.roughness = 0.3
-				"lod_red":
-					nm.albedo_color = Color(0.5, 0.05, 0.04)
-					nm.roughness = 0.25
-				_:
-					nm.albedo_color = Color(0.06, 0.06, 0.065)
-					nm.roughness = 0.7
-			mesh.surface_set_material(s, nm)
+			mesh.surface_set_material(s, paint_mat)
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
+		mm.use_colors = true # white; without it Compatibility reads COLOR as zero
+		mm.use_custom_data = true
 		mm.mesh = mesh
 		mm.instance_count = picks[m].size()
 		for i in picks[m].size():
@@ -274,7 +255,9 @@ func _park_cars(bays: Array) -> void:
 			var p: Vector2 = bay[0]
 			var yaw: float = bay[1] + _rng.randf_range(-0.04, 0.04)
 			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, RING_Y, p.y)) * local)
-			mm.set_instance_color(i, paints[_rng.randi() % paints.size()])
+			var c: Color = paints[_rng.randi() % paints.size()]
+			mm.set_instance_color(i, Color.WHITE)
+			mm.set_instance_custom_data(i, c.srgb_to_linear())
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = "ParkedCars%d" % m
 		mmi.multimesh = mm
