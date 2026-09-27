@@ -14,6 +14,7 @@ var hud: Hud
 var guide: RouteGuide
 var mirrors: MirrorViews
 var pause_menu: PauseMenu
+var _layout_editor: HudLayoutEditor
 var results: ResultsPanel
 var quality := 1
 var autopilot: Autopilot
@@ -26,7 +27,7 @@ func _ready() -> void:
 	quality = int(Settings.get_value("quality"))
 	_apply_graphics()
 	Settings.changed.connect(func(_k: String) -> void: _apply_graphics())
-	EnvironmentSetup.create(self, quality)
+	var sun := EnvironmentSetup.create(self, quality)
 	course = CourseBuilder.load_or_build(data, quality)
 	add_child(course)
 	var rng := RandomNumberGenerator.new()
@@ -95,13 +96,14 @@ func _ready() -> void:
 
 	mirrors = MirrorViews.new()
 	add_child(mirrors)
-	mirrors.setup(car, hud.root, quality)
+	mirrors.setup(car, hud.root, quality, sun, rig.camera)
 
 	pause_menu = PauseMenu.new()
 	add_child(pause_menu)
 	pause_menu.resume.connect(_resume)
 	pause_menu.restart.connect(_restart)
 	pause_menu.quit_to_menu.connect(_quit_to_menu)
+	pause_menu.edit_layout.connect(_edit_layout)
 
 	results = ResultsPanel.new()
 	add_child(results)
@@ -157,9 +159,24 @@ func _apply_graphics() -> void:
 	EnvironmentSetup.apply_viewport(get_viewport(), quality)
 	if not DebugShots.perf:
 		Engine.max_fps = int(Settings.get_value("fps_limit"))
+	# The "shadows" toggle (and a quality change) must reach the sun even
+	# after the scene has already loaded, not just at EnvironmentSetup.create().
+	var sun := get_node_or_null("Sun") as DirectionalLight3D
+	if sun:
+		sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows"))
+
+
+func _on_setting_changed(key: String) -> void:
+	if key == "auto_clutch" and car:
+		car.auto_clutch = bool(Settings.get_value("auto_clutch"))
+	if key == "steering_mode" and controls:
+		controls.touch_steer_active = false # let tilt / keys take over again
+	if key in ["auto_clutch", "left_handed", "steering_mode"] and hud:
+		hud.relayout()
 
 
 func _connect_controls() -> void:
+	Settings.changed.connect(_on_setting_changed)
 	controls.indicator_pressed.connect(func(dir: int) -> void: car.toggle_indicator(dir))
 	controls.hazard_pressed.connect(func() -> void: car.set_hazard(not car.hazard))
 	controls.seatbelt_pressed.connect(func() -> void: car.seatbelt = not car.seatbelt)
@@ -201,12 +218,8 @@ func _on_starter(held: bool) -> void:
 
 
 func _on_gear(g: int) -> void:
-	if car.is_automatic():
-		var leaving_park := car.get_selector() == AvtoGear.PARK and g != AvtoGear.PARK
-		if leaving_park and car.brake < 0.2 and car.is_engine_running():
-			hud.show_center(Loc.t("hud.brake_to_shift"), UITheme.CAUTION, 1.8)
-			hud.gears.reject()
-			return
+	# The real Cobalt wants the brake pedal to leave P; on a phone that needs a
+	# second finger for no benefit, so the selector moves freely.
 	if not car.request_gear(g):
 		hud.gears.reject()
 		if not car.is_automatic():
@@ -251,12 +264,52 @@ func _indicator_self_cancel() -> void:
 		car.set_indicator(Car.Indicator.OFF)
 
 
+## Android "back": close whatever is open on top, otherwise pause. It never
+## leaves a running exam by itself (the pause menu warns about rule №26).
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_WM_GO_BACK_REQUEST:
+			if results == null or results.visible:
+				return
+			if _layout_editor:
+				_layout_editor.finish()
+			elif pause_menu.visible:
+				if not pause_menu.back():
+					_resume()
+			else:
+				_pause()
+		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT:
+			# A call or the home button: no finger-up events will arrive, so let
+			# go of every on-screen control and stop the clock.
+			if controls:
+				controls.release_touch()
+			if hud:
+				hud.release_touch()
+			if results and not results.visible and Settings.is_mobile():
+				_pause()
+
+
 func _pause() -> void:
 	if results.visible:
 		return
 	get_tree().paused = true
-	var exam_running := director != null and not director.practice and not Session.demo 			and director.state == ExamDirector.State.RUNNING
-	pause_menu.open(exam_running)
+	pause_menu.open(_exam_running(), hud.touch_mode and not hud.demo)
+
+
+func _exam_running() -> bool:
+	return director != null and not director.practice and not Session.demo \
+			and director.state == ExamDirector.State.RUNNING
+
+
+## Touch-control layout, over the paused drive; back to the pause menu after.
+func _edit_layout() -> void:
+	pause_menu.visible = false
+	_layout_editor = HudLayoutEditor.new(hud)
+	_layout_editor.finished.connect(func() -> void:
+		_layout_editor.queue_free()
+		_layout_editor = null
+		pause_menu.open(_exam_running(), true))
+	hud.root.add_child(_layout_editor)
 
 
 func _resume() -> void:

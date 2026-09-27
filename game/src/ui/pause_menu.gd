@@ -6,10 +6,12 @@ extends CanvasLayer
 signal resume
 signal restart
 signal quit_to_menu
+signal edit_layout
 
 var _panel: PanelContainer
 var _warn: Label
 var _restart: Button
+var _layout_btn: Button
 var _settings: SettingsPanel
 
 
@@ -46,6 +48,9 @@ func _ready() -> void:
 	var b_settings := UITheme.button(Loc.t("menu.settings"))
 	b_settings.pressed.connect(_open_settings)
 	v.add_child(b_settings)
+	_layout_btn = UITheme.button(Loc.t("pause.layout"))
+	_layout_btn.pressed.connect(func() -> void: edit_layout.emit())
+	v.add_child(_layout_btn)
 	var b_menu := UITheme.button(Loc.t("pause.menu"))
 	b_menu.pressed.connect(func() -> void: quit_to_menu.emit())
 	v.add_child(b_menu)
@@ -57,10 +62,11 @@ func _ready() -> void:
 
 ## During a real exam there is no "start again": leaving counts as a failed
 ## attempt (№26), like walking away from the examiner.
-func open(exam_running: bool) -> void:
+func open(exam_running: bool, touch_controls := false) -> void:
 	visible = true
 	_warn.visible = exam_running
 	_restart.visible = not exam_running
+	_layout_btn.visible = touch_controls
 	_panel.visible = true
 
 
@@ -69,6 +75,17 @@ func close() -> void:
 	if _settings:
 		_settings.queue_free()
 		_settings = null
+
+
+## Android "back" while the menu is open: closes the settings page if it is
+## showing and returns true; false means the caller should resume.
+func back() -> bool:
+	if _settings:
+		_settings.queue_free()
+		_settings = null
+		_panel.visible = true
+		return true
+	return false
 
 
 func _open_settings() -> void:

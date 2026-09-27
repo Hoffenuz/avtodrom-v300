@@ -159,7 +159,8 @@ static func add_dashed(st: SurfaceTool, pts: PackedVector2Array, w: float, y: fl
 			cur.append(b)
 		else:
 			cur = PackedVector2Array([b])
-	if painting and cur.size() > 1:
+	# A leftover stub shorter than 0.3 m at the end of the line reads as a stray dot.
+	if painting and cur.size() > 1 and on - remaining > 0.3:
 		add_ribbon(st, cur, w, y, false, 1.0, color)
 
 

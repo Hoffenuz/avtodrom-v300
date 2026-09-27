@@ -176,13 +176,15 @@ func _build() -> void:
 			modes.append(["tilt", Loc.t("set.steer_tilt")])
 		_row("set.steering", _segmented("steering_mode", modes))
 		_row("set.sensitivity", _slider("steering_sensitivity", 0.75, 3.0, 0.05, "%.2f", 1.0))
+		_row("set.autocenter", _toggle("steering_autocenter"))
 	_row("set.auto_clutch", _toggle("auto_clutch"))
 	if touch:
 		_row("set.left_handed", _toggle("left_handed"))
 	_row("set.route", _toggle("show_route"))
 
 	_section("set.graphics")
-	_row("set.quality", _segmented("quality", [[0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]))
+	_row("set.quality", _segmented("quality", [[0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]),
+			"set.quality_desc")
 	_row("set.render_scale", _segmented("render_scale", [[-1.0, Loc.t("set.auto")], [0.6, "60%"], [0.75, "75%"],
 			[1.0, "100%"]]))
 	_row("set.fps", _segmented("fps_limit", [[30, "30"], [60, "60"]]))

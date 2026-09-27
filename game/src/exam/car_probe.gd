@@ -11,7 +11,9 @@ var pos := Vector2.ZERO
 var fwd := Vector2(0, -1)
 var right := Vector2(1, 0)
 var speed := 0.0 # m/s along the heading (negative = rolling backwards)
-var speed_kmh := 0.0 # speedometer reading, absolute
+## Ground speed, km/h, absolute: what the exam judges. Not the speedometer,
+## which follows the driven wheels and jumps when they spin at a hard launch.
+var speed_kmh := 0.0
 var front := Vector2.ZERO
 var rear := Vector2.ZERO
 var corners := PackedVector2Array() # FL, FR, RR, RL
@@ -48,9 +50,9 @@ func update(dt: float) -> void:
 		var w := xf * car.get_wheel_position(i)
 		wheels[i] = Vector2(w.x, w.z)
 	speed = car.get_forward_speed()
-	speed_kmh = absf(car.get_speed_kmh())
 	var v := car.linear_velocity
 	var ground_speed := Vector2(v.x, v.z).length()
+	speed_kmh = ground_speed * 3.6
 	travelled += ground_speed * dt
 	reversing = speed < -0.05
 	if ground_speed < 0.1:

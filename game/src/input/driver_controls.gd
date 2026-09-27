@@ -32,6 +32,9 @@ const CLUTCH_DOWN := 4.0 # pressing the clutch is quick...
 const CLUTCH_UP := 1.4 # ...letting it out should not be
 const STEER_RATE := 600.0 # deg/s at the steering wheel
 const CENTER_RATE := 420.0
+const TILT_DEAD_ZONE := 1.5 # degrees of phone roll
+const TILT_SMOOTHING := 14.0 # 1/s, ~2 Hz corner
+const TILT_GAIN := 9.0 # wheel degrees per degree of phone roll at sensitivity 1
 
 var steering_lock := 540.0
 var automatic := false
@@ -59,6 +62,10 @@ var _kb_brake := 0.0
 var _kb_clutch := 0.0
 var _kb_steer := 0.0
 var _ignition_key_t := -1.0
+var _tilt_deg := 0.0
+## Gravity's direction in the screen plane with the phone held level ("wheel
+## straight"), snapped to a screen axis; zero until the first reading.
+var _tilt_ref := Vector2.ZERO
 var _starter_held := false
 
 
@@ -117,10 +124,14 @@ func _physics_process(delta: float) -> void:
 	if touch_steer_active:
 		steer_deg = touch_steer_deg
 	elif tilt_enabled and Settings.is_mobile():
-		var g := Input.get_accelerometer()
-		# Landscape: tilting the phone like a wheel moves gravity along x/y.
-		var ang := atan2(g.y, -g.x) if absf(g.x) + absf(g.y) > 1.0 else 0.0
-		steer_deg = clampf(rad_to_deg(ang) * 9.0 * sens, -steering_lock, steering_lock)
+		# A small dead zone keeps a hand-held phone from weaving the car, and
+		# a low-pass filter takes out the sensor's jitter; at speed the same
+		# roll turns the wheel less, as a real steering ratio feels.
+		var tilt := _tilt_roll_deg()
+		tilt = signf(tilt) * maxf(absf(tilt) - TILT_DEAD_ZONE, 0.0)
+		var tilt_target := clampf(tilt * TILT_GAIN * sens / (1.0 + v / 14.0), -steering_lock, steering_lock)
+		_tilt_deg = lerpf(_tilt_deg, tilt_target, 1.0 - exp(-delta * TILT_SMOOTHING))
+		steer_deg = _tilt_deg
 	elif absf(pad_steer) > 0.0:
 		steer_deg = pad_steer
 	else:
@@ -132,6 +143,33 @@ func _physics_process(delta: float) -> void:
 		if _ignition_key_t > 0.4 and not _starter_held:
 			_starter_held = true
 			starter_changed.emit(true)
+
+
+## Phone roll in degrees, + = turned clockwise like a wheel to the right.
+## The device frame (x right, y up, z out of the screen) is right-handed in
+## any orientation, so the angle from the level reference to gravity turns
+## the same way whether or not the OS rotates the sensor axes with the
+## screen, and in either landscape.
+func _tilt_roll_deg() -> float:
+	var a := Input.get_accelerometer()
+	var g := Vector2(a.x, a.y)
+	if g.length() < 2.0:
+		return 0.0 # phone lying flat: no reliable roll
+	g = g.normalized()
+	if _tilt_ref == Vector2.ZERO:
+		_tilt_ref = _snap_axis(g)
+	var ang := atan2(_tilt_ref.x * g.y - _tilt_ref.y * g.x, _tilt_ref.dot(g))
+	if absf(ang) > deg_to_rad(100.0):
+		# The phone was turned round to the other landscape.
+		_tilt_ref = _snap_axis(g)
+		ang = atan2(_tilt_ref.x * g.y - _tilt_ref.y * g.x, _tilt_ref.dot(g))
+	return rad_to_deg(ang)
+
+
+static func _snap_axis(g: Vector2) -> Vector2:
+	if absf(g.x) > absf(g.y):
+		return Vector2(signf(g.x), 0.0)
+	return Vector2(0.0, signf(g.y))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -193,6 +231,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			JOY_BUTTON_DPAD_UP: gear_step.emit(1)
 			JOY_BUTTON_DPAD_DOWN: gear_step.emit(-1)
 			JOY_BUTTON_RIGHT_SHOULDER: seatbelt_pressed.emit()
+
+
+## Lets go of every on-screen control (the app lost focus mid-touch).
+func release_touch() -> void:
+	touch_throttle = 0.0
+	touch_brake = 0.0
+	touch_clutch = 0.0
+	touch_steer_active = false
+	if _starter_held:
+		starter_changed.emit(false)
+	_starter_held = false
+	_ignition_key_t = -1.0
 
 
 ## On-screen key: press/release (tap = ON/OFF, hold = start).

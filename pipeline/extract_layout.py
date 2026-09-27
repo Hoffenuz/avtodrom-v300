@@ -18,7 +18,6 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from shapely.geometry import MultiPolygon, Polygon
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "reference" / "scheme_landscape.jpg"
@@ -35,6 +34,66 @@ CURB_PX = 4  # bordyur kengligi rasmda (~0.35 m)
 
 def to_world(pts):
     return [[round((float(x) - CX) / PX_PER_M, 3), round((float(y) - CY) / PX_PER_M, 3)] for x, y in pts]
+
+
+def icon_mask(img):
+    """Yo'l belgisi/svetofor ikonkalari egallagan piksellar (kengaytirilgan)."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.int32)
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    sign_blue = (h >= 90) & (h <= 135) & (s > 110) & (v > 90)
+    sign_red = ((h < 12) | (h > 165)) & (s > 110) & (v > 90)
+    lamp_yellow = (h >= 15) & (h <= 32) & (s > 170) & (v > 170)
+    icon = (sign_blue | sign_red | lamp_yellow).astype(np.uint8)
+    icon = cv2.morphologyEx(icon, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    # Belgi yonidagi oq qo'shimcha taxtachalar (7.x) ham ikonka: ular kichik oq
+    # bo'laklar (bordyur esa uzun va katta bo'lgani uchun bu yerga tushmaydi).
+    white = ((s < 45) & (v > 185)).astype(np.uint8)
+    near = cv2.dilate(icon, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15)))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(white)
+    for i in range(1, n):
+        x, y, w, h, a = st[i]
+        if w <= 30 and h <= 40 and near[lab == i].any():
+            icon[lab == i] = 1
+    # Ikonkaning oq ramkasi ham qamrab olinadi.
+    return cv2.dilate(icon, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (29, 29)))
+
+
+def heal_under_icons(mask, icons, kernel):
+    """Ikonka ostida qolgan joyni qo'shni shakl bo'yicha tiklaydi.
+
+    Ikonka orol chetini yopib qo'yganda niqobda "tish" yoki uzilish qoladi.
+    Katta yadroli yopish (closing) faqat ikonka zonasida qo'llanadi — boshqa
+    joylardagi haqiqiy botiqliklar o'zgarmaydi.
+    """
+    closed = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    healed = mask | (closed & icons)
+    # Chuqurroq tishlar uchun: chegaragacha bo'lgan ishorali masofani ikonka zonasi
+    # ichiga garmonik davom ettiramiz — chiziqli maydon (to'g'ri chet) aynan tiklanadi.
+    m = healed.copy()
+    for _ in range(3):
+        sdf = (cv2.distanceTransform(m, cv2.DIST_L2, 5) - cv2.distanceTransform(1 - m, cv2.DIST_L2, 5)).astype(np.float32)
+        sdf = harmonic_fill(cv2.inpaint(sdf, icons, 9, cv2.INPAINT_NS), icons)
+        m = np.where(icons > 0, (sdf > 0).astype(np.uint8), healed)
+    return healed | m
+
+
+def harmonic_fill(f, zone, iters=1500):
+    """`zone` ichidagi qiymatlarni Laplas tenglamasi yechimi bilan almashtiradi (Jacobi)."""
+    f = f.copy()
+    n, lab, st, _ = cv2.connectedComponentsWithStats(zone.astype(np.uint8))
+    for i in range(1, n):
+        x, y, w, h, _ = st[i]
+        x0, y0 = max(x - 1, 0), max(y - 1, 0)
+        x1, y1 = min(x + w + 1, f.shape[1]), min(y + h + 1, f.shape[0])
+        sub = f[y0:y1, x0:x1]
+        z = lab[y0:y1, x0:x1] == i
+        z[0, :] = z[-1, :] = False
+        z[:, 0] = z[:, -1] = False
+        for _ in range(iters):
+            avg = sub.copy()
+            avg[1:-1, 1:-1] = 0.25 * (sub[:-2, 1:-1] + sub[2:, 1:-1] + sub[1:-1, :-2] + sub[1:-1, 2:])
+            sub[z] = avg[z]
+    return f
 
 
 def remove_icons(img):
@@ -88,64 +147,12 @@ def contours_of(mask, min_area_px, eps_px):
     return polys
 
 
-def _resample_closed(pts, step):
-    p = np.asarray(pts, np.float64)
-    seg = np.diff(np.vstack([p, p[:1]]), axis=0)
-    L = np.hypot(seg[:, 0], seg[:, 1])
-    s = np.concatenate([[0.0], np.cumsum(L)])
-    total = s[-1]
-    n = max(int(total / step), 12)
-    t = np.linspace(0.0, total, n, endpoint=False)
-    pc = np.vstack([p, p[:1]])
-    return np.stack([np.interp(t, s, pc[:, 0]), np.interp(t, s, pc[:, 1])], 1)
-
-
-def _gauss_closed(p, sigma_samples):
-    """Circular Gaussian filter along a closed, evenly sampled outline."""
-    if sigma_samples < 0.5:
-        return p
-    r = int(3 * sigma_samples)
-    k = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma_samples) ** 2)
-    k /= k.sum()
-    out = np.empty_like(p)
-    for d in range(2):
-        ext = np.concatenate([p[-r:, d], p[:, d], p[:r, d]])
-        out[:, d] = np.convolve(ext, k, "valid")
-    return out
-
-
-def smooth_polygon(pts, r_close, sigma, tol):
-    """Clean kerb outline from a traced, pixel-stepped one.
-    1. closing (radius r_close) fills notches and steps;
-    2. a Gaussian filter along the outline (sigma, pixels) irons out the
-       lumps left by painted-out sign icons and the pixel staircase, and
-       rounds the corners like real kerb stones; thin islands get a
-       gentler filter so they do not shrink;
-    3. light simplification. Radii in pixels."""
-    p = Polygon(pts).buffer(0)
-    if p.is_empty:
-        return None
-    q = p.buffer(r_close, quad_segs=16).buffer(-r_close, quad_segs=16)
-    if isinstance(q, MultiPolygon):
-        q = max(q.geoms, key=lambda g: g.area)
-    # Thin shapes (narrow strips between lanes) keep their width.
-    thin = q.buffer(-2.2 * sigma).is_empty
-    sg = sigma * (0.4 if thin else 1.0)
-    step = 0.2 * PX_PER_M
-    ring = _resample_closed(np.asarray(q.exterior.coords[:-1]), step)
-    sm = _gauss_closed(ring, sg / step)
-    out = Polygon(sm).buffer(0)
-    if isinstance(out, MultiPolygon):
-        out = max(out.geoms, key=lambda g: g.area)
-    out = out.simplify(tol, preserve_topology=True)
-    return np.array(out.exterior.coords[:-1], np.float64)
-
-
 def main(debug=False):
     img = cv2.imread(str(SRC))
     if img is None:
         sys.exit(f"Rasm topilmadi: {SRC}")
     grass, light = classify(remove_icons(img))
+    icons = icon_mask(img)
     inside = inside_fence_mask(img.shape, 6)
     white = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)[..., 2] >= 205
 
@@ -153,22 +160,33 @@ def main(debug=False):
     g = (grass & inside).astype(np.uint8)
     g = cv2.morphologyEx(g, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
     g = cv2.morphologyEx(g, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+    g = heal_under_icons(g, icons, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (41, 41))) & inside.astype(np.uint8)
     # Belgilar va soyalar qoldirgan teshiklarni yopamiz.
     cnts, _ = cv2.findContours(g * 255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     filled = np.zeros_like(g)
     cv2.drawContours(filled, cnts, -1, 1, -1)
     # Bordyur halqasini qo'shamiz (orol = o't + bordyur).
     island_mask = cv2.dilate(filled, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * CURB_PX + 1, 2 * CURB_PX + 1)))
-    islands = [q for q in (smooth_polygon(p, 1.2 * PX_PER_M, 1.3 * PX_PER_M, 0.03 * PX_PER_M)
-                           for p in contours_of(island_mask, 400, 0.6)) if q is not None]
+    # Straight kerb faces and square corners are made in course_def.py
+    # (axis snapping); the trace itself is not smoothed, which would round
+    # the ends of every road and pad.
+    islands = contours_of(island_mask, 400, 1.2)
 
     # --- Beton maydonchalar ---------------------------------------------------
     lt = (light & inside).astype(np.uint8)
     lt = cv2.morphologyEx(lt, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
-    lt = cv2.morphologyEx(lt, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
+    # Soya tushgan joylar maydoncha chetida tor "tirqish" qoldiradi — ularni yopamiz.
+    lt = cv2.morphologyEx(lt, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15)))
+    # Belgi ikonkasining oq foni beton bo'lib orolga kirib qolmasin: beton orol
+    # (o't + bordyur) bilan ustma-ust tushmaydi.
+    lt &= (island_mask == 0).astype(np.uint8)
+    # Asfalt ustidagi ikonkalar ham maydonchaga "dum" qo'shmasin: ikonka zonasida
+    # faqat maydonchaning keng (>= 3 m) tanasi qoladi.
+    body = cv2.morphologyEx(lt, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (35, 35)))
+    lt &= ((icons == 0) | (body == 1)).astype(np.uint8)
+    lt = cv2.morphologyEx(lt, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7)))
     pads = []
-    for p in [q for q in (smooth_polygon(c, 0.8 * PX_PER_M, 1.0 * PX_PER_M, 0.03 * PX_PER_M)
-                          for c in contours_of(lt, 1500, 0.8)) if q is not None]:
+    for p in contours_of(lt, 1500, 1.5):
         # Zebra (piyodalar o'tish joyi) chiziqlari ham "och" sinfga tushadi —
         # ichidagi oq bo'yoq ulushi katta bo'lsa, bu maydoncha emas.
         m = np.zeros(lt.shape, np.uint8)

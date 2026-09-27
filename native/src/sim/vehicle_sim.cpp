@@ -292,7 +292,7 @@ double VehicleSim::clutch_engagement_from_pedal(double pedal) const {
 	return std::pow(lin, cp.curve_exponent);
 }
 
-void VehicleSim::update_auto_clutch(double dt, const DriverInput &in) {
+void VehicleSim::update_auto_clutch(double dt, const DriverInput &in, const std::array<WheelContact, 4> &contacts) {
 	if (auto_shift_timer_ > 0.0) {
 		auto_shift_timer_ = std::max(0.0, auto_shift_timer_ - dt);
 	}
@@ -315,6 +315,16 @@ void VehicleSim::update_auto_clutch(double dt, const DriverInput &in) {
 		}
 		if (std::fabs(slip) < 120.0 && rpm > e.idle_rpm + 80.0) {
 			target = 1.0; // synchronised: lock up
+		}
+		// Pulling away, a driver feeds the clutch in no harder than the front
+		// tyres can take: while it slips, the clutch carries at most what the
+		// driven wheels can put down (or the engine's own torque, if more), so
+		// the revved-up flywheel is never dumped into the tyres.
+		if (speed < 8.0 && std::fabs(slip) >= 120.0) {
+			const double grip = params_.tire.mu_long * 0.5 * (contacts[0].grip + contacts[1].grip);
+			const double traction = grip * (fz_[0] + fz_[1]) * params_.tire.radius / std::fabs(ratio);
+			const double cap = std::max(traction, combustion_torque_);
+			target = std::min(target, cap / params_.clutch.max_torque);
 		}
 		if (in.brake > 0.25 && speed < 2.0) {
 			target = 0.0; // holding the car on the brake
@@ -552,7 +562,7 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 	if (params_.gearbox.type == TransmissionType::Automatic) {
 		update_automatic(dt, input.throttle, std::fabs(driven_speed) * 3.6);
 	} else {
-		update_auto_clutch(dt, input);
+		update_auto_clutch(dt, input, contacts);
 	}
 
 	fx_acc_.fill(0.0);
@@ -575,6 +585,9 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 			o.fx -= rr * std::tanh(contacts[k].vx / 0.25);
 		}
 		o.omega = omega_[b];
+		o.slide_speed = contacts[k].contact
+				? std::hypot(omega_[b] * params_.tire.radius - contacts[k].vx, contacts[k].vy)
+				: 0.0;
 		o.slip_long = tire_[k].slip_long;
 		o.slip_lat = tire_[k].slip_lat;
 		o.sliding = tire_[k].sliding;

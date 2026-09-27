@@ -35,6 +35,7 @@ var card: PanelContainer
 var card_title: Label
 var card_hint: Label
 var card_turn: Label
+var signal_badge: SignalBadge
 var status: PanelContainer
 var status_penalty: Label
 var status_time: Label
@@ -69,6 +70,7 @@ var _emergency := false
 var _emergency_t := 0.0
 var _map_on := false
 var _steer_dir := 0
+var _preview: Variant = null # the layout editor's working copy while it is open
 
 
 func _init() -> void:
@@ -94,7 +96,7 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 	Loc.language_changed.connect(_relabel)
 	get_viewport().size_changed.connect(_layout)
 	Settings.changed.connect(func(k: String) -> void:
-		if k in ["screen_controls", "steering_mode", "left_handed", "auto_clutch"]:
+		if k in ["screen_controls", "steering_mode", "left_handed", "auto_clutch", "hud_layout"]:
 			touch_mode = Settings.screen_controls_on()
 			if not touch_mode:
 				controls.touch_steer_active = false
@@ -140,6 +142,10 @@ func _build() -> void:
 	cv.add_child(card_hint)
 	cv.add_child(card_turn)
 	root.add_child(card)
+
+	signal_badge = SignalBadge.new()
+	signal_badge.visible = false
+	root.add_child(signal_badge)
 
 	status = PanelContainer.new()
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -228,11 +234,13 @@ func _build_touch() -> void:
 	root.add_child(btn_steer_left)
 	root.add_child(btn_steer_right)
 
-	gas = Pedal.new("", UITheme.GO, 1.35)
+	# A touch is a light press (the clutch goes straight to the floor, as for a
+	# gear change); slide down for more, up to ease off.
+	gas = Pedal.new("", UITheme.GO, 1.35, 0.12)
 	gas.changed.connect(func(v: float) -> void: controls.touch_throttle = v)
-	brake_pedal = Pedal.new("", UITheme.STOP, 1.1)
+	brake_pedal = Pedal.new("", UITheme.STOP, 1.1, 0.3)
 	brake_pedal.changed.connect(func(v: float) -> void: controls.touch_brake = v)
-	clutch_pedal = Pedal.new("", UITheme.INFO, 1.0)
+	clutch_pedal = Pedal.new("", UITheme.INFO, 1.0, 1.0)
 	clutch_pedal.changed.connect(func(v: float) -> void: controls.touch_clutch = v)
 	root.add_child(gas)
 	root.add_child(brake_pedal)
@@ -271,8 +279,26 @@ func _build_touch() -> void:
 		_layout())
 	b_pause = IconButton.new("pause", 60)
 	b_pause.tapped.connect(func() -> void: pause_requested.emit())
-	for b in [b_ind_left, b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_camera, b_map, b_pause]:
-		root.add_child(b)
+	for b in [b_ind_left, b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_camera, b_map, b_pause,
+			btn_steer_left, btn_steer_right]:
+		# Placed by _layout at base_size, possibly scaled by the player's layout.
+		b.custom_minimum_size = Vector2.ZERO
+		if b.get_parent() == null:
+			root.add_child(b)
+## Lets go of every on-screen control (the app lost focus mid-touch, e.g.
+## the Android back button or a notification).
+func release_touch() -> void:
+	_steer_dir = 0
+	for c in [gas, brake_pedal, clutch_pedal, wheel, gears, btn_steer_left, btn_steer_right, b_ind_left,
+			b_ind_right, b_hazard, b_key, b_belt, b_handbrake, b_camera, b_map, b_pause]:
+		if c and c.has_method("release_touch"):
+			c.release_touch()
+
+
+## Settings that move or hide touch controls changed during the drive.
+func relayout() -> void:
+	_layout()
+
 
 
 # ------------------------------------------------------------------ layout
@@ -299,7 +325,7 @@ func _layout() -> void:
 	# Top row, right: pause, camera, map.
 	var bx := R - 60.0
 	for b in [b_pause, b_camera, b_map]:
-		_place(b, Vector2(bx, T), b.custom_minimum_size)
+		_place(b, Vector2(bx, T), b.base_size)
 		bx -= 68.0
 
 	# Exercise card (top-left), status (top-centre), notices under it.
@@ -308,6 +334,7 @@ func _layout() -> void:
 	card.custom_minimum_size = Vector2(card_w, 0)
 	card_hint.custom_minimum_size = Vector2(card_w - 24.0, 0)
 	card.reset_size()
+	signal_badge.size = signal_badge.custom_minimum_size
 	status.visible = director != null
 	status.reset_size()
 	status.position = Vector2(L + W * 0.5 - status.size.x * 0.5, T)
@@ -351,15 +378,15 @@ func _layout() -> void:
 	_place(gears, gear_pos, gear_sz)
 	for i in 3:
 		var b: IconButton = [b_key, b_belt, b_handbrake][i]
-		_place(b, Vector2(col_x, col_y + i * (sw + 8)), b.custom_minimum_size)
+		_place(b, Vector2(col_x, col_y + i * (sw + 8)), b.base_size)
 	# Steering (left): wheel or buttons; indicators and hazards above it.
 	_place(wheel, wheel_pos, Vector2(wheel_d, wheel_d))
 	_place(btn_steer_left, Vector2(wheel_pos.x, B - 112), Vector2(110, 110))
 	_place(btn_steer_right, Vector2(wheel_pos.x + 126, B - 112), Vector2(110, 110))
 	var ind_y := wheel_pos.y - 86
-	_place(b_ind_left, Vector2(wheel_pos.x, ind_y), b_ind_left.custom_minimum_size)
-	_place(b_hazard, Vector2(wheel_pos.x + wheel_d * 0.5 - 32, ind_y + 6), b_hazard.custom_minimum_size)
-	_place(b_ind_right, Vector2(wheel_pos.x + wheel_d - 76, ind_y), b_ind_right.custom_minimum_size)
+	_place(b_ind_left, Vector2(wheel_pos.x, ind_y), b_ind_left.base_size)
+	_place(b_hazard, Vector2(wheel_pos.x + wheel_d * 0.5 - 32, ind_y + 6), b_hazard.base_size)
+	_place(b_ind_right, Vector2(wheel_pos.x + wheel_d - 76, ind_y), b_ind_right.base_size)
 
 	wheel.visible = controls_on and steer_mode == "wheel"
 	btn_steer_left.visible = controls_on and steer_mode == "buttons"
@@ -378,14 +405,58 @@ func _layout() -> void:
 		var right_edge := (clutch_pos.x if manual_clutch else brake_pos.x) if not left_handed else wheel_pos.x
 		cx = (left_edge + right_edge) * 0.5
 	_place(cluster, Vector2(cx - cw * 0.5, B - GaugeCluster.H), Vector2(cw, GaugeCluster.H))
+	if controls_on:
+		_apply_custom_layout(Rect2(L, T, W, B - T))
 
 	# Map: under the top-right buttons (desktop) or under the status (phones).
 	minimap.visible = _map_on and data != null
 	var mm := 190.0 if touch_mode else 220.0
 	if touch_mode:
+		# On short (~720 px tall) layouts a full-size map would reach down over
+		# the gear lever; keep clear of it.
+		mm = clampf(minf(mm, gear_pos.y - 12.0 - (T + (96.0 if demo else 58.0))), 120.0, mm)
 		_place(minimap, Vector2(L + W * 0.5 - mm * 0.5, T + (96 if demo else 58)), Vector2(mm, mm))
 	else:
 		_place(minimap, Vector2(R - mm, T + 72), Vector2(mm, mm))
+
+
+## The touch controls the player can move and resize, by layout id.
+func editable_controls() -> Dictionary:
+	return {
+		"wheel": wheel, "steer_left": btn_steer_left, "steer_right": btn_steer_right,
+		"gas": gas, "brake": brake_pedal, "clutch": clutch_pedal, "gears": gears,
+		"ind_left": b_ind_left, "hazard": b_hazard, "ind_right": b_ind_right,
+		"key": b_key, "belt": b_belt, "handbrake": b_handbrake,
+	}
+
+
+## Lays the controls out with `layout` instead of the saved one (the editor's
+## working copy); an empty dictionary is the standard layout.
+func preview_layout(layout: Dictionary) -> void:
+	_preview = layout
+	_layout()
+
+
+func end_layout_preview() -> void:
+	_preview = null
+	_layout()
+
+
+## Moves and scales the controls the player has placed. Positions are stored
+## as the centre's share of the safe area, so a layout carries over between
+## screens of different shapes.
+func _apply_custom_layout(area: Rect2) -> void:
+	var layout: Dictionary = _preview if _preview != null else Settings.get_value("hud_layout")
+	var vp := root.get_viewport_rect()
+	for id in layout:
+		var c: Control = editable_controls().get(id)
+		if c == null:
+			continue
+		var e: Dictionary = layout[id]
+		var sz := c.size * clampf(float(e.get("s", 1.0)), 0.5, 1.8)
+		var centre := area.position + Vector2(float(e.get("x", 0.5)), float(e.get("y", 0.5))) * area.size
+		var pos := (centre - sz * 0.5).clamp(Vector2.ZERO, vp.size - sz)
+		_place(c, pos, sz)
 
 
 # ------------------------------------------------------------------ updates
@@ -398,10 +469,12 @@ func _process(delta: float) -> void:
 				-car.get_steering_lock(), car.get_steering_lock())
 		controls.touch_steer_active = true
 	elif btn_steer_left.visible:
-		controls.touch_steer_deg = move_toward(controls.touch_steer_deg, 0.0, 480.0 * delta)
+		if bool(Settings.get_value("steering_autocenter")):
+			var back := maxf(absf(controls.touch_steer_deg) * 6.0, 360.0)
+			controls.touch_steer_deg = move_toward(controls.touch_steer_deg, 0.0, back * delta)
 		controls.touch_steer_active = true
-	wheel.car_speed = car.get_forward_speed()
 	wheel.sensitivity = float(Settings.get_value("steering_sensitivity"))
+	wheel.autocenter = bool(Settings.get_value("steering_autocenter"))
 	# Until the player takes the wheel it shows what the car's wheel does
 	# (keyboard, pad, autopilot in the demonstrations).
 	if not wheel.driving or not wheel.visible:
@@ -417,9 +490,10 @@ func _process(delta: float) -> void:
 	# Status.
 	if director:
 		status_penalty.text = "%s %d" % [Loc.t("hud.penalty"), director.total]
-		status_penalty.add_theme_color_override("font_color",
+		_font_color(status_penalty,
 				UITheme.GO if director.total == 0 else (UITheme.CAUTION if director.total < 50 else UITheme.STOP))
 		status_time.text = UITheme.clock(director.exam_time)
+		_update_signal_badge()
 		_update_prepare()
 		_update_turn()
 	# A wrapped label can report a tall minimum while its width is still being
@@ -449,6 +523,14 @@ func _process(delta: float) -> void:
 			t.queue_free()
 
 
+## Re-setting an override, even to the same colour, makes the label and its
+## containers recompute their layout, so the per-frame updates only touch it
+## when the colour really changes.
+func _font_color(l: Label, color: Color) -> void:
+	if not l.has_theme_color_override("font_color") or l.get_theme_color("font_color") != color:
+		l.add_theme_color_override("font_color", color)
+
+
 func _update_prepare() -> void:
 	var preparing := director.state == ExamDirector.State.PREPARE
 	if prepare_panel.visible != preparing:
@@ -468,7 +550,7 @@ func _update_prepare() -> void:
 		var ok: bool = checks[key]
 		var l: Label = prep_items[key]
 		l.text = ("✓  " if ok else "○  ") + Loc.t(key) + ("" if touch_mode else "  [%s]" % keys[key])
-		l.add_theme_color_override("font_color", UITheme.GO if ok else UITheme.TEXT)
+		_font_color(l, UITheme.GO if ok else UITheme.TEXT)
 	ready_btn.disabled = not car.is_engine_running()
 
 
@@ -485,6 +567,18 @@ func _update_turn() -> void:
 	if card_turn.visible != show:
 		card_turn.visible = show
 		card.reset_size()
+
+
+## Shows the light of the junction the car is in (see SignalBadge).
+func _update_signal_badge() -> void:
+	var ex := director.current_exercise()
+	var at_light := ex is ExIntersection and director.traffic != null \
+			and director.state == ExamDirector.State.RUNNING and not (ex as ExIntersection).entered
+	signal_badge.visible = at_light
+	if at_light:
+		# Under the exercise card, whose height follows its text.
+		signal_badge.position = card.position + Vector2(0.0, card.size.y + 10.0)
+		signal_badge.aspect = director.traffic.aspect_for_approach((ex as ExIntersection).approach)
 
 
 func _refresh_card() -> void:

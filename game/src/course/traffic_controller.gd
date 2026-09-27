@@ -69,6 +69,16 @@ func time_to_green(group: String) -> float:
 	return fposmod(green_start - t, half_cycle * 2.0)
 
 
+## Seconds the given group may still enter (green or blinking green); 0 if not.
+func time_to_stop(group: String) -> float:
+	var t := time if group == "NS" else fmod(time + half_cycle, half_cycle * 2.0)
+	var green_start := float(SEQUENCE[0][1])
+	var green_end := green_start + float(SEQUENCE[1][1]) + float(SEQUENCE[2][1])
+	if t >= green_start and t < green_end:
+		return green_end - t
+	return 0.0
+
+
 func _apply() -> void:
 	var ns := aspect_for_group("NS")
 	var ew := aspect_for_group("EW")

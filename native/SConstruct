@@ -4,7 +4,7 @@
 #   python -m SCons                                  # Windows debug DLL -> game/bin/
 #   python -m SCons target=template_release          # Windows release DLL
 #   python -m SCons platform=android arch=arm64 target=template_release
-#   python -m SCons tests=yes                        # head-less sim tests -> native/bin/sim_tests.exe
+#   python -m SCons tests=yes                        # head-less sim tests -> native/bin/sim_tests(.exe)
 import os
 
 API_VERSION = "4.7"

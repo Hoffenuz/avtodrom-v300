@@ -85,6 +85,7 @@ void AvtoVehicle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_wheel_surface", "index"), &AvtoVehicle::get_wheel_surface);
 	ClassDB::bind_method(D_METHOD("get_wheel_slip", "index"), &AvtoVehicle::get_wheel_slip);
 	ClassDB::bind_method(D_METHOD("is_wheel_sliding", "index"), &AvtoVehicle::is_wheel_sliding);
+	ClassDB::bind_method(D_METHOD("get_wheel_slide_speed", "index"), &AvtoVehicle::get_wheel_slide_speed);
 	ClassDB::bind_method(D_METHOD("get_wheel_load", "index"), &AvtoVehicle::get_wheel_load);
 	ClassDB::bind_method(D_METHOD("get_wheel_brake_torque", "index"), &AvtoVehicle::get_wheel_brake_torque);
 	ClassDB::bind_method(D_METHOD("get_wheel_steer", "index"), &AvtoVehicle::get_wheel_steer);
@@ -482,6 +483,10 @@ float AvtoVehicle::get_wheel_slip(int i) const {
 	const double nx = o.slip_long / tp.peak_slip_long;
 	const double ny = o.slip_lat / tp.peak_slip_lat;
 	return static_cast<float>(Math::sqrt(nx * nx + ny * ny));
+}
+
+float AvtoVehicle::get_wheel_slide_speed(int i) const {
+	return valid_wheel(i) ? static_cast<float>(sim_->wheels()[static_cast<size_t>(i)].slide_speed) : 0.0f;
 }
 
 bool AvtoVehicle::is_wheel_sliding(int i) const {

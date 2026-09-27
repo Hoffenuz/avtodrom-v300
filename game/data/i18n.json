@@ -199,6 +199,11 @@
   "uz_cyrl": "Рул сезгирлиги",
   "ru": "Чувствительность руля"
  },
+ "set.autocenter": {
+  "uz_latn": "Qo‘yib yuborilgan rul markazga qaytadi",
+  "uz_cyrl": "Қўйиб юборилган рул марказга қайтади",
+  "ru": "Отпущенный руль возвращается в центр"
+ },
  "set.auto_clutch": {
   "uz_latn": "Avtomatik mufta",
   "uz_cyrl": "Автоматик муфта",
@@ -238,6 +243,11 @@
   "uz_latn": "Yuqori",
   "uz_cyrl": "Юқори",
   "ru": "Высокое"
+ },
+ "set.quality_desc": {
+  "uz_latn": "Keyingi haydashdan boshlab qo‘llanadi",
+  "uz_cyrl": "Кейинги ҳайдашдан бошлаб қўлланади",
+  "ru": "Применяется со следующей поездки"
  },
  "set.render_scale": {
   "uz_latn": "Aniqlik",
@@ -409,11 +419,6 @@
   "uz_cyrl": "Муфтани босинг ёки N қўйинг",
   "ru": "Сцепление или N"
  },
- "hud.brake_to_shift": {
-  "uz_latn": "Tormozni bosing",
-  "uz_cyrl": "Тормозни босинг",
-  "ru": "Нажмите тормоз"
- },
  "hud.turn_left": {
   "uz_latn": "Chapga",
   "uz_cyrl": "Чапга",
@@ -550,9 +555,9 @@
   "ru": "Задним ходом в бокс"
  },
  "hint.box_fix": {
-  "uz_latn": "Orqa g‘ildiraklar — qayd chizig‘ida",
-  "uz_cyrl": "Орқа ғилдираклар — қайд чизиғида",
-  "ru": "Задние колёса — на линии фиксации"
+  "uz_latn": "Ikkala orqa g‘ildirak oq chiziqda, sariqqa tegmang",
+  "uz_cyrl": "Иккала орқа ғилдирак оқ чизиқда, сариққа тегманг",
+  "ru": "Оба задних колеса на белой линии, жёлтую не задевать"
  },
  "hint.box_leave": {
   "uz_latn": "Boksdan chiqing",
@@ -570,9 +575,9 @@
   "ru": "Задним ходом на место"
  },
  "hint.parallel_fix": {
-  "uz_latn": "O‘ng g‘ildiraklar — qayd chizig‘ida",
-  "uz_cyrl": "Ўнг ғилдираклар — қайд чизиғида",
-  "ru": "Правые колёса — на линии фиксации"
+  "uz_latn": "Ikkala o‘ng g‘ildirak oq chiziqda",
+  "uz_cyrl": "Иккала ўнг ғилдирак оқ чизиқда",
+  "ru": "Оба правых колеса на белой линии"
  },
  "hint.parallel_leave": {
   "uz_latn": "Joydan chiqing",
@@ -663,6 +668,36 @@
   "uz_latn": "Menyu",
   "uz_cyrl": "Меню",
   "ru": "Меню"
+ },
+ "pause.layout": {
+  "uz_latn": "Tugmalarni joylashtirish",
+  "uz_cyrl": "Тугмаларни жойлаштириш",
+  "ru": "Расположение кнопок"
+ },
+ "layout.title": {
+  "uz_latn": "Tugmalarni joylashtiring",
+  "uz_cyrl": "Тугмаларни жойлаштиринг",
+  "ru": "Расставьте кнопки"
+ },
+ "layout.hint": {
+  "uz_latn": "Tugma yoki pedalni barmoq bilan sudrab joylang, kattaligini slayder bilan o‘zgartiring",
+  "uz_cyrl": "Тугма ёки педални бармоқ билан судраб жойланг, катталигини слайдер билан ўзгартиринг",
+  "ru": "Перетащите кнопку или педаль пальцем, размер — ползунком"
+ },
+ "layout.size": {
+  "uz_latn": "Kattalik",
+  "uz_cyrl": "Катталик",
+  "ru": "Размер"
+ },
+ "layout.reset": {
+  "uz_latn": "Standart",
+  "uz_cyrl": "Стандарт",
+  "ru": "По умолчанию"
+ },
+ "layout.done": {
+  "uz_latn": "Tayyor",
+  "uz_cyrl": "Тайёр",
+  "ru": "Готово"
  },
  "pause.warn_exam": {
   "uz_latn": "Chiqsangiz — imtihon o‘tmagan hisoblanadi",

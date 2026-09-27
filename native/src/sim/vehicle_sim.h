@@ -58,6 +58,7 @@ struct WheelOutput {
 	double slip_long = 0.0;
 	double slip_lat = 0.0;
 	bool sliding = false;
+	double slide_speed = 0.0; // m/s the contact patch rubs over the road (0 when rolling freely)
 	double brake_torque = 0.0; // N·m actually applied (for brake-light / ABS display)
 };
 
@@ -118,7 +119,7 @@ private:
 	void update_automatic(double dt, double throttle, double speed_kmh);
 	double engine_combustion_torque(double dt, double pedal);
 	double clutch_engagement_from_pedal(double pedal) const;
-	void update_auto_clutch(double dt, const DriverInput &in);
+	void update_auto_clutch(double dt, const DriverInput &in, const std::array<WheelContact, 4> &contacts);
 	void substep(double h, const DriverInput &in, const std::array<WheelContact, 4> &contacts);
 	void add_constraint(int a, double ja, int b, double jb, int c, double jc, double lo, double hi);
 	void solve_constraints(double h, int iterations);

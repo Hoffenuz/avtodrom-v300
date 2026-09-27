@@ -17,8 +17,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-GODOT = ROOT / "tools" / "godot" / "Godot_v4.7.2-stable_win64_console.exe"
+from host import EXE, ROOT, godot
+
+GODOT = godot()
 GAME = ROOT / "game"
 NATIVE = ROOT / "native"
 
@@ -45,11 +46,16 @@ def main() -> int:
         print(out)
         failures.append("build sim_tests")
     else:
-        code, out = run([str(NATIVE / "bin" / "sim_tests.exe")], NATIVE)
+        code, out = run([str(NATIVE / "bin" / ("sim_tests" + EXE))], NATIVE)
         print(out.strip().splitlines()[-1])
         if code != 0:
             print(out)
             failures.append("sim_tests")
+
+    if not GODOT.exists():
+        print(f"\nGodot not found at {GODOT}; set GODOT=/path/to/godot (see scripts/host.py)")
+        print("FAILED:", ", ".join(failures + ["godot missing"]))
+        return 1
 
     print("== 2. Godot vehicle integration test")
     run([str(GODOT), "--headless", "--path", str(GAME), "--import"], GAME)
@@ -81,17 +87,20 @@ def main() -> int:
             failures.append("e2e_exam 60 Hz")
 
         print("== 4. Rule detection with deliberate faults")
+        # fault: (penalties that must appear, penalties that must not)
         expectations = {
-            "nobelt": {1},
-            "nostop": {11, 25},
-            "redlight": {24},
-            "nosignal": {2, 5, 7},
-            "speed": {8},
+            "nobelt": ({1}, set()),
+            "nostop": ({11, 25}, set()),
+            "redlight": ({24}, set()),
+            "nosignal": ({2, 5, 7}, set()),
+            "speed": ({8}, {31}),
+            "boxdeep": ({17}, {27}),
+            "parkoff": ({17}, {27}),
         }
-        for fault, expected in expectations.items():
+        for fault, (expected, forbidden) in expectations.items():
             code, out = godot_drive(["--car=nexia2", "--faults=" + fault])
             got = {int(m) for m in re.findall(r"PENALTY №(\d+)", out)}
-            ok = expected.issubset(got)
+            ok = expected.issubset(got) and not (forbidden & got)
             print(f"   {fault:9s} expected {sorted(expected)} got {sorted(got)} -> {'ok' if ok else 'FAIL'}")
             if not ok:
                 failures.append("fault " + fault)
