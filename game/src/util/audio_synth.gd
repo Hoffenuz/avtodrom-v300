@@ -82,9 +82,10 @@ static func beeper() -> AudioStreamWAV:
 	return _cache["beeper"]
 
 
-## Tyre squeal loop: white noise rung through three narrow, inharmonic
-## resonances whose pitch and strength wander slowly, like a tread block
-## stick-slipping on asphalt. (A plain sine sounds like a whistle.)
+## Tyre squeal loop: white noise through four broad, overlapping bands
+## (650 Hz - 2.1 kHz) with a slow random "chatter" in strength, like tread
+## blocks stick-slipping on asphalt. The bands are deliberately wide: narrow
+## ones (or a sine, as before) read as a whistle rather than rubber.
 static func squeal() -> AudioStreamWAV:
 	if _cache.has("squeal"):
 		return _cache["squeal"]
@@ -93,31 +94,25 @@ static func squeal() -> AudioStreamWAV:
 	var s := PackedFloat32Array()
 	s.resize(n)
 	var r := _rng()
-	var freqs := [780.0, 1180.0, 1590.0]
-	var gains := [1.0, 0.7, 0.45]
+	var gains := [1.0, 0.9, 0.7, 0.5]
 	var bq: Array[_Biquad] = []
-	var drift := []
-	for k in 3:
-		bq.append(_Biquad.new())
-		drift.append(0.0)
+	for f in [650.0, 1000.0, 1450.0, 2100.0]:
+		var b := _Biquad.new()
+		b.bandpass(f, 3.0, RATE)
+		bq.append(b)
 	var hiss := _Biquad.new()
 	hiss.bandpass(3200.0, 0.8, RATE)
 	var chatter := 0.0
 	var chatter_target := 0.0
 	for i in n:
-		if i % 32 == 0:
-			for k in 3:
-				# Slow random walk of each resonance, about ±4 %.
-				drift[k] = clampf(drift[k] + r.randf_range(-1.0, 1.0) * 0.004, -0.04, 0.04)
-				bq[k].bandpass(freqs[k] * (1.0 + drift[k]), 28.0, RATE)
-			if i % 640 == 0:
-				chatter_target = r.randf()
+		if i % 640 == 0:
+			chatter_target = r.randf()
 		chatter += (chatter_target - chatter) * 0.0015
 		var x := r.randf_range(-1.0, 1.0)
 		var y := 0.0
-		for k in 3:
+		for k in 4:
 			y += bq[k].tick(x) * gains[k]
-		s[i] = y * (0.6 + 0.4 * chatter) + hiss.tick(x) * 0.05
+		s[i] = y * (0.6 + 0.4 * chatter) + hiss.tick(x) * 0.08
 	_cache["squeal"] = _wav(_seamless(_normalize(s, 0.8), xf), true)
 	return _cache["squeal"]
 
