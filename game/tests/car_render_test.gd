@@ -44,6 +44,7 @@ func _ready() -> void:
 		["cockpit", -1, Vector3.ZERO, Vector3.ZERO],
 		["cockpit_wide", -2, Vector3.ZERO, Vector3.ZERO],
 		["dash_centre", 60, Vector3(0.1, 1.15, 0.45), Vector3(0.0, 0.9, -0.55)],
+		["headlight", 30, Vector3(-1.6, 0.95, -3.4), Vector3(-0.62, 0.66, -1.9)],
 		["passenger", 70, Vector3(0.38, 1.12, 0.2), Vector3(-0.2, 0.85, -0.7)],
 	]
 

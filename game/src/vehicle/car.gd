@@ -222,6 +222,8 @@ func _apply_materials(root: Node) -> void:
 		"dash_trim": _cabin(Color(0.1, 0.1, 0.11), 0.5),
 		"mirror": _pbr(Color(0.9, 0.92, 0.94), 1.0, 0.02),
 		"lamp_white": _pbr(Color(0.82, 0.84, 0.86), 0.3, 0.12),
+		"headlamp": _pbr(Color(0.3, 0.31, 0.33), 0.4, 0.45),
+		"headlamp_lens": _pbr(Color(0.36, 0.38, 0.41), 0.85, 0.22),
 		"plate": _pbr(Color(0.92, 0.93, 0.94), 0.0, 0.45),
 	}
 	for mi in root.find_children("*", "MeshInstance3D", true, false):
