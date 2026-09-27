@@ -293,6 +293,25 @@ int main() {
 					check_range(h.speed(), 0.0, 0.02, "stopped (m/s)");
 					check(h.sim.telemetry().engine_running, "engine still running", h.sim.telemetry().rpm);
 				} },
+		{ "Auto-clutch: a full-throttle launch does not spin the front tyres",
+				[&] {
+					auto h = make(nexia, true);
+					h.input.auto_clutch = true;
+					h.sim.request_gear(1, 0.0, true);
+					h.input.throttle = 1.0;
+					double worst = 0.0;
+					double t = 0.0;
+					double t20 = -1.0;
+					while (t < 4.0) {
+						h.step(1.0 / 120.0);
+						t += 1.0 / 120.0;
+						worst = std::max(worst, (h.sim.telemetry().speed - h.forward_speed()) * 3.6);						if (t20 < 0.0 && h.forward_speed() * 3.6 >= 20.0) {
+							t20 = t;
+						}
+					}
+					check_range(worst, 0.0, 6.0, "worst speedometer lead over ground speed (km/h)");
+					check_range(t20, 0.5, 3.0, "time to 20 km/h (s)");
+				} },
 		{ "Auto-clutch: hill start on 16 % with the handbrake",
 				[&] {
 					auto h = make(nexia, true);

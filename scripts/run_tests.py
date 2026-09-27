@@ -87,17 +87,20 @@ def main() -> int:
             failures.append("e2e_exam 60 Hz")
 
         print("== 4. Rule detection with deliberate faults")
+        # fault: (penalties that must appear, penalties that must not)
         expectations = {
-            "nobelt": {1},
-            "nostop": {11, 25},
-            "redlight": {24},
-            "nosignal": {2, 5, 7},
-            "speed": {8},
+            "nobelt": ({1}, set()),
+            "nostop": ({11, 25}, set()),
+            "redlight": ({24}, set()),
+            "nosignal": ({2, 5, 7}, set()),
+            "speed": ({8}, {31}),
+            "boxdeep": ({17}, {27}),
+            "parkoff": ({17}, {27}),
         }
-        for fault, expected in expectations.items():
+        for fault, (expected, forbidden) in expectations.items():
             code, out = godot_drive(["--car=nexia2", "--faults=" + fault])
             got = {int(m) for m in re.findall(r"PENALTY №(\d+)", out)}
-            ok = expected.issubset(got)
+            ok = expected.issubset(got) and not (forbidden & got)
             print(f"   {fault:9s} expected {sorted(expected)} got {sorted(got)} -> {'ok' if ok else 'FAIL'}")
             if not ok:
                 failures.append("fault " + fault)

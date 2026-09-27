@@ -489,11 +489,12 @@ func _box(dt: float, ex: Exercise) -> bool:
 			if _hold_t > 0.6:
 				car.request_gear(-1 if not car.is_automatic() else AvtoGear.AUTO_REVERSE)
 				# Rear axle: quarter circle from the pad centre line into the bay,
-				# then straight back until it is just past the fixation line.
+				# then straight back onto the middle of the fixation band.
 				var ra := _rear_axle()
 				var c := Vector2(xc + r, ra.y)
 				_path = _arc(c, r, PI, PI * 1.5)
-				_path.append(Vector2(xf + 0.25, c.y - r))
+				# Fault "boxdeep": back in too far, over the yellow limit line.
+				_path.append(Vector2(xf + (0.9 if faults.has("boxdeep") else 0.0), c.y - r))
 				_path_reverse = true
 				_path_speed = MANOEUVRE
 				_box_state = 2
@@ -502,7 +503,7 @@ func _box(dt: float, ex: Exercise) -> bool:
 			if _follow_path(dt):
 				_box_state = 3
 				_hold_t = 0.0
-				_log("box: parked at the fixation line")
+				_log("box: parked, rear axle %.2f m off the fixation band" % (_rear_axle().x - xf))
 			return true
 		3:
 			_hold_t += dt
@@ -542,6 +543,8 @@ func _parallel(dt: float, ex: Exercise) -> bool:
 	for p in pocket:
 		edge_z = maxf(edge_z, p.y)
 	var z_target := fix_z + 0.71 # right wheels (north side) on the line
+	if faults.has("parkoff"):
+		z_target += 0.45 # right wheels short of the band
 	var z_drive := edge_z + 1.1 # pass the pocket about a metre off its edge
 	var arc_r := 4.3
 	var shift := z_drive - z_target

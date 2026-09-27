@@ -105,13 +105,13 @@ func _process(delta: float) -> void:
 	var xf := car.get_global_transform_interpolated()
 	match mode:
 		Mode.COCKPIT:
-			camera.fov = 70.0
+			_perspective(70.0)
 			var head := Basis(Vector3.UP, orbit_yaw) * Basis(Vector3.RIGHT, -orbit_pitch - 0.07)
 			camera.global_transform = Transform3D(xf.basis * head, xf * car.cockpit_eye)
 		Mode.CHASE:
 			_place_chase(xf, delta)
 		Mode.TOP:
-			camera.fov = 55.0
+			_perspective(55.0)
 			var fwd := -xf.basis.z
 			fwd.y = 0.0
 			fwd = fwd.normalized().rotated(Vector3.UP, orbit_yaw)
@@ -120,8 +120,30 @@ func _process(delta: float) -> void:
 			camera.look_at(xf.origin + fwd * 1.2, fwd)
 
 
+func _perspective(fov_deg: float) -> void:
+	if camera.projection != Camera3D.PROJECTION_PERSPECTIVE:
+		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	camera.fov = fov_deg
+
+
+## Looks from `pos` at `target` with the lens shifted instead of the camera
+## tilted, as in architectural photography: sign posts, lamp posts and
+## buildings stay upright although the view looks down on the car. The shift
+## hands over to a plain tilt for steep, dragged-up views.
+func _aim_shifted(pos: Vector3, target: Vector3, fov_deg: float) -> void:
+	var d := target - pos
+	var level := Vector3(d.x, 0.0, d.z).normalized()
+	var down := atan2(-d.y, Vector2(d.x, d.z).length()) # radians below the horizon
+	var tilt := down * smoothstep(0.35, 0.75, down)
+	camera.global_position = pos
+	camera.look_at(pos + level * cos(tilt) + Vector3.DOWN * sin(tilt), Vector3.UP)
+	if camera.projection != Camera3D.PROJECTION_FRUSTUM:
+		camera.projection = Camera3D.PROJECTION_FRUSTUM
+	camera.size = 2.0 * camera.near * tan(deg_to_rad(fov_deg) * 0.5)
+	camera.frustum_offset = Vector2(0.0, -camera.near * tan(down - tilt))
+
+
 func _place_chase(xf: Transform3D, delta: float) -> void:
-	camera.fov = 62.0
 	var fwd := -xf.basis.z
 	var car_yaw := atan2(-fwd.x, -fwd.z) # 0 = facing -Z
 	var reversing := car.get_forward_speed() < -0.6
@@ -170,8 +192,7 @@ func _place_chase(xf: Transform3D, delta: float) -> void:
 		_free_cache = free
 	_clear = free if free < _clear else move_toward(_clear, free, delta * 1.5)
 	pos = pivot + (pos - pivot) * _clear
-	camera.global_position = pos
-	camera.look_at(pivot - back * 1.2, Vector3.UP)
+	_aim_shifted(pos, pivot - back * 1.2, 62.0)
 
 
 ## Camera position `dist` from the pivot, `yaw` round and `pitch` above it.

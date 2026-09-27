@@ -17,6 +17,9 @@ enum State { PREPARE, RUNNING, FINISHED, FAILED }
 const SPEED_LIMIT := 20.0
 const SPEED_GROSS := 40.0
 const OVERSPEED_STEP := 5.0 # seconds per 5-point penalty above 20 km/h
+## How long the car must stay above 40 km/h for №31: a knock off a kerb must
+## not end the exam.
+const GROSS_DWELL := 0.3
 const OFF_ROUTE_DISTANCE := 5.5
 const OFF_ROUTE_TIME := 1.5
 const TURN_WINDOW_BEFORE := 14.0
@@ -45,6 +48,7 @@ var _prepare_t := 0.0
 var _ready_t := -1.0
 var _over20_t := 0.0
 var _over40_flagged := false
+var _over40_t := 0.0
 var _reverse_dist := 0.0
 var _reverse_flagged := false
 var _off_route_t := 0.0
@@ -267,9 +271,10 @@ func _general_rules(dt: float) -> void:
 			add_penalty(8)
 	else:
 		_over20_t = 0.0
-	if kmh > SPEED_GROSS + 0.5 and not _over40_flagged:
+	_over40_t = _over40_t + dt if kmh > SPEED_GROSS + 0.5 else 0.0
+	if _over40_t >= GROSS_DWELL and not _over40_flagged:
 		_over40_flagged = true
-		add_penalty(31)
+		add_penalty(31, "", "%.1f km/h" % kmh)
 
 	# №22 engine stalled (counted via the car's signal, see _on_stall).
 

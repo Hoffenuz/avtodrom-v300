@@ -233,11 +233,13 @@ func _build_touch() -> void:
 	root.add_child(btn_steer_left)
 	root.add_child(btn_steer_right)
 
-	gas = Pedal.new("", UITheme.GO, 1.35)
+	# A touch is a light press (the clutch goes straight to the floor, as for a
+	# gear change); slide down for more, up to ease off.
+	gas = Pedal.new("", UITheme.GO, 1.35, 0.12)
 	gas.changed.connect(func(v: float) -> void: controls.touch_throttle = v)
-	brake_pedal = Pedal.new("", UITheme.STOP, 1.1)
+	brake_pedal = Pedal.new("", UITheme.STOP, 1.1, 0.3)
 	brake_pedal.changed.connect(func(v: float) -> void: controls.touch_brake = v)
-	clutch_pedal = Pedal.new("", UITheme.INFO, 1.0)
+	clutch_pedal = Pedal.new("", UITheme.INFO, 1.0, 1.0)
 	clutch_pedal.changed.connect(func(v: float) -> void: controls.touch_clutch = v)
 	root.add_child(gas)
 	root.add_child(brake_pedal)

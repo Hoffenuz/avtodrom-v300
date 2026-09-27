@@ -119,7 +119,7 @@ private:
 	void update_automatic(double dt, double throttle, double speed_kmh);
 	double engine_combustion_torque(double dt, double pedal);
 	double clutch_engagement_from_pedal(double pedal) const;
-	void update_auto_clutch(double dt, const DriverInput &in);
+	void update_auto_clutch(double dt, const DriverInput &in, const std::array<WheelContact, 4> &contacts);
 	void substep(double h, const DriverInput &in, const std::array<WheelContact, 4> &contacts);
 	void add_constraint(int a, double ja, int b, double jb, int c, double jc, double lo, double hi);
 	void solve_constraints(double h, int iterations);

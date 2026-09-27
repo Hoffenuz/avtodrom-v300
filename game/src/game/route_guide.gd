@@ -65,7 +65,8 @@ func _process(delta: float) -> void:
 				var b := CourseData.v2(line["b"])
 				var d := (b - a).normalized()
 				var n := Vector2(-d.y, d.x) * 0.22
-				var c := Color(1.0, 0.82, 0.2, 0.55)
+				# Green "put the wheels here": yellow would read as the box's limit line.
+				var c := Color(0.25, 0.9, 0.45, 0.5)
 				_quad(a + n, a - n, b + n, b - n, c, c, c, c)
 				wrote = true
 	if wrote:

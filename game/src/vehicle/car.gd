@@ -457,11 +457,10 @@ func _update_audio(delta: float) -> void:
 ## layers, like a real car:
 ## - squeal: the tonal scream of tyres sliding past their grip limit at speed
 ##   (a fast corner, a skid from 40 km/h);
-## - scrub: the dull rasp of a locked or sliding tyre at low speed (handbrake,
-##   full lock at parking speed), much quieter.
+## - scrub: the dull rasp of a locked or sliding tyre (a skid, the handbrake),
+##   much quieter, and silent at parking speed.
 ## The normalised slip saturates at 3 as soon as a tyre lets go, so it cannot
-## tell a slight slide from a locked wheel; the old code screamed at full
-## volume for both, even in a 10 km/h turn.
+## tell a slight slide from a locked wheel: the slide speed decides.
 func _update_tyre_audio(delta: float, speed: float) -> void:
 	var squeal := 0.0
 	var scrub := 0.0
@@ -479,14 +478,15 @@ func _update_tyre_audio(delta: float, speed: float) -> void:
 	# Two wheels sliding is "full"; the scream needs real speed (fades in
 	# from ~10 km/h, full above ~45 km/h).
 	squeal = clampf(squeal * 0.5, 0.0, 1.0) * smoothstep(3.0, 12.0, speed)
-	# Scrub stays a soft background rasp at parking speeds.
-	scrub = clampf(scrub * 0.5, 0.0, 1.0) * (0.35 + 0.65 * smoothstep(3.0, 10.0, speed))
+	# Scrub is a real slide only (a skid, a locked wheel): at parking speed a
+	# tyre on full lock is silent.
+	scrub = clampf(scrub * 0.5, 0.0, 1.0) * smoothstep(1.5, 5.0, speed)
 	# Fast attack, slower release: no clicks or stutter when slip flickers.
 	_squeal_lvl = _follow(_squeal_lvl, squeal, delta)
 	_scrub_lvl = _follow(_scrub_lvl, scrub, delta)
 	var muffle := 0.5 if _interior else 1.0
 	_set_loop(_squeal, _squeal_lvl * 0.32 * muffle, 0.94 + 0.1 * _squeal_lvl)
-	_set_loop(_scrub, _scrub_lvl * 0.4 * muffle, 0.75 + clampf(speed / 20.0, 0.0, 0.45))
+	_set_loop(_scrub, _scrub_lvl * 0.25 * muffle, 0.75 + clampf(speed / 20.0, 0.0, 0.45))
 
 
 static func _follow(current: float, target: float, delta: float) -> float:

@@ -82,38 +82,53 @@ static func beeper() -> AudioStreamWAV:
 	return _cache["beeper"]
 
 
-## Tyre squeal loop: white noise through four broad, overlapping bands
-## (650 Hz - 2.1 kHz) with a slow random "chatter" in strength, like tread
-## blocks stick-slipping on asphalt. The bands are deliberately wide: narrow
-## ones (or a sine, as before) read as a whistle rather than rubber.
+## Tyre squeal loop. Rubber stick-slipping at its grip limit screams at a
+## pitch (~1 kHz) that wanders and chatters, so the loop is a tone with two
+## harmonics whose pitch and loudness drift, plus a thin band of noise around
+## it for the rubber. Broadband noise alone sounds like TV static, not tyres.
+## Every modulation runs a whole number of cycles per loop: no seam.
 static func squeal() -> AudioStreamWAV:
 	if _cache.has("squeal"):
 		return _cache["squeal"]
-	var xf := int(RATE * 0.15)
-	var n := int(RATE * 1.5) + xf
-	var s := PackedFloat32Array()
-	s.resize(n)
-	var r := _rng()
-	var gains := [1.0, 0.9, 0.7, 0.5]
-	var bq: Array[_Biquad] = []
-	for f in [650.0, 1000.0, 1450.0, 2100.0]:
-		var b := _Biquad.new()
-		b.bandpass(f, 3.0, RATE)
-		bq.append(b)
-	var hiss := _Biquad.new()
-	hiss.bandpass(3200.0, 0.8, RATE)
-	var chatter := 0.0
-	var chatter_target := 0.0
+	var dur := 1.5
+	var n := int(RATE * dur)
+	var f0 := 940.0 # f0 * dur is whole, so the tone's phase closes the loop
+	# [cycles per loop, depth, phase]
+	var wander := [[2, 0.03, 0.4], [5, 0.018, 1.9], [13, 0.009, 3.1], [32, 0.005, 0.7]]
+	var chatter := [[4, 0.22, 0.0], [10, 0.14, 2.2], [22, 0.08, 4.0]]
+	# The modulation (all under 25 Hz) is updated every 16 samples, 2 kHz: the
+	# same sound for a fraction of the work. n is a multiple of 16.
+	var block := 16
+	var tone := PackedFloat32Array()
+	tone.resize(n)
+	var ph := 0.0
+	var step := 0.0
+	var amp := 1.0
 	for i in n:
-		if i % 640 == 0:
-			chatter_target = r.randf()
-		chatter += (chatter_target - chatter) * 0.0015
-		var x := r.randf_range(-1.0, 1.0)
-		var y := 0.0
-		for k in 4:
-			y += bq[k].tick(x) * gains[k]
-		s[i] = y * (0.6 + 0.4 * chatter) + hiss.tick(x) * 0.08
-	_cache["squeal"] = _wav(_seamless(_normalize(s, 0.8), xf), true)
+		if i % block == 0:
+			var u := TAU * float(i) / float(n)
+			var dev := 0.0
+			for m in wander:
+				dev += m[1] * sin(u * m[0] + m[2])
+			amp = 1.0
+			for m in chatter:
+				amp += m[1] * sin(u * m[0] + m[2])
+			step = TAU * f0 * (1.0 + dev) / RATE
+		tone[i] = (sin(ph) + 0.35 * sin(2.0 * ph + 0.3) + 0.12 * sin(3.0 * ph + 1.1)) * amp
+		ph = fmod(ph + step, TAU)
+	var xf := int(RATE * 0.1)
+	var noise := PackedFloat32Array()
+	noise.resize(n + xf)
+	var r := _rng()
+	var b1 := _Biquad.new()
+	b1.bandpass(f0, 9.0, RATE)
+	for i in n + xf:
+		noise[i] = b1.tick(r.randf_range(-1.0, 1.0))
+	noise = _normalize(_seamless(noise, xf), 1.0)
+	tone = _normalize(tone, 1.0)
+	for i in n:
+		tone[i] += noise[i] * 0.3
+	_cache["squeal"] = _wav(_normalize(tone, 0.8), true)
 	return _cache["squeal"]
 
 
@@ -127,10 +142,11 @@ static func scrub() -> AudioStreamWAV:
 	var s := PackedFloat32Array()
 	s.resize(n)
 	var r := _rng()
+	# Low and dark: anything bright in a noise loop reads as static.
 	var body := _Biquad.new()
-	body.bandpass(360.0, 1.1, RATE)
+	body.bandpass(280.0, 1.4, RATE)
 	var grit := _Biquad.new()
-	grit.bandpass(1100.0, 2.0, RATE)
+	grit.bandpass(700.0, 2.5, RATE)
 	var grain := 0.0
 	for i in n:
 		var x := r.randf_range(-1.0, 1.0)
@@ -138,7 +154,7 @@ static func scrub() -> AudioStreamWAV:
 		if r.randf() < 80.0 / RATE:
 			grain = r.randf_range(0.5, 1.0)
 		grain *= 0.994
-		s[i] = body.tick(x) * (0.7 + grain) + grit.tick(x * grain) * 0.5
+		s[i] = body.tick(x) * (0.7 + grain) + grit.tick(x * grain) * 0.3
 	_cache["scrub"] = _wav(_seamless(_normalize(s, 0.8), xf), true)
 	return _cache["scrub"]
 

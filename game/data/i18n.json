@@ -550,9 +550,9 @@
   "ru": "Задним ходом в бокс"
  },
  "hint.box_fix": {
-  "uz_latn": "Orqa g‘ildiraklar — qayd chizig‘ida",
-  "uz_cyrl": "Орқа ғилдираклар — қайд чизиғида",
-  "ru": "Задние колёса — на линии фиксации"
+  "uz_latn": "Ikkala orqa g‘ildirak oq chiziqda, sariqqa tegmang",
+  "uz_cyrl": "Иккала орқа ғилдирак оқ чизиқда, сариққа тегманг",
+  "ru": "Оба задних колеса на белой линии, жёлтую не задевать"
  },
  "hint.box_leave": {
   "uz_latn": "Boksdan chiqing",
@@ -570,9 +570,9 @@
   "ru": "Задним ходом на место"
  },
  "hint.parallel_fix": {
-  "uz_latn": "O‘ng g‘ildiraklar — qayd chizig‘ida",
-  "uz_cyrl": "Ўнг ғилдираклар — қайд чизиғида",
-  "ru": "Правые колёса — на линии фиксации"
+  "uz_latn": "Ikkala o‘ng g‘ildirak oq chiziqda",
+  "uz_cyrl": "Иккала ўнг ғилдирак оқ чизиқда",
+  "ru": "Оба правых колеса на белой линии"
  },
  "hint.parallel_leave": {
   "uz_latn": "Joydan chiqing",
