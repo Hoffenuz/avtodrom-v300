@@ -375,12 +375,32 @@ func _build_markings() -> void:
 	# Edge lines hugging every kerb (also the control lines of the exercises).
 	var offset := float(m.get("edge_offset", 0.35))
 	var ew := float(m.get("edge_width", 0.12))
+	var skip: Array = []
+	for q in m.get("edge_skip", []):
+		skip.append(CourseData.poly(q))
 	for isl in data.islands:
 		for loop in Geometry2D.offset_polygon(MeshUtil.clean(isl, 0.05), offset, Geometry2D.JOIN_ROUND):
-			MeshUtil.add_ribbon(st, _densify(loop, 1.0, true), ew, PAINT_Y, true)
-	var r := _fence_rect().grow(-float(m.get("fence_inset", 0.45)))
-	MeshUtil.add_ribbon(st, _densify(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end,
-			Vector2(r.position.x, r.end.y)]), 1.0, true), 0.15, PAINT_Y, true)
+			if skip.is_empty():
+				MeshUtil.add_ribbon(st, _densify(loop, 1.0, true), ew, PAINT_Y, true)
+				continue
+			# Cut the loop where it runs through a skip zone (parking pockets).
+			var open := loop.duplicate()
+			open.append(loop[0])
+			var parts: Array = [open]
+			for zone in skip:
+				var next: Array = []
+				for part in parts:
+					next.append_array(Geometry2D.clip_polyline_with_polygon(part, zone))
+				parts = next
+			for part in parts:
+				MeshUtil.add_ribbon(st, _densify(part, 1.0, false), ew, PAINT_Y, false)
+	# Outer edge line along the fence: authored (rounded where the scheme rounds
+	# it) or, without one, the fence rectangle inset.
+	var outer := CourseData.poly(m["fence_line"]) if m.has("fence_line") else PackedVector2Array()
+	if outer.is_empty():
+		var r := _fence_rect().grow(-float(m.get("fence_inset", 0.45)))
+		outer = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
+	MeshUtil.add_ribbon(st, _densify(outer, 1.0, true), 0.15, PAINT_Y, true)
 	for a in m["arrows"]:
 		_add_arrow(st, CourseData.v2(a["pos"]), float(a["yaw"]), str(a["kind"]))
 	st.index()
@@ -423,15 +443,20 @@ func _add_text(text: String, pos: Vector2, yaw_deg: float, size: float) -> void:
 	add_child(l)
 
 
-## Road arrows (~4.5 m long): a painted shaft plus a triangular head.
+## Road arrows (~4.6 m long): a painted shaft plus a triangular head. `pos` is
+## the middle of the painted footprint, so a one-way turn arrow has its shaft
+## off-centre, away from the turn, and stays inside its lane.
 ## Local frame: +y = direction of travel, +x = to the driver's right.
 func _add_arrow(st: SurfaceTool, pos: Vector2, yaw_deg: float, kind: String) -> void:
 	var yaw := deg_to_rad(yaw_deg)
 	var fwd := Vector2(-sin(yaw), -cos(yaw))
 	var right := Vector2(cos(yaw), -sin(yaw))
-	var shapes: Array = [] # [shaft points, head direction]
+	var shift := 0.0
+	if kind.contains("L") != kind.contains("R"):
+		shift = 0.85 if kind.contains("L") else -0.85
+	var shapes: Array = [] # [shaft points, head direction, head length]
 	if kind.contains("S"):
-		shapes.append([PackedVector2Array([Vector2(0, -2.4), Vector2(0, 1.2)]), Vector2(0, 1)])
+		shapes.append([PackedVector2Array([Vector2(0, -2.4), Vector2(0, 1.2)]), Vector2(0, 1), 1.0])
 	for turn in ["L", "R"]:
 		if not kind.contains(turn):
 			continue
@@ -443,20 +468,19 @@ func _add_arrow(st: SurfaceTool, pos: Vector2, yaw_deg: float, kind: String) -> 
 		for k in 9:
 			var a := k / 8.0 * PI * 0.5
 			pts.append(Vector2(s * (0.9 - 0.9 * cos(a)), y0 + 0.9 * sin(a)))
-		pts.append(Vector2(s * 1.2, y0 + 0.9))
-		shapes.append([pts, Vector2(s, 0)])
+		shapes.append([pts, Vector2(s, 0), 0.8])
 	for sh in shapes:
 		var line: PackedVector2Array = sh[0]
 		var dir: Vector2 = sh[1]
 		var world := PackedVector2Array()
 		for q in line:
-			world.append(pos + right * q.x + fwd * q.y)
+			world.append(pos + right * (q.x + shift) + fwd * q.y)
 		MeshUtil.add_ribbon(st, world, 0.18, PAINT_Y, false)
 		var end_pt: Vector2 = line[line.size() - 1]
 		var side := Vector2(-dir.y, dir.x) * 0.36
 		var head := PackedVector2Array()
-		for q in [end_pt + side, end_pt + dir * 1.0, end_pt - side]:
-			head.append(pos + right * q.x + fwd * q.y)
+		for q in [end_pt + side, end_pt + dir * float(sh[2]), end_pt - side]:
+			head.append(pos + right * (q.x + shift) + fwd * q.y)
 		MeshUtil.add_polygon(st, head, PAINT_Y, 1.0)
 
 
@@ -500,6 +524,37 @@ func _build_signs() -> void:
 		node.position = Vector3(p.x, estakada_height(p.x, p.y), p.y)
 		node.rotation.y = deg_to_rad(float(s["yaw"]))
 		holder.add_child(node)
+	_merge_sign_meshes(holder)
+
+
+## Every sign is a pole plus one or more plates, i.e. two or three draw calls
+## each. Merge all poles into one mesh and the plates into one mesh per face
+## texture; the per-sign bodies keep only their collision shapes.
+func _merge_sign_meshes(holder: Node3D) -> void:
+	var groups := {} # material -> SurfaceTool
+	for sign in holder.get_children():
+		for child in sign.get_children():
+			var mi := child as MeshInstance3D
+			if mi == null:
+				continue
+			var m: Material = mi.material_override if mi.material_override else mi.mesh.surface_get_material(0)
+			if not groups.has(m):
+				groups[m] = _begin()
+			var xf: Transform3D = (sign as Node3D).transform * mi.transform
+			(groups[m] as SurfaceTool).append_from(mi.mesh, 0, xf)
+			sign.remove_child(mi)
+			mi.free()
+	var k := 0
+	for m in groups:
+		var st: SurfaceTool = groups[m]
+		st.index()
+		var mesh := st.commit()
+		mesh.surface_set_material(0, m)
+		var mi := MeshInstance3D.new()
+		mi.name = "SignMesh%d" % k
+		mi.mesh = mesh
+		holder.add_child(mi)
+		k += 1
 
 
 func _build_traffic_lights() -> void:
