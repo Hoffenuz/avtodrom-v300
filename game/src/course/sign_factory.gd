@@ -45,6 +45,8 @@ static func _aspect(code: String) -> float:
 
 
 ## Builds one sign. `size` is the plate's longer side in metres (0.7 = type II).
+## `plates` lists the supplementary plates below it (7.x), and may go on with
+## a second sign and its plates.
 static func make(code: String, height: float, size: float, plates: Array) -> Node3D:
 	var root := StaticBody3D.new()
 	root.name = "Sign_" + code.replace(".", "_")
@@ -77,8 +79,14 @@ static func make(code: String, height: float, size: float, plates: Array) -> Nod
 
 	var y := height
 	y = _add_plate(root, code, size, y) - 0.04
+	# Supplementary plates (7.x) stack under the sign they belong to; another
+	# code in the list is a second sign on the same pole, with its own plates.
 	for p in plates:
-		y = _add_plate(root, str(p), size, y - 0.02, true) - 0.04
+		var c := str(p)
+		if c.begins_with("7."):
+			y = _add_plate(root, c, size, y - 0.02, true) - 0.04
+		else:
+			y = _add_plate(root, c, size, y - 0.06 - size * 0.5) - 0.04
 	return root
 
 

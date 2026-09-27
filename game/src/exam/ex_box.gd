@@ -85,7 +85,8 @@ func _tick(_dt: float, p: CarProbe) -> void:
 		Phase.LEAVING:
 			set_hint("hint.box_leave")
 			var entry: Dictionary = def["entry_line"]
-			if Geo.past(entry, Vector2(0, -1), p.rear) > 0.5:
+			var out_dir := CourseData.v2(def.get("leave_dir", [0.0, -1.0]))
+			if Geo.past(entry, out_dir, p.rear) > 0.5:
 				finish()
 
 

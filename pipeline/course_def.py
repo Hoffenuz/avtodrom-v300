@@ -90,7 +90,13 @@ ISLAND_CUT_PX = [(1781.8, 995, 1853.3, 1012.5), (2025, 488, 2045, 530), (1110, 4
 ISLAND_FILL_PX = [[(1782, 1044.4), (1792, 1049), (1805, 1051), (1826, 1051.3), (1826, 1030), (1782, 1030)],
                   [(683, 725), (683, 703), (690, 691), (702, 682), (718, 675), (740, 667), (760, 662), (760, 725)],
                   (990, 452, 1015, 528), (1129, 470, 1150, 520), (1200, 530, 1229, 572),
-                  [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1165, 800), (1165, 680)]]
+                  [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1165, 800), (1165, 680)],
+                  # The car box (pad 5): square inner corner of its bay, straight kerb
+                  # along the next stem where the P icon dented it.
+                  (1640, 734, 1674.4, 744.3), (1777, 734, 1781.2, 772),
+                  # West approach of the intersection: the kerb on the right runs
+                  # straight up to the corner (the traffic-light icon dented it).
+                  [(846, 661.5), (950, 661.5), (960, 663), (968, 666.5), (976, 671.5), (976, 700), (846, 700)]]
 # Parallel-parking pockets (outer box). The concrete inside is authored as
 # pocket_px(); the island around it is squared into a kerb U with an open mouth.
 POCKETS_PX = [(1335, 497, 1480, 530), (1590, 497, 1725, 530), (1840, 497, 1975, 530)]
@@ -116,9 +122,16 @@ def _near_fix(part, points):
     return part.area < 4.0 * S * S and any(part.distance(Point(q)) < 1.5 * S for q in points)
 
 
-def _round_chamfers(pts, keep_out, iters=3):
+def _axis_edge(a, b):
+    d = np.abs(np.array(b) - np.array(a))
+    return np.hypot(*d) >= 1.0 * S and min(d) <= 0.02 * max(d)
+
+
+def _round_chamfers(pts, keep_out, iters=3, keep_axis=False):
     """Corner-cutting on the shallow bends (4-60 deg) the tracer leaves as facets;
-    sharp corners and vertices next to a pad keep their place."""
+    sharp corners and vertices next to a pad keep their place (and with
+    keep_axis, every vertex at the end of a straight axis-parallel kerb, so the
+    scheme's 45 deg chamfers between two of them stay chamfers)."""
     for _ in range(iters):
         out = []
         n = len(pts)
@@ -129,7 +142,9 @@ def _round_chamfers(pts, keep_out, iters=3):
             if lu < 1e-6 or lv < 1e-6:
                 continue
             ang = math.degrees(math.acos(np.clip(u @ v / lu / lv, -1, 1)))
-            if 4 < ang < 60 and keep_out.distance(Point(b)) > 0.5 * S:
+            if keep_axis and (_axis_edge(a, b) or _axis_edge(b, c)):
+                out.append(tuple(b))
+            elif 4 < ang < 60 and keep_out.distance(Point(b)) > 0.5 * S:
                 out.append(tuple(b - u / lu * min(0.25 * lu, 1.5 * S)))
                 out.append(tuple(b + v / lv * min(0.25 * lv, 1.5 * S)))
             else:
@@ -241,6 +256,11 @@ def clean_island(P, pads_px):
             key=lambda g: g.area)
     Q = regularize(Q, False, pads_px)
     Q = max(_parts(Q.difference(pads_px)), key=lambda g: g.area).simplify(0.05 * S)
+    # The kerbs along the pads (zmeyka, corridor, box island noses) were left
+    # faceted above to keep the pad corners in place; round their shallow bends
+    # too (square corners are > 60 deg and keep their place, as do the pockets).
+    Q = Polygon(_round_chamfers(list(Q.exterior.coords)[:-1], _POCKETS_UNION, keep_axis=True)).buffer(0)
+    Q = max(_parts(Q), key=lambda g: g.area).simplify(0.02 * S)
     return [w(x, y) for x, y in list(Q.exterior.coords)[:-1]]
 
 
@@ -251,6 +271,7 @@ def _is_pocket(poly):
     return 480 < poly.bounds[1] and poly.bounds[3] < 540  # traced parking pockets, authored instead
 
 
+_POCKETS_UNION = unary_union([box(x0 - 6, y0 - 8, x1 + 6, y1 + 2) for x0, y0, x1, y1 in POCKETS_PX])
 _layout_pads_px = unary_union([p for p in _pads_px_reg if not _is_pocket(p)] +
                               [pocket_px(*k) for k in POCKETS_PX])
 islands_w = [clean_island(p, _layout_pads_px) for p in
@@ -271,19 +292,29 @@ for poly in _pads_px_reg:
 for x0, y0, x1, y1 in POCKETS_PX:
     pads_out.append(wl([(x0 + 4, y0 + 3), (x1 - 4, y0 + 3), (x1 - 4, y1), (x0 + 4, y1)]))
 
+# At the zmeyka's north mouths the traced concrete stops short of the kerbs and
+# asphalt wedges show beside it; on the scheme the concrete runs kerb to kerb up
+# to the road. Fill each mouth out to the kerbs (the islands hide the rest).
+PAD_FILL_PX = {3: [(222, 704), (348, 711), (348, 770), (222, 770)],
+               4: [(612, 689), (706, 691), (706, 765), (612, 765)]}
+for _k, _fill in PAD_FILL_PX.items():
+    _P = Polygon([px_of(q) for q in pads_out[_k]]).buffer(0)
+    _P = max(_parts(_P.union(Polygon(_fill).difference(islands_union_px)).buffer(0)), key=lambda g: g.area)
+    pads_out[_k] = [w(x, y) for x, y in list(_P.exterior.coords)[:-1]]
+
 
 def tuck_under_islands(pad_w):
     """Pads and islands are traced separately, so thin asphalt slivers can show
-    between a pad and its kerb. Each pad grows up to 0.5 m, but only over the gap
-    to a kerb and under the island, where the kerb and grass hide it, never
-    past its own end onto the road."""
+    between a pad and its kerb (up to 0.75 m, e.g. along the car box's stem). Each
+    pad grows up to 0.9 m, but only over the gap to a kerb and under the island,
+    where the kerb and grass hide it, never past its own end onto the road."""
     P = Polygon([px_of(q) for q in pad_w]).buffer(0)
     # Only the gaps: a closing of pad + islands fills the narrow strips between
     # them but adds nothing where the pad simply ends at the road.
     r = 0.55 * S
     closed = P.union(islands_union_px).buffer(r, join_style=2).buffer(-r, join_style=2)
-    grown = P.union(closed.difference(islands_union_px).intersection(P.buffer(0.5 * S, join_style=2)))
-    grown = grown.union(P.buffer(0.5 * S, join_style=2).intersection(islands_union_px))
+    grown = P.union(closed.difference(islands_union_px).intersection(P.buffer(0.9 * S, join_style=2)))
+    grown = grown.union(P.buffer(0.9 * S, join_style=2).intersection(islands_union_px))
     grown = max(_parts(grown.buffer(0)), key=lambda g: g.area).simplify(0.03 * S)
     return [w(x, y) for x, y in list(grown.exterior.coords)[:-1]]
 
@@ -385,8 +416,14 @@ def pad_centerline(pad_index, start_hint, end_hint):
 
 # Pad indices (layout_auto order): 3 = zmeyka A (west), 4 = zmeyka B (east),
 # 8 = 90° corridor (lower), 9 = 90° corridor (upper, used by the exam route).
+ZMEYKA_PADS = (3, 4)
 ZMEYKA_B = pad_centerline(4, (885, 900), (650, 695))
 ZMEYKA_A = pad_centerline(3, (600, 950), (240, 715))
+
+# The car box (pad 5): its stem, entered from the south. The route runs up it
+# as far as the autopilot's stop past the bay (see the box exercise).
+BOX_ROUTE_X = 1702
+BOX_ROUTE_TOP = 736
 
 route_parts = []
 
@@ -418,16 +455,18 @@ add([p for p in zb])
 add(fillet_path([
     (zb[-1][0], zb[-1][1], 0), (650, 640, 45), (938, 640, 0),
 ]))
-# 5. Intersection pass 2: from the west, STRAIGHT (east); right into the box pad P1.
+# 5. Intersection pass 2: from the west, STRAIGHT (east), on past the truck box
+#    P1, right down the right road (emergency stop), right along the bottom road
+#    and right into the car box (pad 5, open to the south; the scheme's signs send
+#    cars there and trucks into the wide P1).
 add(fillet_path([
-    (938, 640, 0), (1441, 640, 52), (1441, 930, 0),
+    (938, 640, 0), (2015, 640, 55), (2015, 1068, 55), (BOX_ROUTE_X, 1068, 45), (BOX_ROUTE_X, BOX_ROUTE_TOP, 0),
 ]))
-# 6. The box manoeuvre happens inside P1; out of it north and right (east), right
-#    down the right road (emergency stop), right along the bottom road, right up
-#    the south leg; intersection pass 3: from the south, LEFT (west) -> left
-#    between the gore and the lane line -> railway.
+# 6. The box manoeuvre happens inside pad 5; out of it south and right (west),
+#    right up the south leg; intersection pass 3: from the south, LEFT (west) ->
+#    left between the gore and the lane line -> railway.
 add(fillet_path([
-    (1441, 930, 0), (1441, 640, 52), (2015, 640, 55), (2015, 1068, 55), (1101, 1068, 45), (1101, 598, 60),
+    (BOX_ROUTE_X, BOX_ROUTE_TOP, 0), (BOX_ROUTE_X, 1068, 45), (1101, 1068, 45), (1101, 598, 60),
     (80, 606, 120), (80, 760, 0),
 ]))
 # 7. Railway, then left along the outer bottom lane (acceleration section), left up
@@ -601,30 +640,73 @@ EDGE_WIDTH = 0.12
 # Fixation lines of the box and parallel parking: broad white bands with the
 # exam's wheel sensors under them.
 FIX_WIDTH = 0.40
-# 6. Box (razvorot): drive down P1, reverse east into the side bay, drive out north.
+# 6. Box (razvorot) in the car box, pad 5: drive up its stem from the south past
+# the side bay (west), reverse into the bay, drive out forwards and leave south.
 # Painted as at the centre: the rear wheels stop on the white fixation band;
 # beyond it, just short of the back kerb, a yellow limit line must not be run over.
-_BAY_C = (1540, 870)
-BOX_KERB_X = _BAY_C[0] + kerb_dist_px(_BAY_C, (1, 0))
+_BAY_C = (1630, 771)
+BOX_KERB_X = _BAY_C[0] - kerb_dist_px(_BAY_C, (-1, 0))
 BOX_Y0 = _BAY_C[1] - kerb_dist_px(_BAY_C, (0, -1))
 BOX_Y1 = _BAY_C[1] + kerb_dist_px(_BAY_C, (0, 1))
-BOX_FIX_X = BOX_KERB_X - 1.30 * S
-BOX_LIMIT_X = BOX_KERB_X - EDGE_OFFSET * S
+BOX_FIX_X = BOX_KERB_X + 1.30 * S
+BOX_LIMIT_X = BOX_KERB_X + EDGE_OFFSET * S
 BOX_LIMIT_WIDTH = 0.15
 # Both lines run between the bay's side edge lines.
 _BY0 = BOX_Y0 + (EDGE_OFFSET + EDGE_WIDTH / 2) * S
 _BY1 = BOX_Y1 - (EDGE_OFFSET + EDGE_WIDTH / 2) * S
+# The stem: kerb faces either side, level with the bay's north edge.
+_STEM_Y = BOX_Y0 - 1.0 * S
+_STEM_X0 = BOX_ROUTE_X - kerb_dist_px((BOX_ROUTE_X, _STEM_Y), (-1, 0))
+_STEM_X1 = BOX_ROUTE_X + kerb_dist_px((BOX_ROUTE_X, _STEM_Y), (1, 0))
+
+
+def box_manoeuvre():
+    """Rear-axle paths (world m) of the box manoeuvre, sized for the car box
+    (stem ~5.9 m, bay ~4.4 m x 6.9 m, ~5 m of stem beyond the bay). Local frame:
+    a runs up the stem (the way the car enters), b across it towards the bay.
+    Up the stem slightly on the bay side, then a gentle right-hand bend (away
+    from the bay, 25 deg) to stop past it; reverse on a 5.4 m arc into the bay and
+    straight back onto the fixation band; out forwards on a 4.5 m arc, turning
+    back down the stem. Checked against the kerbs with both cars' bodies:
+    >= 0.34 m clearance while moving."""
+    xc = (_STEM_X0 + _STEM_X1) / 2 / S - CX / S
+    zb = (BOX_Y0 + BOX_Y1) / 2 / S - CY / S
+    x_fix = BOX_FIX_X / S - CX / S
+    half = (_STEM_X1 - _STEM_X0) / 2 / S
+    A, B = np.array([0.0, -1.0]), np.array([-1.0, 0.0])
+    P0 = np.array([xc, zb])
+
+    def pt(a, b):
+        return [round(float(v), 3) for v in P0 + A * a + B * b]
+    r_rev, phi, r_app, r_out = 5.4, math.radians(65), 5.0, 4.5
+    b_arc = half + 2.1
+    beta = math.pi / 2 - phi
+    a_stop, b_stop = r_rev * (1 - math.cos(phi)), b_arc - r_rev * math.sin(phi)
+    b_app = b_stop + r_app * (1 - math.cos(beta))
+    a_app = a_stop - r_app * math.sin(beta)
+    b_fix = xc - x_fix
+    approach = [pt(-9.0, b_app)] + [pt(a_app + r_app * math.sin(t), b_app - r_app + r_app * math.cos(t))
+                                    for t in np.linspace(0, beta, 8)]
+    reverse = [pt(r_rev - r_rev * math.cos(t), b_arc - r_rev * math.sin(t)) for t in np.linspace(phi, 0, 14)]
+    reverse.append(pt(0.0, b_fix))
+    leave = [pt(0.0, b_fix)] + [pt(-r_out + r_out * math.cos(t), r_out - r_out * math.sin(t))
+                                for t in np.linspace(0, math.pi / 2, 12)] + [pt(-19.0, 0.0)]
+    return {"approach": approach, "reverse": reverse, "leave": leave}
+
+
 exercise(
     id="box", type="box", name=NAMES["box"],
-    entry_line=line((1394, 764), (1488, 764)),
+    entry_line=line((_STEM_X0, 955), (_STEM_X1, 955)), leave_dir=[0.0, 1.0],
     fixation_line=line((BOX_FIX_X, _BY0), (BOX_FIX_X, _BY1)), fixation_width=FIX_WIDTH,
     limit_line=line((BOX_LIMIT_X, _BY0), (BOX_LIMIT_X, _BY1)), limit_width=BOX_LIMIT_WIDTH,
-    fixation_side="rear", bay_heading=HEAD["W"],
+    fixation_side="rear", bay_heading=HEAD["E"],
     # Past the kerb: backed in too far, the rear overhang hangs over the grass,
     # and that is a badly placed car (№17), not a skipped exercise.
-    bay=wl([(1487, 830), (BOX_KERB_X + 1.5 * S, 830), (BOX_KERB_X + 1.5 * S, 910), (1487, 910)]),
-    zone=zone((1385, 700, BOX_KERB_X + 2.0 * S, 1015)),
-    s0=s_at(1441, 700), s1=s_after(1441, 700, s_at(1441, 900)),
+    bay=wl([(BOX_KERB_X - 1.5 * S, BOX_Y0 + 2), (_STEM_X0 + 6, BOX_Y0 + 2), (_STEM_X0 + 6, BOX_Y1 - 2),
+            (BOX_KERB_X - 1.5 * S, BOX_Y1 - 2)]),
+    manoeuvre=box_manoeuvre(),
+    zone=zone((BOX_KERB_X - 2.0 * S, 680, _STEM_X1 + 12, 1000)),
+    s0=s_at(BOX_ROUTE_X, 1000), s1=s_after(BOX_ROUTE_X, 1000, s_at(BOX_ROUTE_X, BOX_ROUTE_TOP)),
 )
 # 7. Zmeyka (east pad).
 exercise(
@@ -653,6 +735,47 @@ exercise(
     zone=zone((1690, 490, 2035, 622)),
     s0=s_after(2040, 553, s_int2), s1=s_after(1690, 553, s_int2),
 )
+
+
+def footprint(ra, heading, front=3.42, rear=1.07, half=0.83):
+    """Outline (world m) of a car whose rear axle is at `ra`, facing unit `heading`."""
+    f, r = np.array(heading, float), np.array([-heading[1], heading[0]], float)
+    ra = np.array(ra, float)
+    return [[round(float(v), 3) for v in c] for c in
+            (ra + f * front + r * half, ra + f * front - r * half, ra - f * rear - r * half, ra - f * rear + r * half)]
+
+
+def parallel_guide(ex):
+    """The rear-axle path the parallel manoeuvre takes (as the autopilot drives it):
+    stop just past the pocket, then back in on two arcs, and the spot to park in."""
+    pocket = np.array(ex["pocket"])
+    px0, edge_z = pocket[:, 0].min(), pocket[:, 1].max()
+    z_target = ex["fixation_line"]["a"][1] + 0.71
+    z_drive, r = edge_z + 1.1, 4.3
+    x_stop = px0 + 1.2
+    sh = z_drive - z_target
+    th = math.acos(max(-1.0, min(1.0, 1.0 - sh / (2 * r))))
+    c1 = np.array([x_stop, z_drive - r])
+    c2 = np.array([x_stop + 2 * r * math.sin(th), z_target + r])
+    pts = [c1 + np.array([r * math.sin(t), r * math.cos(t)]) for t in np.linspace(0, th, 8)]
+    pts += [c2 + np.array([-r * math.sin(t), -r * math.cos(t)]) for t in np.linspace(th, 0, 8)[1:]]
+    end = (x_stop + 2 * r * math.sin(th) + 1.5, z_target)
+    pts.append(np.array(end))
+    return {"paths": [[[round(float(v), 3) for v in q] for q in pts]], "spot": footprint(end, (-1, 0))}
+
+
+def box_guide(ex):
+    m = ex["manoeuvre"]
+    end = np.array(m["reverse"][-1])
+    heading = end - np.array(m["reverse"][-2])
+    return {"paths": [m["approach"], m["reverse"]], "spot": footprint(end, -heading / np.linalg.norm(heading))}
+
+
+for _e in EX:
+    if _e["type"] == "parallel":
+        _e["guide"] = parallel_guide(_e)
+    elif _e["type"] == "box":
+        _e["guide"] = box_guide(_e)
 # 10. Railway crossing (left road, southbound).
 exercise(
     id="railway", type="stop_line", name=NAMES["railway"],
@@ -688,9 +811,10 @@ turn(128, 380, "left")                # left road -> 90° corridor
 turn(1049, 1060, "right", s_int1)     # south leg -> bottom road
 turn(860, 1068, "right", s_int1)      # into the zmeyka
 turn(700, 640, "right", s_int1 + 100)  # zmeyka exit
-turn(1441, 700, "right", s_int2)      # into the box pad
 turn(2015, 700, "right", s_int2)      # onto the right road
 turn(2015, 1060, "right", s_int2)     # onto the bottom road
+turn(BOX_ROUTE_X, 1060, "right", s_int2)  # into the box pad
+turn(BOX_ROUTE_X + 12, 1060, "right", s_after(BOX_ROUTE_X, BOX_ROUTE_TOP, s_int2))  # out of it, west
 turn(1101, 1060, "right", s_int2)     # up the south leg
 turn(1101, 640, "left", s_int3 - 5)   # intersection 3
 turn(160, 610, "left", s_int3)        # the gore -> left road
@@ -741,10 +865,11 @@ def zebra(x0, y0, x1, y1, along, stripe=0.5, gap=0.55):
 
 
 zebra(1083, 97, 1146, 177, "x", 0.42, 0.66)
-zebra(1020, 524, 1128, 572, "y", 0.62, 0.84)
-zebra(1024, 664, 1128, 710, "y", 0.62, 0.84)
-zebra(952, 580, 1016, 658, "x", 0.45, 0.63)
-zebra(1139, 578, 1203, 656, "x", 0.45, 0.63)
+# The four crossings at the intersection have seven stripes each, as on the scheme.
+zebra(1020, 524, 1128, 572, "y", 0.62, 0.72)
+zebra(1024, 664, 1128, 710, "y", 0.62, 0.72)
+zebra(952, 580, 1016, 658, "x", 0.45, 0.52)
+zebra(1139, 578, 1203, 656, "x", 0.45, 0.52)
 
 for e in EX:
     for key in ("stop_line", "finish_line"):
@@ -945,14 +1070,22 @@ sign("4.1.2", 934, 414, "E")                      # onto the north leg: right, y
 sign("2.4", 934, 430, "E")
 sign("4.1.1", 1000, 440, "S")                     # north approach: straight (pass 1)
 sign("5.15", 1202, 436, "E", plates=("7.6.4",))    # parking strip on the finish island
-sign("4.1.1", 1277, 690, "E")                     # box island, north side: straight
+# Before the boxes: trucks (plate 7.4.1) and cars (7.4.3) have their own
+# boxes, as on the scheme. Eastbound on the box road: trucks right into the
+# wide P1, cars straight on; at the next island cars may turn right into their
+# box. Westbound on the bottom road: cars may turn right into the two car boxes
+# open to the south, trucks go straight on.
+sign("4.1.2", 1266, 672, "E", plates=("7.4.1", "4.1.1", "7.4.3"), height=2.9)
+sign("4.1.1", 1746, 660, "E", plates=("7.4.1", "4.1.4", "7.4.3"), height=2.9)
+sign("4.1.4", 1350, 1030, "W", plates=("7.4.3", "4.1.1", "7.4.1"), height=2.9)
+sign("4.1.4", 1797, 1030, "W", plates=("7.4.3", "4.1.1", "7.4.1"), height=2.9)
 sign("1.12.2", 910, 955, "N")                     # zmeyka B entrance (as on the scheme)
 sign("1.12.2", 690, 955, "N")                     # zmeyka A entrance
 sign("4.1.1", 696, 993, "N")
-sign("2.4", 720, 695, "N")                        # zmeyka B exit: yield, keep right
-sign("4.2.1", 703, 712, "N")
-sign("2.4", 380, 700, "N")                        # zmeyka A exit: yield, keep right
-sign("4.2.1", 362, 718, "N")
+sign("2.4", 720, 695, "N")                        # zmeyka B exit: yield, turn right
+sign("4.1.2", 703, 712, "N")
+sign("2.4", 380, 700, "N")                        # zmeyka A exit: yield, turn right
+sign("4.1.2", 362, 718, "N")
 sign("3.18.1", 572, 672, "E")                     # no right turn into zmeyka A
 sign("5.15", 1382, 760, "S")                      # boxes
 sign("5.15", 1769, 753, "S")
@@ -969,9 +1102,10 @@ sign("2.4", 1650, 1018, "S")
 sign("4.1.1", 1178, 1006, "N")                    # south leg, northbound
 sign("4.1.3", 1148, 759, "N")                     # south approach: left
 sign("4.1.2", 1943, 702, "E")
-sign("5.15", 1990, 520, "W", plates=("7.6.4",))    # parallel pockets
-sign("5.15", 1740, 520, "W", plates=("7.6.4",))
-sign("5.15", 1490, 520, "W", plates=("7.6.4",))
+# Parallel pockets: parking along the kerb on the carriageway (7.6.1), cars only.
+sign("5.15", 1990, 520, "W", plates=("7.6.1", "7.4.3"))
+sign("5.15", 1740, 520, "W", plates=("7.6.1", "7.4.3"))
+sign("5.15", 1490, 520, "W", plates=("7.6.1", "7.4.3"))
 sign("4.1.3", 2110, 554, "N")                     # right road: left onto the parking road
 sign("1.3.1", 38, 900, "S")                       # railway (St Andrew's cross)
 sign("2.5", 38, 925, "S")
@@ -982,12 +1116,10 @@ sign("4.7-20", 430, 1150, "E", height=1.35)
 sign("3.24-20", 1325, 1150, "E")
 sign("4.1.3", 2004, 1150, "E")                    # bottom road: left up the right road
 sign("4.2.1", 1142, 474, "S")                     # on the nose of the finish-road island
-sign("4.1.2", 1760, 690, "E")
 
 # Mandatory-direction signs before the junction turns of the exam route that
 # the scheme's own signs above leave uncovered (heading = the traffic they are
 # for; placed on its right-hand side).
-sign("4.1.2", 1380, 668, "E")                     # -> box pad P1 (right)
 sign("4.1.2", 1995, 1010, "S")                    # right road -> inner bottom lane (right)
 sign("4.1.2", 900, 1040, "W")                     # inner bottom lane -> zmeyka B (right)
 sign("4.1.1", 880, 672, "E")                      # intersection, west approach: straight (pass 2)
@@ -1073,13 +1205,16 @@ data = {
     "estakada": EST,
     "markings": {"lines": lines, "polys": polys, "texts": texts, "arrows": arrows,
                  "edge_offset": EDGE_OFFSET, "edge_width": EDGE_WIDTH, "fence_line": wl(FENCE_LINE_PX),
+                 # The zmeyka's control lines (the kerb edge lines on its two pads) are yellow.
+                 "edge_yellow": [wl(list(Polygon([px_of(q) for q in pads_out[k]]).buffer(0.6 * S, join_style=2)
+                                          .simplify(0.1 * S).exterior.coords)[:-1]) for k in ZMEYKA_PADS],
                  # As on the scheme, the kerb edge line stops at each parking pocket:
                  # none inside the pocket and none across its mouth. Across the back
                  # of the box the yellow limit line takes its place.
                  "edge_skip": [wl([(x0, y0), (x1 + 1, y0), (x1 + 1, y1 + 5), (x0, y1 + 5)])
                                for x0, y0, x1, y1 in POCKETS_PX] +
-                              [wl([(BOX_LIMIT_X - 0.3 * S, _BY0), (BOX_KERB_X + 0.3 * S, _BY0),
-                                   (BOX_KERB_X + 0.3 * S, _BY1), (BOX_LIMIT_X - 0.3 * S, _BY1)])]},
+                              [wl([(BOX_KERB_X - 0.3 * S, _BY0), (BOX_LIMIT_X + 0.3 * S, _BY0),
+                                   (BOX_LIMIT_X + 0.3 * S, _BY1), (BOX_KERB_X - 0.3 * S, _BY1)])]},
     "railway": railway,
     "signs": SIGNS,
     "lights": LIGHTS,
