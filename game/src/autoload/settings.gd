@@ -3,7 +3,7 @@ extends Node
 ##
 ## Every value has a default here; the file only stores what the user changed.
 ## Graphics settings are applied immediately to the viewport/environment by
-## whoever listens to `changed` (see src/game/drive.gd).
+## whoever listens to `changed` (see src/game/graphics.gd).
 
 signal changed(key: String)
 

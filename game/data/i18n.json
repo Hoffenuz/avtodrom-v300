@@ -239,11 +239,6 @@
   "uz_cyrl": "Юқори",
   "ru": "Высокое"
  },
- "set.quality_desc": {
-  "uz_latn": "Keyingi haydashdan boshlab qo‘llanadi",
-  "uz_cyrl": "Кейинги ҳайдашдан бошлаб қўлланади",
-  "ru": "Применяется со следующей поездки"
- },
  "set.render_scale": {
   "uz_latn": "Aniqlik",
   "uz_cyrl": "Аниқлик",
@@ -413,11 +408,6 @@
   "uz_latn": "Muftani bosing yoki N qo‘ying",
   "uz_cyrl": "Муфтани босинг ёки N қўйинг",
   "ru": "Сцепление или N"
- },
- "hud.brake_to_shift": {
-  "uz_latn": "Tormozni bosing",
-  "uz_cyrl": "Тормозни босинг",
-  "ru": "Нажмите тормоз"
  },
  "hud.turn_left": {
   "uz_latn": "Chapga",

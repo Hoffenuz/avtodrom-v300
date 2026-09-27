@@ -108,7 +108,6 @@ S = {
     "hud.stalled": ("Dvigatel o‘chdi", "Двигател ўчди", "Двигатель заглох"),
     "hud.clutch_needed": ("Muftani bosing", "Муфтани босинг", "Выжмите сцепление"),
     "hud.clutch_to_start": ("Muftani bosing yoki N qo‘ying", "Муфтани босинг ёки N қўйинг", "Сцепление или N"),
-    "hud.brake_to_shift": ("Tormozni bosing", "Тормозни босинг", "Нажмите тормоз"),
     "hud.turn_left": ("Chapga", "Чапга", "Налево"),
     "hud.turn_right": ("O‘ngga", "Ўнгга", "Направо"),
     "hud.in_m": ("{0} m", "{0} м", "{0} м"),

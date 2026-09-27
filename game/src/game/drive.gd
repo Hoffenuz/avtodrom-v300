@@ -216,12 +216,8 @@ func _on_starter(held: bool) -> void:
 
 
 func _on_gear(g: int) -> void:
-	if car.is_automatic():
-		var leaving_park := car.get_selector() == AvtoGear.PARK and g != AvtoGear.PARK
-		if leaving_park and car.brake < 0.2 and car.is_engine_running():
-			hud.show_center(Loc.t("hud.brake_to_shift"), UITheme.CAUTION, 1.8)
-			hud.gears.reject()
-			return
+	# The real Cobalt wants the brake pedal to leave P; on a phone that needs a
+	# second finger for no benefit, so the selector moves freely.
 	if not car.request_gear(g):
 		hud.gears.reject()
 		if not car.is_automatic():
@@ -289,23 +285,6 @@ func _notification(what: int) -> void:
 				_pause()
 
 
-## Dragging over the free part of the screen turns the driver's head.
-var _look_touch := -1
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if rig == null:
-		return
-	if event is InputEventScreenTouch:
-		if event.pressed and _look_touch < 0:
-			_look_touch = event.index
-		elif not event.pressed and event.index == _look_touch:
-			_look_touch = -1
-			rig.release_look()
-	elif event is InputEventScreenDrag and event.index == _look_touch:
-		rig.look(event.relative)
-
-
 func _pause() -> void:
 	if results.visible:
 		return
@@ -316,8 +295,6 @@ func _pause() -> void:
 
 func _resume() -> void:
 	get_tree().paused = false
-	_look_touch = -1
-	rig.release_look()
 	pause_menu.close()
 
 

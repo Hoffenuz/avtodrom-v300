@@ -32,6 +32,8 @@ const CLUTCH_DOWN := 4.0 # pressing the clutch is quick...
 const CLUTCH_UP := 1.4 # ...letting it out should not be
 const STEER_RATE := 600.0 # deg/s at the steering wheel
 const CENTER_RATE := 420.0
+const TILT_DEAD_ZONE := 2.0 # degrees of phone tilt
+const TILT_SMOOTHING := 12.0 # 1/s, ~2 Hz corner
 
 var steering_lock := 540.0
 var automatic := false
@@ -59,6 +61,7 @@ var _kb_brake := 0.0
 var _kb_clutch := 0.0
 var _kb_steer := 0.0
 var _ignition_key_t := -1.0
+var _tilt_deg := 0.0
 var _starter_held := false
 
 
@@ -120,7 +123,13 @@ func _physics_process(delta: float) -> void:
 		var g := Input.get_accelerometer()
 		# Landscape: tilting the phone like a wheel moves gravity along x/y.
 		var ang := atan2(g.y, -g.x) if absf(g.x) + absf(g.y) > 1.0 else 0.0
-		steer_deg = clampf(rad_to_deg(ang) * 9.0 * sens, -steering_lock, steering_lock)
+		# A small dead zone keeps a hand-held phone from weaving the car, and
+		# a low-pass filter takes out the sensor's jitter.
+		var tilt := rad_to_deg(ang)
+		tilt = signf(tilt) * maxf(absf(tilt) - TILT_DEAD_ZONE, 0.0)
+		var tilt_target := clampf(tilt * 9.0 * sens, -steering_lock, steering_lock)
+		_tilt_deg = lerpf(_tilt_deg, tilt_target, 1.0 - exp(-delta * TILT_SMOOTHING))
+		steer_deg = _tilt_deg
 	elif absf(pad_steer) > 0.0:
 		steer_deg = pad_steer
 	else:
