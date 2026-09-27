@@ -15,6 +15,7 @@ enum Mode { COCKPIT, CHASE, TOP }
 const CHASE_DIST := 5.0 # m from the pivot (roof height above the car centre)
 const CHASE_PITCH := 0.2 # rad above the horizon
 const PIVOT_HEIGHT := 1.05
+const LOOK_LIFT := 0.45 # m above the pivot the chase view aims at
 const ZOOM_MIN := 0.65
 const ZOOM_MAX := 2.2
 const RETURN_DELAY := 1.6 # s after the finger is lifted
@@ -105,13 +106,13 @@ func _process(delta: float) -> void:
 	var xf := car.get_global_transform_interpolated()
 	match mode:
 		Mode.COCKPIT:
-			_perspective(70.0)
+			_perspective(70.0, 0.08)
 			var head := Basis(Vector3.UP, orbit_yaw) * Basis(Vector3.RIGHT, -orbit_pitch - 0.07)
 			camera.global_transform = Transform3D(xf.basis * head, xf * car.cockpit_eye)
 		Mode.CHASE:
 			_place_chase(xf, delta)
 		Mode.TOP:
-			_perspective(55.0)
+			_perspective(55.0, 1.0)
 			var fwd := -xf.basis.z
 			fwd.y = 0.0
 			fwd = fwd.normalized().rotated(Vector3.UP, orbit_yaw)
@@ -120,27 +121,12 @@ func _process(delta: float) -> void:
 			camera.look_at(xf.origin + fwd * 1.2, fwd)
 
 
-func _perspective(fov_deg: float) -> void:
-	if camera.projection != Camera3D.PROJECTION_PERSPECTIVE:
-		camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+## Near plane per view: as far out as the view allows, since depth precision
+## (and so the stability of the thin layers of road, paint and kerb far away)
+## grows with it, and phones have 24-bit depth buffers.
+func _perspective(fov_deg: float, near: float) -> void:
 	camera.fov = fov_deg
-
-
-## Looks from `pos` at `target` with the lens shifted instead of the camera
-## tilted, as in architectural photography: sign posts, lamp posts and
-## buildings stay upright although the view looks down on the car. The shift
-## hands over to a plain tilt for steep, dragged-up views.
-func _aim_shifted(pos: Vector3, target: Vector3, fov_deg: float) -> void:
-	var d := target - pos
-	var level := Vector3(d.x, 0.0, d.z).normalized()
-	var down := atan2(-d.y, Vector2(d.x, d.z).length()) # radians below the horizon
-	var tilt := down * smoothstep(0.35, 0.75, down)
-	camera.global_position = pos
-	camera.look_at(pos + level * cos(tilt) + Vector3.DOWN * sin(tilt), Vector3.UP)
-	if camera.projection != Camera3D.PROJECTION_FRUSTUM:
-		camera.projection = Camera3D.PROJECTION_FRUSTUM
-	camera.size = 2.0 * camera.near * tan(deg_to_rad(fov_deg) * 0.5)
-	camera.frustum_offset = Vector2(0.0, -camera.near * tan(down - tilt))
+	camera.near = near
 
 
 func _place_chase(xf: Transform3D, delta: float) -> void:
@@ -192,7 +178,13 @@ func _place_chase(xf: Transform3D, delta: float) -> void:
 		_free_cache = free
 	_clear = free if free < _clear else move_toward(_clear, free, delta * 1.5)
 	pos = pivot + (pos - pivot) * _clear
-	_aim_shifted(pos, pivot - back * 1.2, 62.0)
+	_perspective(62.0, 0.2)
+	camera.global_position = pos
+	# Aiming a little above the roof keeps the view almost level, so posts,
+	# trees and buildings stand upright; a camera pitched down leans them out
+	# at the screen edges. Views dragged up towards bird's-eye aim at the car.
+	var lift := LOOK_LIFT * (1.0 - smoothstep(0.3, 0.8, pitch))
+	camera.look_at(pivot - back * 1.2 + Vector3.UP * lift, Vector3.UP)
 
 
 ## Camera position `dist` from the pivot, `yaw` round and `pitch` above it.

@@ -199,6 +199,11 @@
   "uz_cyrl": "Рул сезгирлиги",
   "ru": "Чувствительность руля"
  },
+ "set.autocenter": {
+  "uz_latn": "Qo‘yib yuborilgan rul markazga qaytadi",
+  "uz_cyrl": "Қўйиб юборилган рул марказга қайтади",
+  "ru": "Отпущенный руль возвращается в центр"
+ },
  "set.auto_clutch": {
   "uz_latn": "Avtomatik mufta",
   "uz_cyrl": "Автоматик муфта",
@@ -663,6 +668,36 @@
   "uz_latn": "Menyu",
   "uz_cyrl": "Меню",
   "ru": "Меню"
+ },
+ "pause.layout": {
+  "uz_latn": "Tugmalarni joylashtirish",
+  "uz_cyrl": "Тугмаларни жойлаштириш",
+  "ru": "Расположение кнопок"
+ },
+ "layout.title": {
+  "uz_latn": "Tugmalarni joylashtiring",
+  "uz_cyrl": "Тугмаларни жойлаштиринг",
+  "ru": "Расставьте кнопки"
+ },
+ "layout.hint": {
+  "uz_latn": "Tugma yoki pedalni barmoq bilan sudrab joylang, kattaligini slayder bilan o‘zgartiring",
+  "uz_cyrl": "Тугма ёки педални бармоқ билан судраб жойланг, катталигини слайдер билан ўзгартиринг",
+  "ru": "Перетащите кнопку или педаль пальцем, размер — ползунком"
+ },
+ "layout.size": {
+  "uz_latn": "Kattalik",
+  "uz_cyrl": "Катталик",
+  "ru": "Размер"
+ },
+ "layout.reset": {
+  "uz_latn": "Standart",
+  "uz_cyrl": "Стандарт",
+  "ru": "По умолчанию"
+ },
+ "layout.done": {
+  "uz_latn": "Tayyor",
+  "uz_cyrl": "Тайёр",
+  "ru": "Готово"
  },
  "pause.warn_exam": {
   "uz_latn": "Chiqsangiz — imtihon o‘tmagan hisoblanadi",

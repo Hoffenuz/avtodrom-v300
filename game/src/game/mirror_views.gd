@@ -3,7 +3,7 @@ extends Node
 ## The two door mirrors, rendered to small textures and shown over the
 ## screen's upper corners while reversing (or always, in the top camera).
 ## Parking and the box are practically impossible from a phone screen
-## without them. Rendered at low resolution and a reduced rate on phones.
+## without them. Rendered at low resolution.
 
 const SIZE := Vector2i(360, 200)
 # The eye sits just behind each mirror glass (Car.mirror_eye, per model) so
@@ -26,7 +26,6 @@ var _vps: Array[SubViewport] = []
 var _cams: Array[Camera3D] = []
 var _rects: Array[TextureRect] = []
 var _frames: Array[Panel] = []
-var _frame_count := 0
 var _visible := false
 
 
@@ -45,7 +44,7 @@ func setup(p_car: Car, hud_root: Control, p_quality: int, sun: DirectionalLight3
 		add_child(vp)
 		var cam := Camera3D.new()
 		cam.fov = 38.0
-		cam.near = 0.05
+		cam.near = 0.12
 		cam.far = FAR
 		cam.cull_mask = cam.cull_mask & ~LAYER_SUN if _mirror_sun else cam.cull_mask
 		cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
@@ -122,8 +121,7 @@ func _process(_delta: float) -> void:
 		var toe := -TOE if i == 0 else TOE
 		var basis := xf.basis * Basis(Vector3.UP, PI + toe) * Basis(Vector3.RIGHT, PITCH)
 		_cams[i].global_transform = Transform3D(basis, xf * pos)
-	# Phones: refresh the mirrors every other frame.
-	_frame_count += 1
-	var update := quality >= 2 or _frame_count % 2 == 0
+	# Every frame: at half rate the mirror image judders against the car
+	# moving under it. They are small and only shown while reversing.
 	for vp in _vps:
-		vp.render_target_update_mode = SubViewport.UPDATE_ONCE if update else SubViewport.UPDATE_DISABLED
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS

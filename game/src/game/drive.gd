@@ -14,6 +14,7 @@ var hud: Hud
 var guide: RouteGuide
 var mirrors: MirrorViews
 var pause_menu: PauseMenu
+var _layout_editor: HudLayoutEditor
 var results: ResultsPanel
 var quality := 1
 var autopilot: Autopilot
@@ -102,6 +103,7 @@ func _ready() -> void:
 	pause_menu.resume.connect(_resume)
 	pause_menu.restart.connect(_restart)
 	pause_menu.quit_to_menu.connect(_quit_to_menu)
+	pause_menu.edit_layout.connect(_edit_layout)
 
 	results = ResultsPanel.new()
 	add_child(results)
@@ -269,7 +271,9 @@ func _notification(what: int) -> void:
 		NOTIFICATION_WM_GO_BACK_REQUEST:
 			if results == null or results.visible:
 				return
-			if pause_menu.visible:
+			if _layout_editor:
+				_layout_editor.finish()
+			elif pause_menu.visible:
 				if not pause_menu.back():
 					_resume()
 			else:
@@ -289,8 +293,23 @@ func _pause() -> void:
 	if results.visible:
 		return
 	get_tree().paused = true
-	var exam_running := director != null and not director.practice and not Session.demo 			and director.state == ExamDirector.State.RUNNING
-	pause_menu.open(exam_running)
+	pause_menu.open(_exam_running(), hud.touch_mode and not hud.demo)
+
+
+func _exam_running() -> bool:
+	return director != null and not director.practice and not Session.demo \
+			and director.state == ExamDirector.State.RUNNING
+
+
+## Touch-control layout, over the paused drive; back to the pause menu after.
+func _edit_layout() -> void:
+	pause_menu.visible = false
+	_layout_editor = HudLayoutEditor.new(hud)
+	_layout_editor.finished.connect(func() -> void:
+		_layout_editor.queue_free()
+		_layout_editor = null
+		pause_menu.open(_exam_running(), true))
+	hud.root.add_child(_layout_editor)
 
 
 func _resume() -> void:

@@ -176,6 +176,7 @@ func _build() -> void:
 			modes.append(["tilt", Loc.t("set.steer_tilt")])
 		_row("set.steering", _segmented("steering_mode", modes))
 		_row("set.sensitivity", _slider("steering_sensitivity", 0.75, 3.0, 0.05, "%.2f", 1.0))
+		_row("set.autocenter", _toggle("steering_autocenter"))
 	_row("set.auto_clutch", _toggle("auto_clutch"))
 	if touch:
 		_row("set.left_handed", _toggle("left_handed"))

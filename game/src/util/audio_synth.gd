@@ -9,11 +9,27 @@ const RATE := 32000
 static var _cache := {}
 
 
+## Frames of padding around the samples. The WAV mixer interpolates a few
+## frames past the loop points and past the end of the data. On Android a big
+## buffer (these loops are ~96 KB) ends right at a guard page, so those reads
+## crashed the audio thread (SIGSEGV in AudioTrack, fault on a page boundary).
+## Loops are padded with their own continuation, one-shots with silence.
+const PAD := 64
+
+
 static func _wav(samples: PackedFloat32Array, loop := false) -> AudioStreamWAV:
+	var n := samples.size()
+	var total := n + PAD * 2
 	var data := PackedByteArray()
-	data.resize(samples.size() * 2)
-	for i in samples.size():
-		data.encode_s16(i * 2, int(clampf(samples[i], -1.0, 1.0) * 32767.0))
+	data.resize(total * 2)
+	for i in total:
+		var k := i - PAD
+		var v := 0.0
+		if loop:
+			v = samples[posmod(k, n)]
+		elif k >= 0 and k < n:
+			v = samples[k]
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
 	var w := AudioStreamWAV.new()
 	w.format = AudioStreamWAV.FORMAT_16_BITS
 	w.mix_rate = RATE
@@ -21,8 +37,8 @@ static func _wav(samples: PackedFloat32Array, loop := false) -> AudioStreamWAV:
 	w.data = data
 	if loop:
 		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		w.loop_begin = 0
-		w.loop_end = samples.size()
+		w.loop_begin = PAD
+		w.loop_end = PAD + n
 	return w
 
 

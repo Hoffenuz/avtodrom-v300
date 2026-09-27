@@ -8,6 +8,10 @@ extends Node3D
 
 const ROAD_OFFSET := 14.0 # m from the fence to the ring-road centre line
 const ROAD_WIDTH := 7.0
+# Everything out here is seen from 50-300 m: the layers over the lawn need a
+# few centimetres between them to stay apart in a phone's depth buffer.
+const RING_Y := 0.04
+const PAINT_LIFT := 0.04
 const HEDGE_OFFSET := 6.0
 
 var fence: Rect2
@@ -97,7 +101,7 @@ func _build_ring_road() -> void:
 		Rect2(outer.position.x, inner.position.y, inner.position.x - outer.position.x, inner.size.y),
 		Rect2(inner.end.x, inner.position.y, outer.end.x - inner.end.x, inner.size.y),
 	]:
-		MeshUtil.add_polygon(st, _rect_poly(q), 0.01, 4.0)
+		MeshUtil.add_polygon(st, _rect_poly(q), RING_Y, 4.0)
 	st.index()
 	st.generate_tangents()
 	st.set_material(mat["asphalt"])
@@ -105,9 +109,9 @@ func _build_ring_road() -> void:
 	_keep_out.append(outer)
 	var paint := _st()
 	var mid := fence.grow(ROAD_OFFSET)
-	MeshUtil.add_dashed(paint, _densify_rect(mid), 0.12, 0.016, 3.0, 6.0)
+	MeshUtil.add_dashed(paint, _densify_rect(mid), 0.12, RING_Y + PAINT_LIFT, 3.0, 6.0)
 	for r in [outer.grow(-0.4), inner.grow(0.4)]:
-		MeshUtil.add_ribbon(paint, _rect_poly(r), 0.12, 0.016, true)
+		MeshUtil.add_ribbon(paint, _rect_poly(r), 0.12, RING_Y + PAINT_LIFT, true)
 	paint.index()
 	paint.set_material(mat["paint"])
 	_instance(paint.commit(), "RingRoadPaint", false)
@@ -137,8 +141,8 @@ func _build_exam_centre() -> void:
 
 	# Car park surface, bay lines and a driveway to the ring road.
 	var st := _st()
-	MeshUtil.add_polygon(st, _rect_poly(park), 0.012, 4.0)
-	MeshUtil.add_polygon(st, _rect_poly(Rect2(park.end.x - 8.0, park.end.y, 7.0, 0.5)), 0.012, 4.0)
+	MeshUtil.add_polygon(st, _rect_poly(park), RING_Y, 4.0)
+	MeshUtil.add_polygon(st, _rect_poly(Rect2(park.end.x - 8.0, park.end.y, 7.0, 0.5)), RING_Y, 4.0)
 	st.index()
 	st.generate_tangents()
 	st.set_material(mat["asphalt"])
@@ -151,7 +155,7 @@ func _build_exam_centre() -> void:
 		var z0 := park.position.y + 1.0 if row == 0 else park.end.y - 6.0
 		for k in n + 1:
 			var x := park.position.x + 2.0 + k * bay_w
-			MeshUtil.add_ribbon(paint, PackedVector2Array([Vector2(x, z0), Vector2(x, z0 + 5.0)]), 0.1, 0.02, false)
+			MeshUtil.add_ribbon(paint, PackedVector2Array([Vector2(x, z0), Vector2(x, z0 + 5.0)]), 0.1, RING_Y + PAINT_LIFT, false)
 			if k < n:
 				bays.append([Vector2(x + bay_w * 0.5, z0 + 2.5), 0.0 if row == 0 else PI])
 	paint.index()
@@ -161,7 +165,7 @@ func _build_exam_centre() -> void:
 
 	# Forecourt paving in front of the building.
 	var fc := _st()
-	MeshUtil.add_polygon(fc, _rect_poly(Rect2(bld.position.x - 3.0, bld.end.y, bld.size.x + 6.0, 4.0)), 0.03, 3.0)
+	MeshUtil.add_polygon(fc, _rect_poly(Rect2(bld.position.x - 3.0, bld.end.y, bld.size.x + 6.0, 4.0)), RING_Y + PAINT_LIFT, 3.0)
 	fc.index()
 	fc.generate_tangents()
 	fc.set_material(mat["concrete"])
@@ -269,7 +273,7 @@ func _park_cars(bays: Array) -> void:
 			var bay: Array = picks[m][i]
 			var p: Vector2 = bay[0]
 			var yaw: float = bay[1] + _rng.randf_range(-0.04, 0.04)
-			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, 0.012, p.y)) * local)
+			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, RING_Y, p.y)) * local)
 			mm.set_instance_color(i, paints[_rng.randi() % paints.size()])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = "ParkedCars%d" % m

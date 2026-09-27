@@ -13,8 +13,12 @@ const LAYER_OBSTACLE := 4
 const KERB_HEIGHT := 0.15
 const KERB_WIDTH := 0.20
 const GRASS_HEIGHT := 0.12
-const PAD_Y := 0.004
-const PAINT_Y := 0.008
+# Visual layers over the asphalt (collision is the y = 0 plane). A centimetre
+# apart: closer, a phone's 24-bit depth buffer cannot keep them apart in the
+# distance and they flicker through each other.
+const PAD_Y := 0.01
+const PAINT_Y := 0.02
+const TEXT_PX_PER_EM := 256.0 # painted-word textures (pipeline/make_hud_art.py)
 const TILE_ASPHALT := 4.0
 const TILE_CONCRETE := 3.0
 const TILE_GRASS := 2.5
@@ -447,28 +451,33 @@ func _build_markings() -> void:
 		_add_text(str(t["text"]), CourseData.v2(t["pos"]), float(t["yaw"]), float(t["size"]))
 
 
+## A painted word: a flat quad with the word pre-rendered by
+## pipeline/make_hud_art.py (a Label3D's live glyph atlas made it vanish for
+## single frames on phones). `size` is the font's em in metres / 0.9.
 func _add_text(text: String, pos: Vector2, yaw_deg: float, size: float) -> void:
-	var l := Label3D.new()
-	l.text = text
-	# 96 px glyphs are sharp enough for paint seen from a car and keep the
-	# font atlas small (256 px glyphs cost tens of MB of video memory).
-	l.font_size = 96
-	l.pixel_size = size / 96.0 * 0.9
-	l.modulate = Color(0.93, 0.93, 0.9)
-	l.outline_size = 0
-	l.shaded = true
-	l.double_sided = false
-	l.alpha_cut = Label3D.ALPHA_CUT_OPAQUE_PREPASS
-	l.position = Vector3(pos.x, PAINT_Y + 0.004 + estakada_height(pos.x, pos.y), pos.y)
-	l.rotation = Vector3(-PI * 0.5, deg_to_rad(yaw_deg), 0)
-	l.rotation_order = EULER_ORDER_YXZ
-	var font: Font = load("res://assets/fonts/Inter.ttf") if ResourceLoader.exists("res://assets/fonts/Inter.ttf") else null
-	if font:
-		var fv := FontVariation.new()
-		fv.base_font = font
-		fv.variation_opentype = {"wght": 700}
-		l.font = fv
-	add_child(l)
+	var path := "res://assets/textures/road_text_%s.png" % text.md5_text().substr(0, 8)
+	if not ResourceLoader.exists(path):
+		push_warning("Painted word '%s' has no texture (%s): run pipeline/make_hud_art.py" % [text, path])
+		return
+	var tex: Texture2D = load(path)
+	var k := size * 0.9 / TEXT_PX_PER_EM
+	var quad := QuadMesh.new()
+	quad.size = Vector2(tex.get_width(), tex.get_height()) * k
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.albedo_color = Color(0.93, 0.93, 0.9)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.roughness = 0.8
+	var mi := MeshInstance3D.new()
+	mi.name = "Text"
+	mi.mesh = quad
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = Vector3(pos.x, PAINT_Y + 0.004 + estakada_height(pos.x, pos.y), pos.y)
+	mi.rotation_order = EULER_ORDER_YXZ
+	mi.rotation = Vector3(-PI * 0.5, deg_to_rad(yaw_deg), 0)
+	add_child(mi)
 
 
 ## Road arrows (~4.6 m long): a painted shaft plus a triangular head. `pos` is

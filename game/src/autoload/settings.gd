@@ -35,6 +35,9 @@ const DEFAULTS := {
 	"vol_engine": 0.8,
 	"vol_effects": 0.8,
 	"left_handed": false,
+	# Touch controls moved / resized by the player (HudLayoutEditor):
+	# control id -> {"x", "y": centre as a share of the safe area, "s": scale}.
+	"hud_layout": {},
 	"exam_time_limit_min": 25,
 }
 

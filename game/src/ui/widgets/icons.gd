@@ -147,13 +147,21 @@ static func draw(ci: CanvasItem, icon: String, c: Vector2, s: float, color: Colo
 			_letter(ci, icon, c, s, color)
 
 
+## The turn-signal tell-tale: a broad head on a short tail. Polygons have no
+## anti-aliasing, so an outline in the same colour smooths the edges, and a
+## thin dark rim keeps it readable over a lit (coloured) button.
 static func _arrow(ci: CanvasItem, c: Vector2, s: float, color: Color, dir: float) -> void:
+	var o := c + Vector2(-dir * s * 0.08, 0)
 	var pts := PackedVector2Array([
-		c + Vector2(dir * s * 0.95, 0), c + Vector2(dir * s * 0.05, -s * 0.8), c + Vector2(dir * s * 0.05, -s * 0.35),
-		c + Vector2(-dir * s * 0.9, -s * 0.35), c + Vector2(-dir * s * 0.9, s * 0.35), c + Vector2(dir * s * 0.05, s * 0.35),
-		c + Vector2(dir * s * 0.05, s * 0.8),
+		o + Vector2(dir * s * 0.98, 0), o + Vector2(-dir * s * 0.02, -s * 0.86), o + Vector2(-dir * s * 0.02, -s * 0.34),
+		o + Vector2(-dir * s * 0.82, -s * 0.34), o + Vector2(-dir * s * 0.82, s * 0.34), o + Vector2(-dir * s * 0.02, s * 0.34),
+		o + Vector2(-dir * s * 0.02, s * 0.86),
 	])
+	var ring := pts.duplicate()
+	ring.append(pts[0])
+	ci.draw_polyline(ring, Color(0, 0, 0, 0.35 * color.a), s * 0.16, true)
 	ci.draw_colored_polygon(pts, color)
+	ci.draw_polyline(ring, color, maxf(s * 0.05, 1.0), true)
 
 
 static func _letter(ci: CanvasItem, text: String, c: Vector2, s: float, color: Color) -> void:

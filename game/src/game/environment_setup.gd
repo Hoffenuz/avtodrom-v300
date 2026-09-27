@@ -11,7 +11,10 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 	sky_mat.energy_multiplier = 1.0
 	sky.sky_material = sky_mat
 	sky.radiance_size = [Sky.RADIANCE_SIZE_64, Sky.RADIANCE_SIZE_128, Sky.RADIANCE_SIZE_256][clampi(quality, 0, 2)]
-	sky.process_mode = Sky.PROCESS_MODE_QUALITY if quality >= 2 else Sky.PROCESS_MODE_INCREMENTAL
+	# The sky never changes: its lighting is computed once, fully, before the
+	# first frame (incremental mode spreads it over frames, and the ground and
+	# the background visibly change brightness while it converges).
+	sky.process_mode = Sky.PROCESS_MODE_QUALITY
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
@@ -70,5 +73,6 @@ static func apply_viewport(vp: Viewport, quality: int) -> void:
 	vp.msaa_3d = msaa[q]
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	# Switch meshes to their lighter automatic LODs earlier on phones.
-	var lod := [6.0, 3.0, 1.5] if mobile else [3.0, 1.0, 1.0]
+	# Higher thresholds make the car body visibly pop between its LODs.
+	var lod := [4.0, 2.0, 1.5] if mobile else [3.0, 1.0, 1.0]
 	vp.mesh_lod_threshold = lod[q]

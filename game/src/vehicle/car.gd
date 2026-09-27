@@ -310,13 +310,20 @@ func _setup_audio() -> void:
 	_click = AudioStreamPlayer.new()
 	_click.volume_db = -6.0
 	add_child(_click)
-	# Tyre layers are looped and only play while audible (see _set_loop).
+	# Tyre layers loop for the whole drive and are faded in and out by volume
+	# (see _set_loop): starting and stopping a player several times a second
+	# as the slip flickers churns playbacks under the audio thread, and a
+	# phone's audio thread crashed on it (SIGSEGV in AudioTrack).
 	_squeal = AudioStreamPlayer.new()
 	_squeal.stream = AudioSynth.squeal()
+	_squeal.volume_db = -80.0
 	add_child(_squeal)
+	_squeal.play(randf() * _squeal.stream.get_length())
 	_scrub = AudioStreamPlayer.new()
 	_scrub.stream = AudioSynth.scrub()
+	_scrub.volume_db = -80.0
 	add_child(_scrub)
+	_scrub.play(randf() * _scrub.stream.get_length())
 	_thump = AudioStreamPlayer3D.new()
 	_thump.stream = AudioSynth.thump()
 	add_child(_thump)
@@ -482,8 +489,15 @@ func _update_tyre_audio(delta: float, speed: float) -> void:
 	# tyre on full lock is silent.
 	scrub = clampf(scrub * 0.5, 0.0, 1.0) * smoothstep(1.5, 5.0, speed)
 	# Fast attack, slower release: no clicks or stutter when slip flickers.
-	_squeal_lvl = _follow(_squeal_lvl, squeal, delta)
-	_scrub_lvl = _follow(_scrub_lvl, scrub, delta)
+	# A non-finite level would stick forever (it feeds back through _follow).
+	_squeal_lvl = _follow(_squeal_lvl, squeal if is_finite(squeal) else 0.0, delta)
+	_scrub_lvl = _follow(_scrub_lvl, scrub if is_finite(scrub) else 0.0, delta)
+	if not is_finite(_squeal_lvl):
+		_squeal_lvl = 0.0
+	if not is_finite(_scrub_lvl):
+		_scrub_lvl = 0.0
+	if not is_finite(speed):
+		speed = 0.0
 	var muffle := 0.5 if _interior else 1.0
 	_set_loop(_squeal, _squeal_lvl * 0.32 * muffle, 0.94 + 0.1 * _squeal_lvl)
 	_set_loop(_scrub, _scrub_lvl * 0.25 * muffle, 0.75 + clampf(speed / 20.0, 0.0, 0.45))
@@ -494,17 +508,17 @@ static func _follow(current: float, target: float, delta: float) -> float:
 	return lerpf(current, target, 1.0 - exp(-delta / tau))
 
 
+## The audio thread trusts these values: pitch_scale rejects <= 0 but lets a
+## NaN through, and a NaN pitch sends the WAV mixer's read position off the
+## end of the sample data (the SIGSEGV in AudioTrack seen on phones). Slip and
+## load come straight from the tyre model, so anything non-finite is silence.
 func _set_loop(p: AudioStreamPlayer, gain: float, pitch: float) -> void:
 	var g := gain * _fx_gain
-	if g < 0.003:
-		if p.playing:
-			p.stop()
-		return
-	p.volume_db = linear_to_db(g)
-	p.pitch_scale = pitch
-	if not p.playing:
-		# Start somewhere random in the loop so repeats don't sound identical.
-		p.play(randf() * p.stream.get_length())
+	if not (is_finite(g) and is_finite(pitch)):
+		g = 0.0
+		pitch = 1.0
+	p.volume_db = linear_to_db(g) if g >= 0.003 else -80.0
+	p.pitch_scale = clampf(pitch, 0.5, 2.0)
 
 
 func _on_body_entered(body: Node) -> void:
