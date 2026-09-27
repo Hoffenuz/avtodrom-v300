@@ -55,23 +55,40 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 	_est = data.raw["estakada"]
 	traffic = get_node_or_null("TrafficController") as TrafficController
 	_rebuild_lost_surroundings()
+	var around := get_node_or_null("Surroundings")
 	if p_quality <= 1:
 		# Small casters are not worth a shadow pass on medium and low.
-		for n in ["FencePosts", "LampPostMesh", "GuardRailPosts", "Surroundings/ParkTreeCrowns",
-				"Surroundings/ParkTreeTrunks", "Surroundings/PoplarCrowns", "Surroundings/PoplarTrunks"]:
+		for n in ["FencePosts", "LampPostMesh", "GuardRailPosts"]:
 			var gi := get_node_or_null(n) as GeometryInstance3D
 			if gi:
 				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for gi in _children_named(around, ["ParkTree", "Poplar"]):
+			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if p_quality == 0:
 		# Low-end phones: half the trees and city blocks, no tree shadows.
-		for n in ["ParkTreeCrowns", "ParkTreeTrunks", "City", "ParkedCars0", "ParkedCars1"]:
-			var mmi := get_node_or_null("Surroundings/" + n) as MultiMeshInstance3D
+		for gi in _children_named(around, ["ParkTree", "City", "ParkedCars"]):
+			var mmi := gi as MultiMeshInstance3D
 			if mmi:
 				mmi.multimesh.visible_instance_count = mmi.multimesh.instance_count / 2
-		for n in ["ParkTreeCrowns", "ParkTreeTrunks", "PoplarCrowns", "PoplarTrunks", "ParkedCars0", "ParkedCars1"]:
-			var gi := get_node_or_null("Surroundings/" + n) as GeometryInstance3D
-			if gi:
-				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		for gi in _children_named(around, ["ParkTree", "Poplar", "ParkedCars"]):
+			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## Geometry children of `node` whose names start with one of `prefixes`
+## (the tree scatters are split into sectors: ParkTreeCrowns0, ...).
+static func _children_named(node: Node, prefixes: Array) -> Array[GeometryInstance3D]:
+	var out: Array[GeometryInstance3D] = []
+	if node == null:
+		return out
+	for child in node.get_children():
+		var gi := child as GeometryInstance3D
+		if gi == null:
+			continue
+		for pre in prefixes:
+			if String(gi.name).begins_with(pre):
+				out.append(gi)
+				break
+	return out
 
 
 ## The course is baked headless (tests/bake_course.gd), and the headless

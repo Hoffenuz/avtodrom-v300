@@ -13,6 +13,9 @@ const ROAD_WIDTH := 7.0
 const RING_Y := 0.04
 const PAINT_LIFT := 0.04
 const HEDGE_OFFSET := 6.0
+# Tree scatters are split into this many sectors around the field so the ones
+# behind the camera are culled.
+const TREE_SECTORS := 6
 
 var fence: Rect2
 var quality := 1
@@ -304,14 +307,20 @@ func _build_hedge() -> void:
 
 
 func _crown_mesh() -> ArrayMesh:
-	# Three overlapping blobs: reads as a tree crown from every side.
+	# Overlapping blobs: reads as a tree crown from every side. Medium and
+	# low get two coarser blobs (72 tris instead of 180): ~110 of these fill
+	# every view out of the car.
+	var blobs := [[Vector3(0, 0, 0), 1.0, 6, 4], [Vector3(0.7, -0.25, 0.3), 0.75, 6, 4],
+			[Vector3(-0.55, -0.2, -0.45), 0.8, 6, 4]]
+	if quality <= 1:
+		blobs = [[Vector3(0.08, 0, 0.05), 1.0, 6, 3], [Vector3(-0.55, -0.22, -0.35), 0.8, 4, 2]]
 	var st := _st()
-	var sphere := SphereMesh.new()
-	sphere.radius = 1.0
-	sphere.height = 2.0
-	sphere.radial_segments = 6
-	sphere.rings = 4
-	for b in [[Vector3(0, 0, 0), 1.0], [Vector3(0.7, -0.25, 0.3), 0.75], [Vector3(-0.55, -0.2, -0.45), 0.8]]:
+	for b in blobs:
+		var sphere := SphereMesh.new()
+		sphere.radius = 1.0
+		sphere.height = 2.0
+		sphere.radial_segments = b[2]
+		sphere.rings = b[3]
 		st.append_from(sphere, 0, Transform3D(Basis().scaled(Vector3.ONE * float(b[1])), b[0]))
 	return st.commit()
 
@@ -347,7 +356,7 @@ func _build_poplars() -> void:
 	crown.radius = 1.0
 	crown.height = 2.0
 	crown.radial_segments = 6
-	crown.rings = 5
+	crown.rings = 5 if quality >= 2 else 4
 	_scatter("Poplar", pts, trunk, crown, func(s: float) -> Array:
 		# [trunk basis/offset, crown scale, crown centre height]
 		var hgt := 10.0 * s
@@ -384,29 +393,13 @@ func _build_park_trees() -> void:
 		Color(0.2, 0.36, 0.14), Color(0.36, 0.46, 0.18))
 
 
-## Trunks and crowns as two MultiMeshes. `shape(scale)` returns
+## Trunks and crowns as MultiMeshes, one pair per sector around the field
+## (nodes `<label>Trunks<k>` / `<label>Crowns<k>`): a single MultiMesh would
+## have one AABB around the whole site and never be frustum-culled, so the
+## trees behind the camera would still be drawn. `shape(scale)` returns
 ## [trunk scale, crown scale, crown centre height].
 func _scatter(label: String, pts: Array[Vector2], trunk: Mesh, crown: Mesh, shape: Callable, c0: Color,
 		c1: Color) -> void:
-	var tmm := MultiMesh.new()
-	tmm.transform_format = MultiMesh.TRANSFORM_3D
-	tmm.mesh = trunk
-	tmm.instance_count = pts.size()
-	var cmm := MultiMesh.new()
-	cmm.transform_format = MultiMesh.TRANSFORM_3D
-	cmm.use_colors = true
-	cmm.mesh = crown
-	cmm.instance_count = pts.size()
-	for i in pts.size():
-		var p := pts[i]
-		var s := _rng.randf_range(0.8, 1.25)
-		var sh: Array = shape.call(s)
-		var ts: Vector3 = sh[0]
-		tmm.set_instance_transform(i, Transform3D(Basis().scaled(ts), Vector3(p.x, 1.5 * ts.y, p.y)))
-		var cs: Vector3 = sh[1]
-		var cb := Basis(Vector3.UP, _rng.randf() * TAU).scaled(cs)
-		cmm.set_instance_transform(i, Transform3D(cb, Vector3(p.x, float(sh[2]), p.y)))
-		cmm.set_instance_color(i, c0.lerp(c1, _rng.randf()))
 	var tm := StandardMaterial3D.new()
 	tm.albedo_color = Color(0.3, 0.23, 0.16)
 	tm.roughness = 0.9
@@ -418,13 +411,51 @@ func _scatter(label: String, pts: Array[Vector2], trunk: Mesh, crown: Mesh, shap
 		(crown as ArrayMesh).surface_set_material(0, cm)
 	else:
 		(crown as PrimitiveMesh).material = cm
-	for pair in [[tmm, label + "Trunks"], [cmm, label + "Crowns"]]:
-		var mmi := MultiMeshInstance3D.new()
-		mmi.name = pair[1]
-		mmi.multimesh = pair[0]
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if quality >= 1 \
-				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(mmi)
+	# Same draw order and rng use as one big scatter: only the grouping differs.
+	var trunks: Array = []
+	var crowns: Array = []
+	for k in TREE_SECTORS:
+		trunks.append([])
+		crowns.append([])
+	var centre := fence.get_center()
+	for p in pts:
+		var s := _rng.randf_range(0.8, 1.25)
+		var sh: Array = shape.call(s)
+		var ts: Vector3 = sh[0]
+		var cs: Vector3 = sh[1]
+		var cb := Basis(Vector3.UP, _rng.randf() * TAU).scaled(cs)
+		var k := _sector(p - centre)
+		trunks[k].append(Transform3D(Basis().scaled(ts), Vector3(p.x, 1.5 * ts.y, p.y)))
+		crowns[k].append([Transform3D(cb, Vector3(p.x, float(sh[2]), p.y)), c0.lerp(c1, _rng.randf())])
+	for k in TREE_SECTORS:
+		if trunks[k].is_empty():
+			continue
+		var tmm := MultiMesh.new()
+		tmm.transform_format = MultiMesh.TRANSFORM_3D
+		tmm.mesh = trunk
+		tmm.instance_count = trunks[k].size()
+		var cmm := MultiMesh.new()
+		cmm.transform_format = MultiMesh.TRANSFORM_3D
+		cmm.use_colors = true
+		cmm.mesh = crown
+		cmm.instance_count = crowns[k].size()
+		for i in trunks[k].size():
+			tmm.set_instance_transform(i, trunks[k][i])
+			cmm.set_instance_transform(i, crowns[k][i][0])
+			cmm.set_instance_color(i, crowns[k][i][1])
+		for pair in [[tmm, label + "Trunks%d" % k], [cmm, label + "Crowns%d" % k]]:
+			var mmi := MultiMeshInstance3D.new()
+			mmi.name = pair[1]
+			mmi.multimesh = pair[0]
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if quality >= 1 \
+					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(mmi)
+
+
+## Sector (0 .. TREE_SECTORS-1) of a direction from the field centre.
+static func _sector(d: Vector2) -> int:
+	var a := fposmod(d.angle() + PI / TREE_SECTORS, TAU)
+	return mini(int(a / TAU * TREE_SECTORS), TREE_SECTORS - 1)
 
 
 # --------------------------------------------------------------------------- city
