@@ -96,7 +96,8 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 	Loc.language_changed.connect(_relabel)
 	get_viewport().size_changed.connect(_layout)
 	Settings.changed.connect(func(k: String) -> void:
-		if k in ["screen_controls", "steering_mode", "left_handed", "auto_clutch", "hud_layout"]:
+		if k in ["screen_controls", "steering_mode", "left_handed", "auto_clutch", "hud_layout", "wheel_scale",
+				"wheel_shift_x", "wheel_shift_y"]:
 			touch_mode = Settings.screen_controls_on()
 			if not touch_mode:
 				controls.touch_steer_active = false
@@ -362,8 +363,15 @@ func _layout() -> void:
 	var sw := 66.0
 	var col_x := gas_pos.x + gas_sz.x * 0.5 - sw * 0.5
 	var col_y := gas_pos.y - 12 - sw * 3 - 16
-	var wheel_d := minf(250.0, vp.y * 0.36)
-	var wheel_pos := Vector2(L, B - wheel_d)
+	# Wheel and indicators: one group the player can resize and move away
+	# from the corner in the settings (the layout editor still fine-tunes).
+	var ws := clampf(float(Settings.get_value("wheel_scale")), 0.7, 1.35)
+	var shift := Vector2(clampf(float(Settings.get_value("wheel_shift_x")), 0.0, 0.2) * W,
+			clampf(float(Settings.get_value("wheel_shift_y")), 0.0, 0.2) * (B - T))
+	var wheel_d := minf(250.0, vp.y * 0.36) * ws
+	# Keep the indicators above it clear of the exercise card.
+	var wheel_y := maxf(B - wheel_d - shift.y, T + 150.0 + 86.0 * ws)
+	var wheel_pos := Vector2(L + shift.x, wheel_y)
 	if left_handed:
 		var mirror := func(p: Vector2, s: Vector2) -> Vector2: return Vector2(L + R - p.x - s.x, p.y)
 		gas_pos = mirror.call(gas_pos, gas_sz)
@@ -371,7 +379,7 @@ func _layout() -> void:
 		clutch_pos = mirror.call(clutch_pos, clutch_sz)
 		gear_pos = mirror.call(gear_pos, gear_sz)
 		col_x = L + R - col_x - sw
-		wheel_pos = Vector2(R - wheel_d, B - wheel_d)
+		wheel_pos = Vector2(R - shift.x - wheel_d, wheel_y)
 	_place(gas, gas_pos, gas_sz)
 	_place(brake_pedal, brake_pos, brake_sz)
 	_place(clutch_pedal, clutch_pos, clutch_sz)
@@ -381,12 +389,15 @@ func _layout() -> void:
 		_place(b, Vector2(col_x, col_y + i * (sw + 8)), b.base_size)
 	# Steering (left): wheel or buttons; indicators and hazards above it.
 	_place(wheel, wheel_pos, Vector2(wheel_d, wheel_d))
-	_place(btn_steer_left, Vector2(wheel_pos.x, B - 112), Vector2(110, 110))
-	_place(btn_steer_right, Vector2(wheel_pos.x + 126, B - 112), Vector2(110, 110))
-	var ind_y := wheel_pos.y - 86
-	_place(b_ind_left, Vector2(wheel_pos.x, ind_y), b_ind_left.base_size)
-	_place(b_hazard, Vector2(wheel_pos.x + wheel_d * 0.5 - 32, ind_y + 6), b_hazard.base_size)
-	_place(b_ind_right, Vector2(wheel_pos.x + wheel_d - 76, ind_y), b_ind_right.base_size)
+	var steer_y := B - shift.y - 112.0 * ws
+	_place(btn_steer_left, Vector2(wheel_pos.x, steer_y), Vector2(110, 110) * ws)
+	_place(btn_steer_right, Vector2(wheel_pos.x + 126.0 * ws, steer_y), Vector2(110, 110) * ws)
+	var ind_y := wheel_pos.y - 86.0 * ws
+	var ind_sz := b_ind_left.base_size * ws
+	var haz_sz := b_hazard.base_size * ws
+	_place(b_ind_left, Vector2(wheel_pos.x, ind_y), ind_sz)
+	_place(b_hazard, Vector2(wheel_pos.x + (wheel_d - haz_sz.x) * 0.5, ind_y + (ind_sz.y - haz_sz.y) * 0.5), haz_sz)
+	_place(b_ind_right, Vector2(wheel_pos.x + wheel_d - ind_sz.x, ind_y), ind_sz)
 
 	wheel.visible = controls_on and steer_mode == "wheel"
 	btn_steer_left.visible = controls_on and steer_mode == "buttons"
@@ -408,16 +419,23 @@ func _layout() -> void:
 	if controls_on:
 		_apply_custom_layout(Rect2(L, T, W, B - T))
 
-	# Map: under the top-right buttons (desktop) or under the status (phones).
+	# Map: top-right, under the camera / map / pause buttons, so the middle of
+	# the screen (the road ahead, the penalty and the notices) stays clear. On
+	# phones it stops above the switches (or the wheel for left-handed
+	# drivers) on that side.
 	minimap.visible = _map_on and data != null
 	var mm := 190.0 if touch_mode else 220.0
-	if touch_mode:
-		# On short (~720 px tall) layouts a full-size map would reach down over
-		# the gear lever; keep clear of it.
-		mm = clampf(minf(mm, gear_pos.y - 12.0 - (T + (96.0 if demo else 58.0))), 120.0, mm)
-		_place(minimap, Vector2(L + W * 0.5 - mm * 0.5, T + (96 if demo else 58)), Vector2(mm, mm))
-	else:
-		_place(minimap, Vector2(R - mm, T + 72), Vector2(mm, mm))
+	var map_top := T + 72.0
+	var map_x := R - mm
+	if controls_on:
+		if left_handed:
+			mm = clampf(minf(mm, ind_y - 12.0 - map_top), 120.0, mm)
+			map_x = R - mm
+		elif col_y - 12.0 - map_top < mm:
+			# Short screens: beside the switch column instead, above the gears.
+			mm = clampf(minf(mm, gear_pos.y - 12.0 - map_top), 120.0, mm)
+			map_x = col_x - 12.0 - mm
+	_place(minimap, Vector2(map_x, map_top), Vector2(mm, mm))
 
 
 ## The touch controls the player can move and resize, by layout id.

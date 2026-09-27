@@ -177,6 +177,9 @@ func _build() -> void:
 		_row("set.steering", _segmented("steering_mode", modes))
 		_row("set.sensitivity", _slider("steering_sensitivity", 0.75, 3.0, 0.05, "%.2f", 1.0))
 		_row("set.autocenter", _toggle("steering_autocenter"))
+		_row("set.wheel_scale", _slider("wheel_scale", 0.7, 1.35, 0.05), "set.wheel_group_desc")
+		_row("set.wheel_shift_x", _slider("wheel_shift_x", 0.0, 0.2, 0.01))
+		_row("set.wheel_shift_y", _slider("wheel_shift_y", 0.0, 0.2, 0.01))
 	_row("set.auto_clutch", _toggle("auto_clutch"))
 	if touch:
 		_row("set.left_handed", _toggle("left_handed"))

@@ -22,8 +22,13 @@ var _settings_panel: SettingsPanel
 
 
 func _ready() -> void:
+	# The 3D backdrop takes a moment to build: the loading page goes up first.
+	set_process(false)
+	await Loading.cover("load.world")
 	_build_world()
 	_build_ui()
+	set_process(true)
+	Loading.finish()
 	Loc.language_changed.connect(_rebuild_ui)
 	Session.history_changed.connect(_update_stats)
 	match DebugShots.menu_page:
@@ -283,13 +288,7 @@ func _update_stats() -> void:
 
 
 func _start(mode: Session.Mode, exercise := "", demo := false) -> void:
-	_clear_content()
-	var c := CenterContainer.new()
-	_content.add_child(c)
-	c.add_child(UITheme.label(Loc.t("menu.loading"), 34, UITheme.TEXT, true))
-	await get_tree().process_frame
-	await get_tree().process_frame
-	Session.start(mode, exercise, demo)
+	Session.start(mode, exercise, demo) # behind the loading page
 
 
 # ------------------------------------------------------------------ sub-screens

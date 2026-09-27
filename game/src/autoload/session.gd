@@ -38,12 +38,21 @@ func start(p_mode: Mode, exercise: String = "", p_demo := false) -> void:
 	mode = p_mode
 	practice_exercise = exercise
 	demo = p_demo
+	await Loading.cover("load.drive")
 	get_tree().change_scene_to_file("res://scenes/drive.tscn")
 
 
 func back_to_menu() -> void:
 	get_tree().paused = false
+	await Loading.cover("load.menu")
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+## Starts the same drive again (after the loading page is up).
+func restart_drive() -> void:
+	get_tree().paused = false
+	await Loading.cover("load.drive")
+	get_tree().reload_current_scene()
 
 
 ## Instructions on the exercise card and the yellow lines: practice and the

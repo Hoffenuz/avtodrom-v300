@@ -24,6 +24,7 @@ driver/mix_rate=32000
 
 Settings="*res://src/autoload/settings.gd"
 Loc="*res://src/autoload/loc.gd"
+Loading="*res://src/autoload/loading_screen.gd"
 Session="*res://src/autoload/session.gd"
 DebugShots="*res://src/autoload/debug_shots.gd"
 

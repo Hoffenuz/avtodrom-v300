@@ -116,6 +116,7 @@ func _ready() -> void:
 		hud.set_demo(true)
 		rig.set_mode(CameraRig.Mode.CHASE)
 	_debug_options()
+	Loading.finish()
 
 
 ## Command-line helpers for automated checks (after "--" on the command line;
@@ -318,8 +319,7 @@ func _resume() -> void:
 
 
 func _restart() -> void:
-	get_tree().paused = false
-	get_tree().reload_current_scene()
+	Session.restart_drive()
 
 
 func _quit_to_menu() -> void:
