@@ -50,6 +50,7 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 	quality = p_quality
 	_est = data.raw["estakada"]
 	traffic = get_node_or_null("TrafficController") as TrafficController
+	_rebuild_lost_surroundings()
 	if p_quality <= 1:
 		# Small casters are not worth a shadow pass on medium and low.
 		for n in ["FencePosts", "LampPostMesh", "GuardRailPosts", "Surroundings/ParkTreeCrowns",
@@ -67,6 +68,33 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 			var gi := get_node_or_null("Surroundings/" + n) as GeometryInstance3D
 			if gi:
 				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+## The course is baked headless (tests/bake_course.gd), and the headless
+## renderer keeps no MultiMesh instance data, so the baked trees, city blocks
+## and parked cars load with every transform zeroed and never show. When
+## that is the case, build the surroundings again here (deterministic, a
+## few ms) instead of using the baked copy.
+func _rebuild_lost_surroundings() -> void:
+	var old := get_node_or_null("Surroundings")
+	if old == null or not _has_empty_multimesh(old):
+		return
+	remove_child(old)
+	old.free()
+	_make_materials()
+	var around := Surroundings.new()
+	add_child(around)
+	around.build(_fence_rect(), quality, mat)
+
+
+static func _has_empty_multimesh(node: Node) -> bool:
+	for child in node.get_children():
+		var mmi := child as MultiMeshInstance3D
+		if mmi and mmi.multimesh and mmi.multimesh.instance_count > 0:
+			var t := mmi.multimesh.get_instance_transform(0)
+			if t.basis.determinant() == 0.0:
+				return true
+	return false
 
 
 func build(p_data: CourseData, p_quality: int) -> void:
