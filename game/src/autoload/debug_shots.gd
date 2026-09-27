@@ -66,6 +66,10 @@ func _perf_sample(delta: float) -> void:
 	_perf_worst_ms = maxf(_perf_worst_ms, ms)
 	if _t > 3.0: # skip loading hitches for the summary
 		_perf_all.append(ms)
+		if ms > 25.0:
+			print("PERF_HITCH t=%.2f frame=%.1fms process=%.2fms physics=%.2fms" % [_t, ms,
+					Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+					Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0])
 	_perf_t += delta
 	if _perf_t < 2.0:
 		return

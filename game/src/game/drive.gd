@@ -97,6 +97,7 @@ func _ready() -> void:
 	mirrors = MirrorViews.new()
 	add_child(mirrors)
 	mirrors.setup(car, hud.root, quality, sun, rig.camera)
+	mirrors.hide_exterior_in_cockpit(rig)
 
 	pause_menu = PauseMenu.new()
 	add_child(pause_menu)

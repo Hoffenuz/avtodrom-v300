@@ -18,6 +18,9 @@ const PITCH := -0.10 # slightly down, so the kerb and the lines near the car sho
 # render layer that only its own cameras include.
 const LAYER_SUN := 1 << 18 # layer 19
 const LAYER_MIRROR_SUN := 1 << 19 # layer 20
+# Parts of the own car the driver cannot see from the seat (wheels, lamps):
+# the cockpit camera skips them, the mirrors still show them.
+const LAYER_EXTERIOR := 1 << 17 # layer 18
 const FAR := 120.0
 
 var car: Car
@@ -83,6 +86,23 @@ func _split_sun(sun: DirectionalLight3D, main_camera: Camera3D) -> void:
 	sun.layers = LAYER_SUN
 	main_camera.cull_mask &= ~LAYER_MIRROR_SUN
 	_mirror_sun = copy
+
+
+## From the driver's seat the wheels and lamps are behind the body, yet the
+## renderer would still draw them (it only skips what is outside the view).
+func hide_exterior_in_cockpit(rig: CameraRig) -> void:
+	for n in car.model.find_children("*", "VisualInstance3D", true, false):
+		var p := n.get_parent()
+		var name_path := String(n.name) + " " + String(p.name) + " " + String(p.get_parent().name)
+		if name_path.contains("Wheel_") or String(n.name).begins_with("Lamp_"):
+			(n as VisualInstance3D).layers = LAYER_EXTERIOR
+	var apply := func(mode: int) -> void:
+		if mode == CameraRig.Mode.COCKPIT:
+			rig.camera.cull_mask &= ~LAYER_EXTERIOR
+		else:
+			rig.camera.cull_mask |= LAYER_EXTERIOR
+	rig.mode_changed.connect(apply)
+	apply.call(rig.mode)
 
 
 func _layout() -> void:
