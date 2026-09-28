@@ -144,6 +144,12 @@ VehicleParams make_nexia2();
 // curb 1165 kg, wheelbase 2620 mm, tyres 185/75 R14.
 VehicleParams make_cobalt_at();
 
+// Daewoo/Ravon Gentra (J200 facelift, UzAuto), 1.5 DOHC (B15D2), 5-speed manual,
+// FWD. Maker data: 107 hp @ 5800 rpm, 141 N·m @ 3800 rpm, curb 1185 kg,
+// wheelbase 2600 mm, length 4515 mm, tyres 195/55 R15. Gear ratios: the
+// Lacetti/Gentra D-series 5-speed (estimate where UzAuto does not publish them).
+VehicleParams make_gentra();
+
 VehicleParams make_preset(const std::string &id);
 
 } // namespace avto

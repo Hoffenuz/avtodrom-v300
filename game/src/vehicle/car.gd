@@ -15,13 +15,19 @@ enum Indicator { OFF, LEFT, RIGHT }
 ## body origin midway between the axles on the ground; front/rear = distance
 ## to the bumpers, half_width = body side (without mirrors), mirror = right
 ## door-mirror eye point (the left one is mirrored). speed_max/rpm_max: the
-## dashboard dials' full scale (km/h, rpm).
+## dashboard dials' full scale (km/h, rpm). paint: body colour (default white).
 const MODELS := {
 	"nexia2": {"path": "res://assets/cars/nexia2/nexia2.glb", "lod": "res://assets/cars/lod/nexia2_lod.glb", "front": 2.18, "rear": 2.31, "half_width": 0.83,
 			"mirror": Vector3(0.88, 0.93, -0.37), "speed_max": 220.0, "rpm_max": 8000.0},
 	"cobalt_at": {"path": "res://assets/cars/cobalt/cobalt.glb", "lod": "res://assets/cars/lod/cobalt_lod.glb", "front": 2.22, "rear": 2.26, "half_width": 0.86,
 			"mirror": Vector3(0.936, 1.043, -0.53), "speed_max": 220.0, "rpm_max": 7000.0},
+	"gentra": {"path": "res://assets/cars/gentra/gentra.glb", "lod": "res://assets/cars/lod/gentra_lod.glb", "front": 2.22, "rear": 2.31, "half_width": 0.87,
+			"mirror": Vector3(0.905, 1.019, -0.45), "speed_max": 240.0, "rpm_max": 8000.0,
+			"paint": Color(0.012, 0.012, 0.014)},
 }
+const WHITE_PAINT := Color(0.93, 0.94, 0.95)
+## The cars on offer, in the order the menu shows them.
+const IDS := ["nexia2", "gentra", "cobalt_at"]
 const GAUGE_SHADER := preload("res://assets/shaders/gauge.gdshader")
 const BLINK_HZ := 1.5 # 90 flashes per minute (UNECE R48)
 const LAYER_CAR := 2
@@ -136,7 +142,7 @@ func _load_model() -> void:
 		var mi := model.find_child(n, true, false) as MeshInstance3D
 		if mi:
 			_lamps[n] = mi
-	_apply_materials(model)
+	_apply_materials(model, spec.get("paint", WHITE_PAINT))
 	var outer := model.find_child("BodyOuter", true, false) as VisualInstance3D
 	if outer:
 		outer.layers = LAYER_EXTERIOR
@@ -202,8 +208,10 @@ func _cabin(color: Color, roughness: float, metallic := 0.0) -> StandardMaterial
 	return m
 
 
-func _apply_materials(root: Node) -> void:
-	var paint := _pbr(Color(0.93, 0.94, 0.95), 0.05, 0.28)
+func _apply_materials(root: Node, paint_color: Color) -> void:
+	# A dark paint needs a smoother top coat to read as paint, not plastic.
+	var dark := paint_color.get_luminance() < 0.2
+	var paint := _pbr(paint_color, 0.05, 0.2 if dark else 0.28)
 	paint.clearcoat_enabled = true
 	paint.clearcoat = 0.9
 	paint.clearcoat_roughness = 0.08
@@ -235,6 +243,7 @@ func _apply_materials(root: Node) -> void:
 		"headlamp": _pbr(Color(0.3, 0.31, 0.33), 0.4, 0.45),
 		"headlamp_lens": _pbr(Color(0.36, 0.38, 0.41), 0.85, 0.22),
 		"plate": _pbr(Color(0.92, 0.93, 0.94), 0.0, 0.45),
+		"headliner": _cabin(Color(0.46, 0.45, 0.43), 0.9),
 	}
 	for mi in root.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D

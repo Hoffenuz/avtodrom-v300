@@ -164,7 +164,10 @@ func _build() -> void:
 	var touch := Settings.screen_controls_on()
 	_section("set.general")
 	_row("set.language", _segmented("language", [["uz_latn", "O‘zbekcha"], ["uz_cyrl", "Ўзбекча"], ["ru", "Русский"]]))
-	_row("menu.car", _segmented("car", [["nexia2", Loc.t("car.nexia2")], ["cobalt_at", Loc.t("car.cobalt_at")]]))
+	var cars := []
+	for cid in Car.IDS:
+		cars.append([cid, Loc.t("car." + cid)])
+	_row("menu.car", _segmented("car", cars))
 
 	_section("set.controls")
 	if not Settings.is_mobile():
@@ -222,3 +225,9 @@ func _build() -> void:
 			c.queue_free()
 		_build.call_deferred())
 	_list.add_child(reset)
+
+	_section("set.credits")
+	var credits := UITheme.label(Loc.t("set.credits_text"), 16, UITheme.TEXT_DIM)
+	credits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	credits.custom_minimum_size = Vector2(200, 0)
+	_list.add_child(credits)

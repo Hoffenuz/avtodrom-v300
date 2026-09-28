@@ -48,8 +48,10 @@ S = {
     "menu.try": ("Mashq", "Машқ", "Пробовать"),
     "car.nexia2": ("Nexia 2", "Nexia 2", "Nexia 2"),
     "car.cobalt_at": ("Cobalt", "Cobalt", "Cobalt"),
+    "car.gentra": ("Gentra", "Gentra", "Gentra"),
     "car.nexia2_desc": ("mexanika", "механика", "механика"),
     "car.cobalt_at_desc": ("avtomat", "автомат", "автомат"),
+    "car.gentra_desc": ("mexanika", "механика", "механика"),
 
     # exam intro
     "exam.title": ("Imtihon", "Имтиҳон", "Экзамен"),
@@ -100,6 +102,17 @@ S = {
     "set.vol_engine": ("Dvigatel", "Двигател", "Двигатель"),
     "set.reset": ("Standart holat", "Стандарт ҳолат", "Сбросить"),
     "set.keys": ("Klaviatura", "Клавиатура", "Клавиатура"),
+    "set.credits": ("Manbalar", "Манбалар", "Источники"),
+    "set.credits_text": (
+        "Gentra 3D modeli: «Daewoo_ Gentra», muallif Doniyor 3D (sketchfab.com/doniyorgroup), "
+        "CC BY 4.0 litsenziyasi (creativecommons.org/licenses/by/4.0); o‘yin uchun o‘zgartirilgan. "
+        "Teksturalar va osmon: Poly Haven (CC0). Shrift: Inter (SIL OFL).",
+        "Gentra 3D модели: «Daewoo_ Gentra», муаллиф Doniyor 3D (sketchfab.com/doniyorgroup), "
+        "CC BY 4.0 лицензияси (creativecommons.org/licenses/by/4.0); ўйин учун ўзгартирилган. "
+        "Текстуралар ва осмон: Poly Haven (CC0). Шрифт: Inter (SIL OFL).",
+        "3D-модель Gentra: «Daewoo_ Gentra», автор Doniyor 3D (sketchfab.com/doniyorgroup), "
+        "лицензия CC BY 4.0 (creativecommons.org/licenses/by/4.0); изменена для игры. "
+        "Текстуры и небо: Poly Haven (CC0). Шрифт: Inter (SIL OFL)."),
     "key.drive": ("Gaz / tormoz / rul", "Газ / тормоз / рул", "Газ / тормоз / руль"),
     "key.clutch": ("Mufta", "Муфта", "Сцепление"),
     "key.gears": ("Uzatmalar", "Узатмалар", "Передачи"),

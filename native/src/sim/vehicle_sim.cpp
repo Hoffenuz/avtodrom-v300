@@ -320,11 +320,20 @@ void VehicleSim::update_auto_clutch(double dt, const DriverInput &in, const std:
 		// tyres can take: while it slips, the clutch carries at most what the
 		// driven wheels can put down (or the engine's own torque, if more), so
 		// the revved-up flywheel is never dumped into the tyres.
+		const double grip = params_.tire.mu_long * 0.5 * (contacts[0].grip + contacts[1].grip);
+		const double traction = grip * (fz_[0] + fz_[1]) * params_.tire.radius / std::fabs(ratio);
 		if (speed < 8.0 && std::fabs(slip) >= 120.0) {
-			const double grip = params_.tire.mu_long * 0.5 * (contacts[0].grip + contacts[1].grip);
-			const double traction = grip * (fz_[0] + fz_[1]) * params_.tire.radius / std::fabs(ratio);
 			const double cap = std::max(traction, combustion_torque_);
 			target = std::min(target, cap / params_.clutch.max_torque);
+		}
+		// A stronger engine can spin the fronts in 1st even with the clutch
+		// home (the load moves rearwards as the car squats): the driver feels
+		// the wheels flare and eases the clutch back to what they can put down.
+		if (speed < 8.0) {
+			const double ground = 0.5 * std::fabs(contacts[0].vx + contacts[1].vx);
+			if (speed - ground > std::max(0.6, 0.12 * ground)) {
+				target = std::min(target, 0.85 * traction / params_.clutch.max_torque);
+			}
 		}
 		if (in.brake > 0.25 && speed < 2.0) {
 			target = 0.0; // holding the car on the brake

@@ -243,8 +243,8 @@ func _car_carousel() -> Control:
 	h.add_child(v)
 	var next := _chevron("chev_right")
 	h.add_child(next)
-	prev.pressed.connect(func() -> void: _switch_car())
-	next.pressed.connect(func() -> void: _switch_car())
+	prev.pressed.connect(func() -> void: _switch_car(-1))
+	next.pressed.connect(func() -> void: _switch_car(1))
 	_show_car_name()
 	return p
 
@@ -263,8 +263,9 @@ func _chevron(icon: String) -> Button:
 	return b
 
 
-func _switch_car() -> void:
-	var cid := "cobalt_at" if str(Settings.get_value("car")) == "nexia2" else "nexia2"
+func _switch_car(step: int) -> void:
+	var i := Car.IDS.find(str(Settings.get_value("car")))
+	var cid: String = Car.IDS[posmod(i + step, Car.IDS.size())]
 	Settings.set_value("car", cid)
 	if _menu_car:
 		_menu_car.configure(cid)

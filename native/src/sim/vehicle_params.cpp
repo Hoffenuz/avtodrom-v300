@@ -148,9 +148,71 @@ VehicleParams make_cobalt_at() {
 	return p;
 }
 
+VehicleParams make_gentra() {
+	VehicleParams p;
+	p.id = "gentra";
+	p.mass = 1185.0 + 75.0;
+	// Estimated like the Cobalt's (same platform class, 61/39 front/rear).
+	p.inertia = { 610.0, 2080.0, 1930.0 };
+	p.center_of_mass = { 0.0, 0.54, -0.27 };
+	p.drag_area = 0.34 * 2.05;
+	// Measured on the game model (pipeline/blender/build_gentra.py, scaled to
+	// the maker's 2600 mm wheelbase): track 1498 mm at the wheel centres.
+	p.wheelbase = 2.60;
+	p.track = 1.498;
+	p.abs = true;
+
+	EngineParams &e = p.engine;
+	// B15D2 in the Gentra's tune: 141 N·m @ 3800 rpm, 107 hp @ 5800 rpm.
+	e.torque_full = Curve{ { 0.0, 68.0 }, { 600.0, 95.0 }, { 1000.0, 108.0 }, { 1500.0, 117.0 }, { 2000.0, 124.0 },
+		{ 2500.0, 130.0 }, { 3000.0, 136.0 }, { 3800.0, 141.0 }, { 4600.0, 138.0 }, { 5200.0, 134.0 },
+		{ 5800.0, 129.0 }, { 6400.0, 112.0 }, { 7000.0, 80.0 } };
+	e.inertia = 0.14;
+	e.idle_rpm = 800.0;
+	e.limiter_rpm = 6500.0;
+	e.redline_rpm = 6300.0;
+
+	p.clutch.max_torque = 205.0;
+
+	GearboxParams &g = p.gearbox;
+	g.type = TransmissionType::Manual;
+	g.forward = { 3.545, 1.952, 1.276, 0.941, 0.756 };
+	g.reverse = 3.333;
+	g.final_drive = 4.176;
+	g.efficiency = 0.93;
+
+	TireParams &t = p.tire;
+	t.radius = 0.2978; // 195/55 R15: 381/2 + 195*0.55 = 297.75 mm
+	t.width = 0.195;
+	t.load_nominal = (1260.0 * kGravity) / 4.0;
+
+	p.steering.wheel_lock_deg = 520.0;
+	p.steering.max_road_angle_deg = 37.0; // 10.3 m turning circle
+
+	layout_wheels(p, p.wheelbase, p.track, p.track, t.radius, 0.27);
+	for (int i = 0; i < 4; ++i) {
+		WheelParams &w = p.wheels[static_cast<size_t>(i)];
+		const bool front = i < 2;
+		w.inertia = front ? 1.25 : 1.05;
+		w.brake_torque = front ? 1480.0 : 640.0;
+		w.handbrake_torque = front ? 0.0 : 1000.0;
+		w.spring_rate = front ? 25500.0 : 21500.0;
+		w.damper_bump = front ? 1700.0 : 1400.0;
+		w.damper_rebound = front ? 2750.0 : 2300.0;
+		w.travel_up = 0.10;
+		w.travel_down = 0.09;
+	}
+	p.anti_roll_front = 12500.0;
+	p.anti_roll_rear = 4000.0;
+	return p;
+}
+
 VehicleParams make_preset(const std::string &id) {
 	if (id == "cobalt_at") {
 		return make_cobalt_at();
+	}
+	if (id == "gentra") {
+		return make_gentra();
 	}
 	return make_nexia2();
 }

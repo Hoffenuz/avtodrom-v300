@@ -10,9 +10,10 @@ imtihonining simulyatori. Android (asosiy) va Windows uchun.
   (100 balldan kam — "o'tdi"; 100 ga yetganda imtihon darhol to'xtaydi).
 - Haqiqiy fizika: dvigatel, ilashish (mufta), 5 pog'onali mexanika yoki
   avtomat, shinalar modeli, ABS, osma — hammasi C++ da.
-- Ikki mashina: **Nexia 2** (mexanika, 5 pog'ona) va **Cobalt** (avtomat,
-  6 pog'ona) — har biri zavod ma'lumotlari bo'yicha (massa, dvigatel
-  momenti, uzatmalar, g'ildirak bazasi, shinalar).
+- Uch mashina: **Nexia 2** (mexanika, 5 pog'ona), **Gentra** (qora,
+  mexanika, 5 pog'ona) va **Cobalt** (avtomat, 6 pog'ona) — har biri zavod
+  ma'lumotlari bo'yicha (massa, dvigatel momenti, uzatmalar, g'ildirak
+  bazasi, shinalar).
 - Uch rejim:
   - **Imtihon** — to'liq marshrut, ko'rsatmalarsiz, natija tarixga yoziladi;
     imtihon paytida "qaytadan boshlash" yo'q (chiqish = o'tmadi, №26).
@@ -104,7 +105,24 @@ almashtiradi:
 blender -b --python pipeline/blender/refine_car.py -- cobalt.glb game/assets/cars/cobalt/cobalt.glb cobalt_at
 ```
 
-Natijani tekshirish: `godot --path game res://tests/car_render_test.tscn -- <papka> <nexia2|cobalt_at>`
+Gentra (Sketchfab, CC BY 4.0 — pastdagi "Litsenziyalar"ga qarang) xuddi
+shunday ikki bosqichda: `build_gentra.py` modelni +Y ga buradi, g'ildirak
+bazasi 2600 mm bo'yicha bir xil masshtablaydi, disk logotiplari va raqam
+yozuvlarini olib tashlaydi, shinalarni toza aylanma (lathe) shina bilan
+almashtiradi; `refine_car.py ... gentra` torpedo va ko'rsatkichlarni
+yasaydi:
+
+```
+blender -b --python pipeline/blender/build_gentra.py -- daewoo__gentra.glb gentra_build.glb
+blender -b --python pipeline/blender/refine_car.py -- gentra_build.glb game/assets/cars/gentra/gentra.glb gentra
+blender -b --python pipeline/blender/build_car_lod.py -- game/assets/cars/gentra/gentra.glb game/assets/cars/lod/gentra_lod.glb
+blender -b --python pipeline/blender/build_parked_car.py -- game/assets/cars/gentra/gentra.glb game/assets/cars/lod/gentra_parked.glb
+```
+
+Kuzov rangi `car.gd` dagi `MODELS[...]["paint"]` da (Gentra — qora,
+qolganlari oq).
+
+Natijani tekshirish: `godot --path game res://tests/car_render_test.tscn -- <papka> <nexia2|gentra|cobalt_at>`
 (tashqi va saloni suratlari). Chiqqan
 o'lchamlar (bamperlargacha masofa, ko'zgu nuqtasi) `game/src/vehicle/car.gd`
 dagi `MODELS` ga, g'ildirak bazasi/koleya C++ presetiga yoziladi.
@@ -144,15 +162,15 @@ python scripts/run_tests.py           # hammasi (~35 daqiqa)
 python scripts/run_tests.py --quick   # faqat C++ va avtomobil testlari
 ```
 
-1. C++ simulyator unit testlari (47 ta).
+1. C++ simulyator unit testlari (63 ta tekshiruv).
 2. Godot/Jolt avtomobil integratsiya testi (20 ta tekshiruv).
-3. Butun imtihon avtopilot bilan, ikkala mashinada — 0 jarima kutiladi.
+3. Butun imtihon avtopilot bilan, uchala mashinada — 0 jarima kutiladi.
 4. Ataylab xato qilish (kamarsiz, to'xtamaslik, qizil chiroq, burilish
    chirog'isiz, tezlikni oshirish) — to'g'ri jarima bandlari chiqishi kerak.
-5. Har bir mashqning "Namuna"si alohida, ikkala mashinada — 0 jarima.
+5. Har bir mashqning "Namuna"si alohida, uchala mashinada — 0 jarima.
 
 Qo'lda tekshirish uchun buyruq qatori (Godot `--` dan keyin):
-`--mode=practice --exercise=box --demo`, `--car=cobalt_at`, `--camera=chase`, `--autopilot`,
+`--mode=practice --exercise=box --demo`, `--car=cobalt_at` (yoki `gentra`), `--camera=chase`, `--autopilot`,
 `--seed=<n>` (svetofor fazalari takrorlanadi), `--touch` (telefon ko'rinishi kompyuterda),
 `--shots=<papka>`, `--quit-after-s=<s>`, `--menu-page=exam|practice|rules|history|settings`.
 
@@ -185,6 +203,13 @@ joyini surish — kamerani aylantirish.
 
 ## Litsenziyalar va manbalar
 
+- Gentra 3D modeli: "Daewoo_ Gentra"
+  (https://sketchfab.com/3d-models/daewoo--gentra-bf6d601e37ef4b829f27998d1c7b36c1),
+  muallif Doniyor 3D (https://sketchfab.com/doniyorgroup), litsenziya
+  CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/). O'zgartirilgan:
+  burilgan va masshtablangan, uchburchaklar kamaytirilgan, shinalar,
+  torpedo va raqam belgilari almashtirilgan, rangi qora. Muallif o'yinda
+  ham ko'rsatilgan (Sozlamalar → Manbalar).
 - Teksturalar va osmon: Poly Haven (CC0).
 - Shrift: Inter (SIL Open Font License, `game/assets/fonts/OFL.txt`).
 - Yo'l belgilari va jarima jadvali: AvtoSmart (variant-vision-quiz) ma'lumotlari.

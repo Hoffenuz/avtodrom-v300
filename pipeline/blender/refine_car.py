@@ -60,6 +60,16 @@ SPEC = {
         # inside is dropped and a plain solid lamp sits behind the lens.
         "headlight": {"x": (0.45, 0.86), "y": (1.5, 2.1), "z": (0.5, 0.88), "turn_x": 0.71},
     },
+    "gentra": {
+        "half_width": 0.76, "y_back": 0.52, "z_top": 0.99, "z_knee": 0.62, "z_floor": 0.49,
+        "cut_z": 0.54, "cut_keep_x": 0.66, "keep_pillars": (0.55, 0.98),
+        "hood_w": 0.38, "gauge_r": 0.060, "gauge_z": 0.935,
+        "body_tris": 42000,
+        "spin_tris": 3700,  # a lathed tyre (clean, not decimated) plus the rim
+        "tunnel": True,  # manual: the gear-lever tunnel gets the modelled lever
+        "seats": None,
+        "headlight": None,
+    },
 }[CAR]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -136,7 +146,7 @@ for o in list(scene.objects):
     if o.type != "MESH":
         continue
     if o.name.startswith("Spin_"):
-        decimate(o, 3000)
+        decimate(o, SPEC.get("spin_tris", 3000))
     elif o.name.startswith("Hub_"):
         decimate(o, 400)
 
@@ -266,6 +276,11 @@ for f in bm.faces:
     c = f.calc_center_median()
     in_dash = c.z > SPEC["cut_z"] and abs(c.x) < SPEC["cut_keep_x"]
     in_console = c.z > SPEC["cut_z"] - 0.2 and abs(c.x) < 0.14
+    # Optional (|x|, z): the A-pillar trims beyond |x| and above z rise from
+    # the old dash's corners and stay (cut through, they turn into a saw).
+    pillar = SPEC.get("keep_pillars")
+    if pillar and abs(c.x) > pillar[0] and c.z > pillar[1]:
+        in_dash = False
     in_tunnel = SPEC["tunnel"] and abs(c.x) < 0.13 and y_back - 0.5 < c.y and 0.3 < c.z < 0.75
     seats = SPEC["seats"]
     in_seat = bool(seats) and (

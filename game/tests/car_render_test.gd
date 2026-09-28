@@ -30,6 +30,7 @@ func _ready() -> void:
 	var data := CourseData.get_default()
 	var start: Dictionary = data.exercise("start")["spawn"]
 	car.teleport(builder.spawn_transform(CourseData.v2(start["pos"]), float(start["yaw"])), true)
+	Loading.finish() # the loading page covers the first frames otherwise
 	cam = Camera3D.new()
 	cam.current = true
 	cam.far = 500

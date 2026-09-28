@@ -224,14 +224,17 @@ func _build_exam_centre() -> void:
 func _park_cars(bays: Array) -> void:
 	var paints := [Color(0.95, 0.95, 0.96), Color(0.93, 0.93, 0.94), Color(0.1, 0.1, 0.11), Color(0.62, 0.64, 0.66),
 			Color(0.55, 0.08, 0.08), Color(0.12, 0.2, 0.42), Color(0.75, 0.73, 0.68), Color(0.2, 0.22, 0.24)]
-	var models := ["res://assets/cars/lod/nexia2_parked.glb", "res://assets/cars/lod/cobalt_parked.glb"]
-	var picks := [[], []]
+	var models := ["res://assets/cars/lod/nexia2_parked.glb", "res://assets/cars/lod/cobalt_parked.glb",
+			"res://assets/cars/lod/gentra_parked.glb"]
+	var picks := []
+	for m in models.size():
+		picks.append([])
 	var paint_mat := ShaderMaterial.new()
 	paint_mat.shader = load("res://assets/shaders/car_parked.gdshader")
 	for bay in bays:
 		if _rng.randf() < 0.62:
-			picks[_rng.randi() % 2].append(bay)
-	for m in 2:
+			picks[_rng.randi() % models.size()].append(bay)
+	for m in models.size():
 		if picks[m].is_empty():
 			continue
 		var scene: PackedScene = load(models[m])

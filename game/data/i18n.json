@@ -134,6 +134,11 @@
   "uz_cyrl": "Cobalt",
   "ru": "Cobalt"
  },
+ "car.gentra": {
+  "uz_latn": "Gentra",
+  "uz_cyrl": "Gentra",
+  "ru": "Gentra"
+ },
  "car.nexia2_desc": {
   "uz_latn": "mexanika",
   "uz_cyrl": "механика",
@@ -143,6 +148,11 @@
   "uz_latn": "avtomat",
   "uz_cyrl": "автомат",
   "ru": "автомат"
+ },
+ "car.gentra_desc": {
+  "uz_latn": "mexanika",
+  "uz_cyrl": "механика",
+  "ru": "механика"
  },
  "exam.title": {
   "uz_latn": "Imtihon",
@@ -348,6 +358,16 @@
   "uz_latn": "Klaviatura",
   "uz_cyrl": "Клавиатура",
   "ru": "Клавиатура"
+ },
+ "set.credits": {
+  "uz_latn": "Manbalar",
+  "uz_cyrl": "Манбалар",
+  "ru": "Источники"
+ },
+ "set.credits_text": {
+  "uz_latn": "Gentra 3D modeli: «Daewoo_ Gentra», muallif Doniyor 3D (sketchfab.com/doniyorgroup), CC BY 4.0 litsenziyasi (creativecommons.org/licenses/by/4.0); o‘yin uchun o‘zgartirilgan. Teksturalar va osmon: Poly Haven (CC0). Shrift: Inter (SIL OFL).",
+  "uz_cyrl": "Gentra 3D модели: «Daewoo_ Gentra», муаллиф Doniyor 3D (sketchfab.com/doniyorgroup), CC BY 4.0 лицензияси (creativecommons.org/licenses/by/4.0); ўйин учун ўзгартирилган. Текстуралар ва осмон: Poly Haven (CC0). Шрифт: Inter (SIL OFL).",
+  "ru": "3D-модель Gentra: «Daewoo_ Gentra», автор Doniyor 3D (sketchfab.com/doniyorgroup), лицензия CC BY 4.0 (creativecommons.org/licenses/by/4.0); изменена для игры. Текстуры и небо: Poly Haven (CC0). Шрифт: Inter (SIL OFL)."
  },
  "key.drive": {
   "uz_latn": "Gaz / tormoz / rul",

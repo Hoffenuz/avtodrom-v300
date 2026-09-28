@@ -12,7 +12,7 @@ const SECTION := "settings"
 
 const DEFAULTS := {
 	"language": "uz_latn", # uz_latn | uz_cyrl | ru
-	"car": "nexia2", # nexia2 (mexanika) | cobalt_at (avtomat)
+	"car": "nexia2", # nexia2, gentra (mexanika) | cobalt_at (avtomat) — Car.IDS
 	"auto_clutch": true, # manual gearbox: the simulation works the clutch
 	"abs": true,
 	"steering_mode": "wheel", # wheel | tilt | buttons (on-screen controls)
