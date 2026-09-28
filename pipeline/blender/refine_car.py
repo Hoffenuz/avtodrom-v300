@@ -507,6 +507,70 @@ for i, m in enumerate(interior.data.materials):
     if m and m.name == "trim_black":
         interior.data.materials[i] = material("interior_black", (0.03, 0.03, 0.03))
 
+# --- 4b. Split the body by what the driver can see ------------------------------------------
+# From the driver's seat most of the body shell is hidden behind the cabin or
+# faces away (single-sided), yet costs as much as the rest of the car. Faces
+# the driver's eye can see stay in Body; the rest goes to BodyOuter, which the
+# game leaves out of the cockpit camera (mirrors and outside views keep it).
+# The cockpit camera only turns about the eye, so visibility from that point
+# (with a few centimetres of margin) is exact.
+body = obj["Body"]
+occ_bm = bmesh.new()
+for o in (body, interior):
+    tmp = bmesh.new()
+    tmp.from_mesh(o.data)
+    tmp.transform(o.matrix_world)
+    me_tmp = bpy.data.meshes.new("occ")
+    tmp.to_mesh(me_tmp)
+    tmp.free()
+    occ_bm.from_mesh(me_tmp)
+    bpy.data.meshes.remove(me_tmp)
+occluders = BVHTree.FromBMesh(occ_bm)
+occ_bm.free()
+eyes = [eye + Vector(d) for d in ((0, 0, 0), (0.04, 0, 0), (-0.04, 0, 0), (0, 0.04, 0.02), (0, -0.04, -0.02))]
+
+bm = bmesh.new()
+bm.from_mesh(body.data)
+bm.transform(body.matrix_world)
+bm.normal_update()
+
+
+def seen(f):
+    c = f.calc_center_median()
+    samples = [c] + [c + (v.co - c) * 0.8 for v in f.verts]
+    for e in eyes:
+        if f.normal.dot(e - c) <= 0.0:
+            continue
+        for p in samples:
+            d = p - e
+            dist = d.length
+            hit = occluders.ray_cast(e, d / dist, dist)
+            if hit[0] is None or hit[3] >= dist - 0.004:
+                return True
+    return False
+
+
+bm.faces.index_update()
+visible = {f.index for f in bm.faces if seen(f)}
+print(f"body split: {len(visible)} faces seen from the driver's seat, {len(bm.faces) - len(visible)} not")
+outer_bm = bm.copy()
+outer_bm.faces.index_update()
+bmesh.ops.delete(outer_bm, geom=[f for f in outer_bm.faces if f.index in visible], context="FACES")
+bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in visible], context="FACES")
+for b_ in (bm, outer_bm):
+    bmesh.ops.delete(b_, geom=[v for v in b_.verts if not v.link_faces], context="VERTS")
+    b_.transform(body.matrix_world.inverted())
+outer_me = bpy.data.meshes.new("BodyOuter")
+outer_bm.to_mesh(outer_me)
+outer_bm.free()
+for m in body.data.materials:
+    outer_me.materials.append(m)
+bm.to_mesh(body.data)
+bm.free()
+outer_obj = bpy.data.objects.new("BodyOuter", outer_me)
+outer_obj.matrix_world = body.matrix_world
+collection.objects.link(outer_obj)
+
 # --- 5. Report + export -----------------------------------------------------------------------
 total = 0
 for o in sorted((o for o in scene.objects if o.type == "MESH"), key=lambda o: o.name):
