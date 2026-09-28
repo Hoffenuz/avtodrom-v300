@@ -48,6 +48,8 @@ func _ready() -> void:
 		["look_west", Vector2(-70.0, 30.0), 90.0, "chase"],
 		["look_north", Vector2(20.0, -20.0), 0.0, "chase"],
 		["look_south", Vector2(-20.0, 20.0), 180.0, "chase"],
+		["carpark", Vector2(-20.0, 20.0), 180.0, [Vector3(18.0, 5.0, -47.0), Vector3(22.0, 0.5, -76.0)]],
+		["carpark_close", Vector2(-20.0, 20.0), 180.0, [Vector3(6.0, 2.0, -64.0), Vector3(16.0, 0.6, -74.0)]],
 		["overview", Vector2(-20.0, 20.0), 180.0, [Vector3(0, 140, 95), Vector3(0, 0, 0)]],
 		["aerial_wide", Vector2(-20.0, 20.0), 180.0, [Vector3(-60, 90, 230), Vector3(0, 0, 0)]],
 	]

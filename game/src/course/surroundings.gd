@@ -13,6 +13,9 @@ const ROAD_WIDTH := 7.0
 const RING_Y := 0.04
 const PAINT_LIFT := 0.04
 const HEDGE_OFFSET := 6.0
+# Tree scatters are split into this many sectors around the field so the ones
+# behind the camera are culled.
+const TREE_SECTORS := 6
 
 var fence: Rect2
 var quality := 1
@@ -221,8 +224,10 @@ func _build_exam_centre() -> void:
 func _park_cars(bays: Array) -> void:
 	var paints := [Color(0.95, 0.95, 0.96), Color(0.93, 0.93, 0.94), Color(0.1, 0.1, 0.11), Color(0.62, 0.64, 0.66),
 			Color(0.55, 0.08, 0.08), Color(0.12, 0.2, 0.42), Color(0.75, 0.73, 0.68), Color(0.2, 0.22, 0.24)]
-	var models := ["res://assets/cars/lod/nexia2_lod.glb", "res://assets/cars/lod/cobalt_lod.glb"]
+	var models := ["res://assets/cars/lod/nexia2_parked.glb", "res://assets/cars/lod/cobalt_parked.glb"]
 	var picks := [[], []]
+	var paint_mat := ShaderMaterial.new()
+	paint_mat.shader = load("res://assets/shaders/car_parked.gdshader")
 	for bay in bays:
 		if _rng.randf() < 0.62:
 			picks[_rng.randi() % 2].append(bay)
@@ -239,34 +244,13 @@ func _park_cars(bays: Array) -> void:
 		var mesh := mi.mesh.duplicate() as ArrayMesh
 		var local := _chain(mi, src)
 		src.free()
+		# One surface; the look is in the vertex colours, the paint per instance.
 		for s in mesh.get_surface_count():
-			var sm := mesh.surface_get_material(s)
-			var key := sm.resource_name if sm else ""
-			var nm := StandardMaterial3D.new()
-			match key:
-				"lod_paint":
-					nm.albedo_color = Color.WHITE
-					nm.vertex_color_use_as_albedo = true
-					nm.metallic = 0.2
-					nm.roughness = 0.3
-				"lod_glass":
-					nm.albedo_color = Color(0.06, 0.08, 0.1)
-					nm.roughness = 0.08
-					nm.metallic = 0.4
-				"lod_bright":
-					nm.albedo_color = Color(0.75, 0.76, 0.78)
-					nm.metallic = 0.8
-					nm.roughness = 0.3
-				"lod_red":
-					nm.albedo_color = Color(0.5, 0.05, 0.04)
-					nm.roughness = 0.25
-				_:
-					nm.albedo_color = Color(0.06, 0.06, 0.065)
-					nm.roughness = 0.7
-			mesh.surface_set_material(s, nm)
+			mesh.surface_set_material(s, paint_mat)
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
+		mm.use_colors = true # white; without it Compatibility reads COLOR as zero
+		mm.use_custom_data = true
 		mm.mesh = mesh
 		mm.instance_count = picks[m].size()
 		for i in picks[m].size():
@@ -274,7 +258,9 @@ func _park_cars(bays: Array) -> void:
 			var p: Vector2 = bay[0]
 			var yaw: float = bay[1] + _rng.randf_range(-0.04, 0.04)
 			mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, RING_Y, p.y)) * local)
-			mm.set_instance_color(i, paints[_rng.randi() % paints.size()])
+			var c: Color = paints[_rng.randi() % paints.size()]
+			mm.set_instance_color(i, Color.WHITE)
+			mm.set_instance_custom_data(i, c.srgb_to_linear())
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = "ParkedCars%d" % m
 		mmi.multimesh = mm
@@ -321,14 +307,20 @@ func _build_hedge() -> void:
 
 
 func _crown_mesh() -> ArrayMesh:
-	# Three overlapping blobs: reads as a tree crown from every side.
+	# Overlapping blobs: reads as a tree crown from every side. Medium and
+	# low get two coarser blobs (72 tris instead of 180): ~110 of these fill
+	# every view out of the car.
+	var blobs := [[Vector3(0, 0, 0), 1.0, 6, 4], [Vector3(0.7, -0.25, 0.3), 0.75, 6, 4],
+			[Vector3(-0.55, -0.2, -0.45), 0.8, 6, 4]]
+	if quality <= 1:
+		blobs = [[Vector3(0.08, 0, 0.05), 1.0, 6, 3], [Vector3(-0.55, -0.22, -0.35), 0.8, 4, 2]]
 	var st := _st()
-	var sphere := SphereMesh.new()
-	sphere.radius = 1.0
-	sphere.height = 2.0
-	sphere.radial_segments = 6
-	sphere.rings = 4
-	for b in [[Vector3(0, 0, 0), 1.0], [Vector3(0.7, -0.25, 0.3), 0.75], [Vector3(-0.55, -0.2, -0.45), 0.8]]:
+	for b in blobs:
+		var sphere := SphereMesh.new()
+		sphere.radius = 1.0
+		sphere.height = 2.0
+		sphere.radial_segments = b[2]
+		sphere.rings = b[3]
 		st.append_from(sphere, 0, Transform3D(Basis().scaled(Vector3.ONE * float(b[1])), b[0]))
 	return st.commit()
 
@@ -364,7 +356,7 @@ func _build_poplars() -> void:
 	crown.radius = 1.0
 	crown.height = 2.0
 	crown.radial_segments = 6
-	crown.rings = 5
+	crown.rings = 5 if quality >= 2 else 4
 	_scatter("Poplar", pts, trunk, crown, func(s: float) -> Array:
 		# [trunk basis/offset, crown scale, crown centre height]
 		var hgt := 10.0 * s
@@ -401,29 +393,13 @@ func _build_park_trees() -> void:
 		Color(0.2, 0.36, 0.14), Color(0.36, 0.46, 0.18))
 
 
-## Trunks and crowns as two MultiMeshes. `shape(scale)` returns
+## Trunks and crowns as MultiMeshes, one pair per sector around the field
+## (nodes `<label>Trunks<k>` / `<label>Crowns<k>`): a single MultiMesh would
+## have one AABB around the whole site and never be frustum-culled, so the
+## trees behind the camera would still be drawn. `shape(scale)` returns
 ## [trunk scale, crown scale, crown centre height].
 func _scatter(label: String, pts: Array[Vector2], trunk: Mesh, crown: Mesh, shape: Callable, c0: Color,
 		c1: Color) -> void:
-	var tmm := MultiMesh.new()
-	tmm.transform_format = MultiMesh.TRANSFORM_3D
-	tmm.mesh = trunk
-	tmm.instance_count = pts.size()
-	var cmm := MultiMesh.new()
-	cmm.transform_format = MultiMesh.TRANSFORM_3D
-	cmm.use_colors = true
-	cmm.mesh = crown
-	cmm.instance_count = pts.size()
-	for i in pts.size():
-		var p := pts[i]
-		var s := _rng.randf_range(0.8, 1.25)
-		var sh: Array = shape.call(s)
-		var ts: Vector3 = sh[0]
-		tmm.set_instance_transform(i, Transform3D(Basis().scaled(ts), Vector3(p.x, 1.5 * ts.y, p.y)))
-		var cs: Vector3 = sh[1]
-		var cb := Basis(Vector3.UP, _rng.randf() * TAU).scaled(cs)
-		cmm.set_instance_transform(i, Transform3D(cb, Vector3(p.x, float(sh[2]), p.y)))
-		cmm.set_instance_color(i, c0.lerp(c1, _rng.randf()))
 	var tm := StandardMaterial3D.new()
 	tm.albedo_color = Color(0.3, 0.23, 0.16)
 	tm.roughness = 0.9
@@ -435,13 +411,51 @@ func _scatter(label: String, pts: Array[Vector2], trunk: Mesh, crown: Mesh, shap
 		(crown as ArrayMesh).surface_set_material(0, cm)
 	else:
 		(crown as PrimitiveMesh).material = cm
-	for pair in [[tmm, label + "Trunks"], [cmm, label + "Crowns"]]:
-		var mmi := MultiMeshInstance3D.new()
-		mmi.name = pair[1]
-		mmi.multimesh = pair[0]
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if quality >= 1 \
-				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(mmi)
+	# Same draw order and rng use as one big scatter: only the grouping differs.
+	var trunks: Array = []
+	var crowns: Array = []
+	for k in TREE_SECTORS:
+		trunks.append([])
+		crowns.append([])
+	var centre := fence.get_center()
+	for p in pts:
+		var s := _rng.randf_range(0.8, 1.25)
+		var sh: Array = shape.call(s)
+		var ts: Vector3 = sh[0]
+		var cs: Vector3 = sh[1]
+		var cb := Basis(Vector3.UP, _rng.randf() * TAU).scaled(cs)
+		var k := _sector(p - centre)
+		trunks[k].append(Transform3D(Basis().scaled(ts), Vector3(p.x, 1.5 * ts.y, p.y)))
+		crowns[k].append([Transform3D(cb, Vector3(p.x, float(sh[2]), p.y)), c0.lerp(c1, _rng.randf())])
+	for k in TREE_SECTORS:
+		if trunks[k].is_empty():
+			continue
+		var tmm := MultiMesh.new()
+		tmm.transform_format = MultiMesh.TRANSFORM_3D
+		tmm.mesh = trunk
+		tmm.instance_count = trunks[k].size()
+		var cmm := MultiMesh.new()
+		cmm.transform_format = MultiMesh.TRANSFORM_3D
+		cmm.use_colors = true
+		cmm.mesh = crown
+		cmm.instance_count = crowns[k].size()
+		for i in trunks[k].size():
+			tmm.set_instance_transform(i, trunks[k][i])
+			cmm.set_instance_transform(i, crowns[k][i][0])
+			cmm.set_instance_color(i, crowns[k][i][1])
+		for pair in [[tmm, label + "Trunks%d" % k], [cmm, label + "Crowns%d" % k]]:
+			var mmi := MultiMeshInstance3D.new()
+			mmi.name = pair[1]
+			mmi.multimesh = pair[0]
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if quality >= 1 \
+					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(mmi)
+
+
+## Sector (0 .. TREE_SECTORS-1) of a direction from the field centre.
+static func _sector(d: Vector2) -> int:
+	var a := fposmod(d.angle() + PI / TREE_SECTORS, TAU)
+	return mini(int(a / TAU * TREE_SECTORS), TREE_SECTORS - 1)
 
 
 # --------------------------------------------------------------------------- city
