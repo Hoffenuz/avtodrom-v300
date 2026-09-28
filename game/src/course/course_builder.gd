@@ -16,8 +16,13 @@ const GRASS_HEIGHT := 0.12
 # Visual layers over the asphalt (collision is the y = 0 plane). A centimetre
 # apart: closer, a phone's 24-bit depth buffer cannot keep them apart in the
 # distance and they flicker through each other.
-const PAD_Y := 0.01
-const PAINT_Y := 0.02
+# Layers over the asphalt (y = 0). Phones on the OpenGL fallback have a 24-bit
+# depth buffer without reversed Z: 1 cm gaps made the concrete and the paint
+# shimmer through each other a few dozen metres out, above all from the
+# cockpit (near plane 8 cm). 1.5 / 3 cm hold beyond the far side of the site
+# and are still invisible next to a 15 cm kerb.
+const PAD_Y := 0.015
+const PAINT_Y := 0.03
 const TEXT_PX_PER_EM := 256.0 # painted-word textures (pipeline/make_hud_art.py)
 const TILE_ASPHALT := 4.0
 const TILE_CONCRETE := 3.0

@@ -276,6 +276,39 @@ _layout_pads_px = unary_union([p for p in _pads_px_reg if not _is_pocket(p)] +
                               [pocket_px(*k) for k in POCKETS_PX])
 islands_w = [clean_island(p, _layout_pads_px) for p in
              join_islands([Polygon([px_of(q) for q in isl]).buffer(0) for isl in layout["islands"]])]
+
+
+def smooth_zmeyka_kerbs(isl_w, zones_px, near=1.0 * S, max_deg=50.0, iters=4):
+    """The zmeyka kerbs are one long curve on the ground, but the tracer leaves
+    them as 1-5 m facets (13-45 deg bends) that show in the kerb and in its
+    yellow control line. Corner-cut every vertex lying on a zmeyka pad's edge
+    whose bend is under max_deg; the square corners at the pad mouths stay."""
+    pts = [np.array(px_of(q), float) for q in isl_w]
+    zone = unary_union(zones_px)
+    if zone.distance(Polygon(pts)) > near:
+        return isl_w
+    for _ in range(iters):
+        out = []
+        n = len(pts)
+        for i in range(n):
+            a, b, c = pts[i - 1], pts[i], pts[(i + 1) % n]
+            u, v = b - a, c - b
+            lu, lv = np.linalg.norm(u), np.linalg.norm(v)
+            if lu < 1e-6 or lv < 1e-6:
+                continue
+            ang = math.degrees(math.acos(np.clip(u @ v / lu / lv, -1, 1)))
+            if 2.0 < ang < max_deg and zone.distance(Point(b)) < near:
+                out.append(b - u * 0.25)
+                out.append(b + v * 0.25)
+            else:
+                out.append(b)
+        pts = out
+    q = Polygon([tuple(p) for p in pts]).buffer(0).simplify(0.01 * S)
+    q = max(_parts(q), key=lambda g: g.area)
+    return [w(x, y) for x, y in list(q.exterior.coords)[:-1]]
+
+
+islands_w = [smooth_zmeyka_kerbs(isl, [_pads_px_reg[k] for k in (3, 4)]) for isl in islands_w]
 islands_px = [Polygon([px_of(p) for p in isl]).buffer(0) for isl in islands_w]
 islands_union_px = unary_union(islands_px)
 
