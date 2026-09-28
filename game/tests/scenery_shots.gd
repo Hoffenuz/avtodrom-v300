@@ -2,7 +2,9 @@ extends Node
 ## Renders the course as the game loads it (baked course + surroundings) from the
 ## driver's chase view and a few aerial views, and prints draw/primitive
 ## counts per shot (needs a GPU, not --headless):
-##   godot --path game res://tests/scenery_shots.tscn -- <out_dir> [quality]
+##   godot --path game res://tests/scenery_shots.tscn -- <out_dir> [quality] [shots.json]
+## shots.json (optional) replaces the built-in views: a list of
+## [name, [camera x, y, z], [target x, y, z]] in world metres.
 
 var out_dir := "user://scenery_shots"
 var quality := 2
@@ -16,6 +18,7 @@ var wait := 0
 
 
 func _ready() -> void:
+	Loading.finish() # no loading page over the test views
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out_dir = args[0]
@@ -53,6 +56,13 @@ func _ready() -> void:
 		["overview", Vector2(-20.0, 20.0), 180.0, [Vector3(0, 140, 95), Vector3(0, 0, 0)]],
 		["aerial_wide", Vector2(-20.0, 20.0), 180.0, [Vector3(-60, 90, 230), Vector3(0, 0, 0)]],
 	]
+	if args.size() > 2:
+		var custom: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[2]))
+		if custom is Array:
+			shots = []
+			for c in custom:
+				shots.append([c[0], Vector2(-20.0, 20.0), 180.0, [Vector3(c[1][0], c[1][1], c[1][2]),
+						Vector3(c[2][0], c[2][1], c[2][2])]])
 
 
 func _process(_delta: float) -> void:

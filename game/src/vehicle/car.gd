@@ -20,7 +20,8 @@ const MODELS := {
 	"nexia2": {"path": "res://assets/cars/nexia2/nexia2.glb", "lod": "res://assets/cars/lod/nexia2_lod.glb", "front": 2.18, "rear": 2.31, "half_width": 0.83,
 			"mirror": Vector3(0.88, 0.93, -0.37), "speed_max": 220.0, "rpm_max": 8000.0},
 	"cobalt_at": {"path": "res://assets/cars/cobalt/cobalt.glb", "lod": "res://assets/cars/lod/cobalt_lod.glb", "front": 2.22, "rear": 2.26, "half_width": 0.86,
-			"mirror": Vector3(0.936, 1.043, -0.53), "speed_max": 220.0, "rpm_max": 7000.0},
+			"mirror": Vector3(0.936, 1.043, -0.53), "speed_max": 220.0, "rpm_max": 7000.0,
+			"smooth_lamps": ["Lamp_Head", "Lamp_TurnFL", "Lamp_TurnFR"]},
 	"gentra": {"path": "res://assets/cars/gentra/gentra.glb", "lod": "res://assets/cars/lod/gentra_lod.glb", "front": 2.22, "rear": 2.31, "half_width": 0.87,
 			"mirror": Vector3(0.905, 1.019, -0.45), "speed_max": 240.0, "rpm_max": 8000.0,
 			"paint": Color(0.012, 0.012, 0.014)},
@@ -143,6 +144,9 @@ func _load_model() -> void:
 		if mi:
 			_lamps[n] = mi
 	_apply_materials(model, spec.get("paint", WHITE_PAINT))
+	for n in spec.get("smooth_lamps", []):
+		if _lamps.has(n):
+			_smooth_lamp(_lamps[n])
 	var outer := model.find_child("BodyOuter", true, false) as VisualInstance3D
 	if outer:
 		outer.layers = LAYER_EXTERIOR
@@ -151,6 +155,44 @@ func _load_model() -> void:
 	_add_shadow_proxy(spec)
 	_make_lamp_materials()
 	_update_lamps(0.0)
+
+
+## The Cobalt's headlamp lenses are the flat-shaded front of a convex hull
+## (pipeline/blender/refine_car.py): its long facets each caught the light on
+## their own, a fan of dark and bright triangles across the lamp. The lens
+## gets one normal (its area-weighted average), so it shades as one smooth
+## piece of glass, and the projector disc becomes a chrome lens.
+func _smooth_lamp(mi: MeshInstance3D) -> void:
+	var src := mi.mesh
+	var out := ArrayMesh.new()
+	for s in src.get_surface_count():
+		var arrays := src.surface_get_arrays(s)
+		if s == 0:
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			var sum := Vector3.ZERO
+			var count := idx.size() if not idx.is_empty() else verts.size()
+			for t in range(0, count - 2, 3):
+				var a := verts[idx[t] if not idx.is_empty() else t]
+				var b := verts[idx[t + 1] if not idx.is_empty() else t + 1]
+				var c := verts[idx[t + 2] if not idx.is_empty() else t + 2]
+				sum += (b - a).cross(c - a) # clockwise front faces: points inward
+			var n := -sum.normalized() if sum.length() > 0.0 else Vector3.FORWARD
+			var normals := PackedVector3Array()
+			normals.resize(verts.size())
+			normals.fill(n)
+			arrays[Mesh.ARRAY_NORMAL] = normals
+			arrays[Mesh.ARRAY_TANGENT] = null
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(s, src.surface_get_material(s))
+	var overrides: Array[Material] = []
+	for s in src.get_surface_count():
+		overrides.append(mi.get_surface_override_material(s))
+	mi.mesh = out
+	for s in overrides.size():
+		mi.set_surface_override_material(s, overrides[s])
+	if out.get_surface_count() > 1:
+		mi.set_surface_override_material(1, _pbr(Color(0.36, 0.38, 0.41), 1.0, 0.12))
 
 
 ## Invisible 2.5k-triangle copy of the car that only casts the shadow.
@@ -241,7 +283,7 @@ func _apply_materials(root: Node, paint_color: Color) -> void:
 		"mirror": _pbr(Color(0.9, 0.92, 0.94), 1.0, 0.02),
 		"lamp_white": _pbr(Color(0.82, 0.84, 0.86), 0.3, 0.12),
 		"headlamp": _pbr(Color(0.3, 0.31, 0.33), 0.4, 0.45),
-		"headlamp_lens": _pbr(Color(0.36, 0.38, 0.41), 0.85, 0.22),
+		"headlamp_lens": _pbr(Color(0.58, 0.6, 0.63), 0.9, 0.16),
 		"plate": _pbr(Color(0.92, 0.93, 0.94), 0.0, 0.45),
 		"headliner": _cabin(Color(0.46, 0.45, 0.43), 0.9),
 	}

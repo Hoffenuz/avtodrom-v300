@@ -119,6 +119,10 @@ blender -b --python pipeline/blender/build_car_lod.py -- game/assets/cars/gentra
 blender -b --python pipeline/blender/build_parked_car.py -- game/assets/cars/gentra/gentra.glb game/assets/cars/lod/gentra_parked.glb
 ```
 
+Ilova ochilishidagi rasm (Godot boot splash — skriptlardan oldin
+ko'rinadi, keyin uni loading sahifasi davom ettiradi):
+`python pipeline/make_splash.py` → `game/assets/ui/boot_splash.png`.
+
 Kuzov rangi `car.gd` dagi `MODELS[...]["paint"]` da (Gentra — qora,
 qolganlari oq).
 
@@ -172,7 +176,12 @@ python scripts/run_tests.py --quick   # faqat C++ va avtomobil testlari
 Qo'lda tekshirish uchun buyruq qatori (Godot `--` dan keyin):
 `--mode=practice --exercise=box --demo`, `--car=cobalt_at` (yoki `gentra`), `--camera=chase`, `--autopilot`,
 `--seed=<n>` (svetofor fazalari takrorlanadi), `--touch` (telefon ko'rinishi kompyuterda),
-`--shots=<papka>`, `--quit-after-s=<s>`, `--menu-page=exam|practice|rules|history|settings`.
+`--shots=<papka>`, `--quit-after-s=<s>`, `--menu-page=exam|practice|rules|history|settings`,
+`--perf` (kadr vaqti, draw call va uchburchaklar soni).
+
+Avtodromni turli nuqtalardan suratga olish (GPU kerak):
+`godot --path game res://tests/scenery_shots.tscn -- <papka> [sifat] [shots.json]` —
+`shots.json`: `[["nom", [kamera x, y, z], [nishon x, y, z]], ...]` (metr).
 
 ## Boshqaruv (kompyuter)
 

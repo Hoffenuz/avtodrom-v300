@@ -16,6 +16,7 @@ var build_ms := 0
 
 
 func _ready() -> void:
+	Loading.finish() # no loading page over the test views
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		out_dir = args[0]
