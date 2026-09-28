@@ -64,6 +64,41 @@
   "uz_cyrl": "Юкланмоқда…",
   "ru": "Загрузка…"
  },
+ "load.world": {
+  "uz_latn": "Avtodrom tayyorlanmoqda…",
+  "uz_cyrl": "Автодром тайёрланмоқда…",
+  "ru": "Готовим автодром…"
+ },
+ "load.drive": {
+  "uz_latn": "Mashina maydonga chiqmoqda…",
+  "uz_cyrl": "Машина майдонга чиқмоқда…",
+  "ru": "Машина выезжает на площадку…"
+ },
+ "load.menu": {
+  "uz_latn": "Menyuga qaytilmoqda…",
+  "uz_cyrl": "Менюга қайтилмоқда…",
+  "ru": "Возврат в меню…"
+ },
+ "load.tip1": {
+  "uz_latn": "Maslahat: yurishdan oldin xavfsizlik kamarini taqing",
+  "uz_cyrl": "Маслаҳат: юришдан олдин хавфсизлик камарини тақинг",
+  "ru": "Совет: пристегнитесь до начала движения"
+ },
+ "load.tip2": {
+  "uz_latn": "Maslahat: har bir burilishdan oldin burilish chirog‘ini yoqing",
+  "uz_cyrl": "Маслаҳат: ҳар бир бурилишдан олдин бурилиш чироғини ёқинг",
+  "ru": "Совет: включайте поворотник перед каждым поворотом"
+ },
+ "load.tip3": {
+  "uz_latn": "Maslahat: rul va tugmalar joyini Sozlamalarda o‘zgartirish mumkin",
+  "uz_cyrl": "Маслаҳат: рул ва тугмалар жойини Созламаларда ўзгартириш мумкин",
+  "ru": "Совет: положение руля и кнопок меняется в Настройках"
+ },
+ "load.tip4": {
+  "uz_latn": "Maslahat: stop chizig‘i oldida to‘liq to‘xtang",
+  "uz_cyrl": "Маслаҳат: стоп чизиғи олдида тўлиқ тўхтанг",
+  "ru": "Совет: останавливайтесь полностью перед стоп-линией"
+ },
  "menu.no_history": {
   "uz_latn": "Hali natija yo‘q",
   "uz_cyrl": "Ҳали натижа йўқ",
@@ -203,6 +238,26 @@
   "uz_latn": "Qo‘yib yuborilgan rul markazga qaytadi",
   "uz_cyrl": "Қўйиб юборилган рул марказга қайтади",
   "ru": "Отпущенный руль возвращается в центр"
+ },
+ "set.wheel_scale": {
+  "uz_latn": "Rul va strelkalar kattaligi",
+  "uz_cyrl": "Рул ва стрелкалар катталиги",
+  "ru": "Размер руля и поворотников"
+ },
+ "set.wheel_group_desc": {
+  "uz_latn": "Rul va uning ustidagi burilish tugmalari birga o‘zgaradi",
+  "uz_cyrl": "Рул ва унинг устидаги бурилиш тугмалари бирга ўзгаради",
+  "ru": "Руль и кнопки поворотников над ним меняются вместе"
+ },
+ "set.wheel_shift_x": {
+  "uz_latn": "Rulni o‘ngga surish",
+  "uz_cyrl": "Рулни ўнгга суриш",
+  "ru": "Сдвиг руля вправо"
+ },
+ "set.wheel_shift_y": {
+  "uz_latn": "Rulni tepaga surish",
+  "uz_cyrl": "Рулни тепага суриш",
+  "ru": "Сдвиг руля вверх"
  },
  "set.auto_clutch": {
   "uz_latn": "Avtomatik mufta",

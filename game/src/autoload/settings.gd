@@ -35,6 +35,12 @@ const DEFAULTS := {
 	"vol_engine": 0.8,
 	"vol_effects": 0.8,
 	"left_handed": false,
+	# On-screen wheel with the indicator buttons above it, as one group:
+	# size (1 = standard) and how far it sits from the screen corner, as a
+	# share of the safe area's width / height.
+	"wheel_scale": 1.1,
+	"wheel_shift_x": 0.03,
+	"wheel_shift_y": 0.05,
 	# Touch controls moved / resized by the player (HudLayoutEditor):
 	# control id -> {"x", "y": centre as a share of the safe area, "s": scale}.
 	"hud_layout": {},
