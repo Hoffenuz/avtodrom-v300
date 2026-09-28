@@ -417,14 +417,6 @@ func _follow_path(dt: float) -> bool:
 	return end_d < 0.08 and absf(car.get_forward_speed()) < 0.08
 
 
-static func _arc(center: Vector2, r: float, a0: float, a1: float, n := 16) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for k in n + 1:
-		var a := lerpf(a0, a1, float(k) / n)
-		out.append(center + Vector2(cos(a), sin(a)) * r)
-	return out
-
-
 ## Two tangent circular arcs moving along +x that shift the path by `dz`
 ## (the textbook parallel-parking manoeuvre, radius r).
 static func _two_arc(p0: Vector2, dz: float, r: float, n := 14) -> PackedVector2Array:
@@ -456,45 +448,41 @@ static func _s_curve(p0: Vector2, p1: Vector2, n := 24) -> PackedVector2Array:
 
 
 # ------------------------------------------------------------------ box
+## The box manoeuvre follows the rear-axle paths the course data plans for the
+## pad (course_def.box_manoeuvre): up the stem past the bay, back into it onto
+## the fixation band, then out forwards the way the car came in.
 func _box(dt: float, ex: Exercise) -> bool:
-	var d := ex.def
-	var entry: Dictionary = d["entry_line"]
-	var bay := CourseData.poly(d["bay"])
-	var fix: Dictionary = d["fixation_line"]
-	var xc := (Geo.line_a(entry).x + Geo.line_b(entry).x) * 0.5
-	var zb := 0.0
-	for p in bay:
-		zb += p.y
-	zb /= bay.size()
-	var xf := Geo.line_a(fix).x
-	var r := 6.2
+	var m: Dictionary = ex.def["manoeuvre"]
+	var approach := CourseData.poly(m["approach"])
 	match _box_state:
 		0:
-			# Drive down the pad until the rear axle is one radius past the bay centre.
+			# Take over once the rear axle reaches the start of the approach path.
 			var ra := _rear_axle()
-			if ra.y > zb - 0.5 and _fwd().y > 0.8:
-				var steer := _pursue(Vector2(xc, ra.y + 5.0), false)
-				var ds := (zb + r) - ra.y
-				var tb := _speed_control(minf(CORRIDOR, sqrt(maxf(2.0 * DECEL * maxf(ds, 0.0), 0.0))) if ds > 0.1 else 0.0, dt)
-				_set_controls(tb.x, tb.y, steer)
-				if ds <= 0.1 and absf(car.get_forward_speed()) < 0.08:
-					_box_state = 1
-					_hold_t = 0.0
-					_log("box: stopped past the bay, reversing")
+			var dir := (approach[1] - approach[0]).normalized()
+			if (ra - approach[0]).dot(dir) > -0.5 and _fwd().dot(dir) > 0.8:
+				_path = approach
+				_path_reverse = false
+				_path_speed = MANOEUVRE
+				_box_state = 6
+				_log("box: up the stem past the bay")
 				return true
 			return false
+		6:
+			if _follow_path(dt):
+				_box_state = 1
+				_hold_t = 0.0
+				_log("box: stopped past the bay, reversing")
+			return true
 		1:
 			_hold_t += dt
 			_set_controls(0.0, 0.6, car.steering_wheel)
 			if _hold_t > 0.6:
 				car.request_gear(-1 if not car.is_automatic() else AvtoGear.AUTO_REVERSE)
-				# Rear axle: quarter circle from the pad centre line into the bay,
-				# then straight back onto the middle of the fixation band.
-				var ra := _rear_axle()
-				var c := Vector2(xc + r, ra.y)
-				_path = _arc(c, r, PI, PI * 1.5)
+				_path = CourseData.poly(m["reverse"])
 				# Fault "boxdeep": back in too far, over the yellow limit line.
-				_path.append(Vector2(xf + (0.9 if faults.has("boxdeep") else 0.0), c.y - r))
+				if faults.has("boxdeep"):
+					var n := _path.size()
+					_path[n - 1] += (_path[n - 1] - _path[n - 2]).normalized() * 0.9
 				_path_reverse = true
 				_path_speed = MANOEUVRE
 				_box_state = 2
@@ -503,25 +491,25 @@ func _box(dt: float, ex: Exercise) -> bool:
 			if _follow_path(dt):
 				_box_state = 3
 				_hold_t = 0.0
-				_log("box: parked, rear axle %.2f m off the fixation band" % (_rear_axle().x - xf))
+				var fix: Dictionary = ex.def["fixation_line"]
+				_log("box: parked, rear axle %.2f m off the fixation band" % Geo.line_distance(fix, _rear_axle()))
 			return true
 		3:
 			_hold_t += dt
 			_set_controls(0.0, 0.6, car.steering_wheel)
 			if _hold_t > 1.6:
 				car.request_gear(1 if not car.is_automatic() else AvtoGear.DRIVE)
-				var ra := _rear_axle()
-				var r2 := 5.2
-				_path = PackedVector2Array([ra, Vector2(xc + r2 + 0.5, ra.y)])
-				_path.append_array(_arc(Vector2(xc + r2, ra.y - r2), r2, PI * 0.5, PI))
-				_path.append(Vector2(xc, ra.y - r2 - 6.0))
+				_path = PackedVector2Array([_rear_axle()])
+				_path.append_array(CourseData.poly(m["leave"]).slice(1))
 				_path_reverse = false
 				_path_speed = 1.6
 				_box_state = 4
 			return true
 		4:
 			_follow_path(dt)
-			if _rear_axle().y < float(Geo.line_a(entry).y) + 6.0:
+			var entry: Dictionary = ex.def["entry_line"]
+			var out_dir := CourseData.v2(ex.def.get("leave_dir", [0.0, -1.0]))
+			if Geo.past(entry, out_dir, _rear_axle()) > 1.0:
 				_box_state = 5
 				_log("box: leaving")
 			return true

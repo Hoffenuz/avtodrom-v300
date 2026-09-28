@@ -427,9 +427,12 @@ func _build_markings() -> void:
 	var skip: Array = []
 	for q in m.get("edge_skip", []):
 		skip.append(CourseData.poly(q))
+	var yellow_zones: Array = []
+	for q in m.get("edge_yellow", []):
+		yellow_zones.append(CourseData.poly(q))
 	for isl in data.islands:
 		for loop in Geometry2D.offset_polygon(MeshUtil.clean(isl, 0.05), offset, Geometry2D.JOIN_ROUND):
-			if skip.is_empty():
+			if skip.is_empty() and yellow_zones.is_empty():
 				MeshUtil.add_ribbon(st, _densify(loop, 1.0, true), ew, PAINT_Y, true)
 				continue
 			# Cut the loop where it runs through a skip zone (parking pockets).
@@ -441,8 +444,18 @@ func _build_markings() -> void:
 				for part in parts:
 					next.append_array(Geometry2D.clip_polyline_with_polygon(part, zone))
 				parts = next
+			# Inside a yellow zone (the zmeyka's control lines) the line is yellow.
+			var yellow_parts: Array = []
+			for zone in yellow_zones:
+				var next: Array = []
+				for part in parts:
+					yellow_parts.append_array(Geometry2D.intersect_polyline_with_polygon(part, zone))
+					next.append_array(Geometry2D.clip_polyline_with_polygon(part, zone))
+				parts = next
 			for part in parts:
 				MeshUtil.add_ribbon(st, _densify(part, 1.0, false), ew, PAINT_Y, false)
+			for part in yellow_parts:
+				MeshUtil.add_ribbon(st, _densify(part, 1.0, false), ew, PAINT_Y, false, 1.0, yellow)
 	# Outer edge line along the fence: authored (rounded where the scheme rounds
 	# it) or, without one, the fence rectangle inset.
 	var outer := CourseData.poly(m["fence_line"]) if m.has("fence_line") else PackedVector2Array()

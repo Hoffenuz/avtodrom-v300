@@ -57,6 +57,19 @@ func _process(delta: float) -> void:
 			_quad(a + n, a - n, b + n, b - n, ca, ca, cb, cb)
 			wrote = true
 			s += step
+	var cur := director.current_exercise()
+	if show_route and cur and cur.def.has("guide"):
+		# Parking exercises: the way into the bay or pocket and the spot to stop in.
+		var g: Dictionary = cur.def["guide"]
+		var c := Color(0.3, 0.62, 1.0, 0.3)
+		for path in g.get("paths", []):
+			var pts := CourseData.poly(path)
+			for i in pts.size() - 1:
+				_segment(pts[i], pts[i + 1], WIDTH * 0.8, c)
+		var spot := CourseData.poly(g.get("spot", []))
+		for i in spot.size():
+			_segment(spot[i], spot[(i + 1) % spot.size()], 0.14, Color(0.3, 0.62, 1.0, 0.55))
+		wrote = true
 	if Session.hints_enabled():
 		var ex := director.current_exercise()
 		if ex:
@@ -73,6 +86,12 @@ func _process(delta: float) -> void:
 		_mesh.surface_end()
 	else:
 		_mesh.clear_surfaces()
+
+
+func _segment(a: Vector2, b: Vector2, width: float, c: Color) -> void:
+	var d := (b - a).normalized()
+	var n := Vector2(-d.y, d.x) * width * 0.5
+	_quad(a + n, a - n, b + n, b - n, c, c, c, c)
 
 
 func _y(p: Vector2) -> float:
