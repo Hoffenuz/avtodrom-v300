@@ -116,7 +116,9 @@ func _ready() -> void:
 		hud.set_demo(true)
 		rig.set_mode(CameraRig.Mode.CHASE)
 	_debug_options()
-	Loading.finish()
+	# Lamp materials compile behind the loading page, not at the first brake.
+	car.lamp_prewarm = true
+	Loading.finish(func() -> void: car.lamp_prewarm = false)
 
 
 ## Command-line helpers for automated checks (after "--" on the command line;

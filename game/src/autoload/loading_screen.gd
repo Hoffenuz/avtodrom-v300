@@ -25,6 +25,7 @@ var _target := 0.0
 var _spin := 0.0
 var _hold := -1
 var _fade := 0.0
+var _uncovered := Callable()
 
 
 func _init() -> void:
@@ -56,11 +57,21 @@ func cover(status_key: String) -> void:
 
 
 ## The new scene is built: fill the bar, let it render a few frames, fade out.
-func finish() -> void:
+## `uncovered` runs when the page starts to fade (at once if it is not up).
+func finish(uncovered := Callable()) -> void:
+	_uncovered = uncovered
 	if not visible:
+		_run_uncovered()
 		return
 	_target = 1.0
 	_hold = HOLD_FRAMES
+
+
+func _run_uncovered() -> void:
+	var cb := _uncovered
+	_uncovered = Callable()
+	if cb.is_valid():
+		cb.call()
 
 
 func _show(status_key: String) -> void:
@@ -69,6 +80,7 @@ func _show(status_key: String) -> void:
 		_target = 0.12
 		_tip_key = TIPS[randi() % TIPS.size()]
 	_status_key = status_key
+	_uncovered = Callable() # its scene is on the way out
 	_hold = -1
 	_fade = 0.0
 	_page.modulate.a = 1.0
@@ -87,6 +99,8 @@ func _process(delta: float) -> void:
 	if _hold > 0:
 		_hold -= 1
 	elif _hold == 0:
+		if _fade == 0.0:
+			_run_uncovered()
 		_fade += delta
 		_page.modulate.a = 1.0 - clampf(_fade / FADE, 0.0, 1.0)
 		if _fade >= FADE:

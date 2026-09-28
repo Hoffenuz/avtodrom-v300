@@ -81,26 +81,75 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var d := minf(size.x, size.y - (22.0 if caption != "" else 0.0))
 	var c := Vector2(size.x * 0.5, d * 0.5)
-	var r := d * 0.5 - 2.0
-	if _down:
-		r *= 0.94
-	if lit:
-		draw_circle(c, r + 3.0, Color(lit_color, 0.30))
-	# The face art's disc fills 88 % of the image; the rest is its shadow.
+	# Pressed: a little smaller and lighter; a penalty flash tints it red.
+	var k := 0.94 if _down else 1.0
 	var tint := Color.WHITE
-	if lit:
-		tint = Color.WHITE.lerp(lit_color, 0.28)
 	if _down:
-		tint = tint.lightened(0.18)
+		tint = Color(1.18, 1.18, 1.18)
 	if flash > 0.0:
 		tint = tint.lerp(UITheme.STOP, flash)
+	var tex := _picture()
+	if tex == null:
+		# Not baked yet (first frame, or a headless run): draw it directly.
+		material = null
+		draw_set_transform(c * (1.0 - k), 0.0, Vector2(k, k))
+		_draw_face(self, lit)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
+	material = CanvasBaker.premultiplied()
+	var sz := size * k
+	draw_texture_rect(tex, Rect2(c - Vector2(size.x * 0.5, d * 0.5) * k, sz), false, tint)
+
+
+## The button's still picture (face, ring, icon, caption) for the current
+## size and lit state. Both states are baked together (indicators blink), again
+## only when the size or looks change; null until they are.
+func _picture() -> Texture2D:
+	if not CanvasBaker.available() or size.x < 1.0:
+		return null
+	var scale := CanvasBaker.pixel_scale(self)
+	var key := "%s|%s|%s|%s|%.0fx%.0f@%.2f" % [icon, caption, lit_color, icon_color, size.x, size.y, scale]
+	if key != _baked_key:
+		_baked_key = key
+		for vp in _baked.values():
+			vp.queue_free()
+		_baked.clear()
+		_rebake.call_deferred(key, scale)
+		return null
+	var vp: SubViewport = _baked.get(lit)
+	return vp.get_texture() if vp else null
+
+
+var _baked := {} # lit state -> SubViewport
+var _baked_key := ""
+
+
+func _rebake(key: String, scale: float) -> void:
+	if key != _baked_key:
+		return
+	for on in [false, true]:
+		_baked[on] = CanvasBaker.bake(self, size, scale, func(ci: CanvasItem) -> void: _draw_face(ci, on))
+	# One frame later the viewport has rendered.
+	await get_tree().process_frame
+	if key == _baked_key:
+		queue_redraw()
+
+
+func _draw_face(ci: CanvasItem, is_lit: bool) -> void:
+	var d := minf(size.x, size.y - (22.0 if caption != "" else 0.0))
+	var c := Vector2(size.x * 0.5, d * 0.5)
+	var r := d * 0.5 - 2.0
+	if is_lit:
+		ci.draw_circle(c, r + 3.0, Color(lit_color, 0.30))
+	# The face art's disc fills 88 % of the image; the rest is its shadow.
+	var tint := Color.WHITE.lerp(lit_color, 0.28) if is_lit else Color.WHITE
 	var art := r * 2.0 / 0.88
-	draw_texture_rect(FACE_ART, Rect2(c - Vector2(art, art) * 0.5, Vector2(art, art)), false, tint)
-	draw_arc(c, r - 0.5, 0, TAU, 48, lit_color if lit else Color(1, 1, 1, 0.10), 2.5 if lit else 1.5, true)
-	Icons.draw(self, icon, c, r * 0.52, lit_color.lightened(0.3) if lit else icon_color)
+	ci.draw_texture_rect(FACE_ART, Rect2(c - Vector2(art, art) * 0.5, Vector2(art, art)), false, tint)
+	ci.draw_arc(c, r - 0.5, 0, TAU, 48, lit_color if is_lit else Color(1, 1, 1, 0.10), 2.5 if is_lit else 1.5, true)
+	Icons.draw(ci, icon, c, r * 0.52, lit_color.lightened(0.3) if is_lit else icon_color)
 	if caption != "":
 		var f := UITheme.regular()
 		var fs := 15
 		var w := f.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		draw_string(f, Vector2(size.x * 0.5 - w * 0.5, d + 17), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs,
+		ci.draw_string(f, Vector2(size.x * 0.5 - w * 0.5, d + 17), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs,
 				UITheme.TEXT_DIM)

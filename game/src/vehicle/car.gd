@@ -48,6 +48,9 @@ var _gauge_rpm: ShaderMaterial
 var _speed_max := 220.0
 var _rpm_max := 8000.0
 var _lamps := {}
+## Every lamp lit, while the loading page still covers the screen: their
+## materials get compiled then, not at the first brake or indicator.
+var lamp_prewarm := false
 var _lamp_on := {}
 var _lamp_off := {}
 var _blink_t := 0.0
@@ -441,6 +444,9 @@ func _update_lamps(delta: float) -> void:
 	_set_lamp("Lamp_Head", headlights and ignition)
 	var reversing := ignition and (get_gear() == -1)
 	_set_lamp("Lamp_Reverse", reversing)
+	if lamp_prewarm:
+		for n in _lamps:
+			_set_lamp(n, true, "_brake" if Engine.get_process_frames() % 2 == 0 else "")
 
 
 func _update_audio(delta: float) -> void:
