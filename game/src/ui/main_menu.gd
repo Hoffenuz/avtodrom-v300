@@ -19,6 +19,10 @@ var _car_type: Label
 var _car_focus := Vector3.ZERO
 var _on_home := true
 var _settings_panel: SettingsPanel
+## The player spins the showroom by dragging over the car; the slow orbit
+## takes over again a moment after the finger lifts.
+var _drag_idle := 99.0
+var _orbit_speed := 0.12
 
 
 func _ready() -> void:
@@ -56,6 +60,7 @@ func _build_world() -> void:
 	car.teleport(xf, false)
 	car.freeze = true
 	_car_focus = xf.origin + Vector3.UP * 0.75
+	_world.add_child(_turntable(xf.origin))
 	_cam = Camera3D.new()
 	_cam.fov = 42.0
 	_cam.far = 1200.0
@@ -67,8 +72,65 @@ func _build_world() -> void:
 	Engine.max_fps = 30
 
 
+## A low dark platform with a lit rim under the menu car: the car stands in
+## a showroom, not on the start box's painted lines and letters.
+func _turntable(at: Vector3) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Turntable"
+	root.position = at
+	var disc := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 3.25
+	cyl.bottom_radius = 3.4
+	cyl.height = 0.05
+	cyl.radial_segments = 64
+	cyl.rings = 1
+	disc.mesh = cyl
+	disc.position.y = 0.022
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.06, 0.07, 0.085)
+	m.metallic = 0.4
+	m.roughness = 0.32
+	disc.material_override = m
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(disc)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 3.23
+	torus.outer_radius = 3.29
+	torus.rings = 64
+	torus.ring_segments = 6
+	ring.mesh = torus
+	ring.position.y = 0.045
+	ring.scale = Vector3(1.0, 0.25, 1.0)
+	var rm := StandardMaterial3D.new()
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.albedo_color = UITheme.GO.lerp(Color.WHITE, 0.15)
+	ring.material_override = rm
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(ring)
+	return root
+
+
+func _input(event: InputEvent) -> void:
+	# On the home page a drag over the car (the right part of the screen,
+	# clear of the menu column) turns the showroom. The full-screen UI layer
+	# stops pointer events, so this listens before it.
+	if not _on_home or _settings_panel != null or Loading.is_covering():
+		return
+	# (The project emulates touch from the mouse, so this covers both.)
+	var drag := event as InputEventScreenDrag
+	if drag and drag.position.x > _vw() * 0.45:
+		_orbit -= drag.relative.x * 0.006
+		_drag_idle = 0.0
+		_orbit_speed = 0.0
+
+
 func _process(delta: float) -> void:
-	_orbit += delta * 0.12
+	_drag_idle += delta
+	# The slow orbit eases back in after a drag.
+	_orbit_speed = move_toward(_orbit_speed, 0.12 if _drag_idle > 2.5 else 0.0, delta * 0.08)
+	_orbit += delta * _orbit_speed
 	var r := 8.2
 	_cam.global_position = _car_focus + Vector3(cos(_orbit) * r, 1.55, sin(_orbit) * r)
 	_cam.look_at(_car_focus, Vector3.UP)
@@ -131,6 +193,18 @@ func _rebuild_ui() -> void:
 func _clear_content() -> void:
 	for c in _content.get_children():
 		c.queue_free()
+	_animate_in(_content)
+
+
+## Pages slide in and fade up, as in a mobile game, instead of popping.
+func _animate_in(c: Control, from_x := 36.0) -> void:
+	# Full-rect pages rest at x = 0 (also when a previous slide was cut short).
+	var x0 := 0.0
+	c.modulate.a = 0.0
+	c.position.x = x0 + from_x
+	var tw := c.create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "modulate:a", 1.0, 0.24)
+	tw.tween_property(c, "position:x", x0, 0.3)
 
 
 func _show_home() -> void:
@@ -525,6 +599,7 @@ func _show_settings() -> void:
 		_settings_panel = null
 		_show_home())
 	_ui.add_child(s)
+	_animate_in(s, 0.0)
 	_settings_panel = s
 
 

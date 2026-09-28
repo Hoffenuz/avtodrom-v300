@@ -130,6 +130,21 @@ func render_scale() -> float:
 	return [0.6, 0.72, 0.85][clampi(int(get_value("quality")), 0, 2)]
 
 
+## Frame cap that divides the display's refresh rate evenly (never below the
+## chosen limit): 60 on a 90 Hz phone would show frames for 1, 2, 1, 2
+## refreshes, a steady judder; there it runs at 90, on 120 Hz at 60, on
+## 144 Hz at 72. 0 = no cap.
+func frame_limit() -> int:
+	var lim := int(get_value("fps_limit"))
+	if lim <= 0:
+		return 0
+	var hz := DisplayServer.screen_get_refresh_rate()
+	if hz < 20.0:
+		return lim # unknown refresh rate
+	var n := maxi(1, int(floor(hz / float(lim) + 0.05)))
+	return int(round(hz / n))
+
+
 ## Whether the on-screen driving controls are shown.
 func screen_controls_on() -> bool:
 	var v := int(get_value("screen_controls"))

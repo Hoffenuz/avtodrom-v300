@@ -77,6 +77,9 @@ func _ready() -> void:
 			car.request_gear(1)
 
 	rig = CameraRig.new(car)
+	# Keeps the view on the car also while paused (a pause at the very first
+	# frame would otherwise leave the camera at the world origin).
+	rig.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(rig)
 	var cam_mode := {"cockpit": CameraRig.Mode.COCKPIT, "chase": CameraRig.Mode.CHASE, "top": CameraRig.Mode.TOP}
 	rig.set_mode(cam_mode.get(str(Settings.get_value("camera")), CameraRig.Mode.COCKPIT))
@@ -162,7 +165,7 @@ func _apply_graphics() -> void:
 	quality = int(Settings.get_value("quality"))
 	EnvironmentSetup.apply_viewport(get_viewport(), quality)
 	if not DebugShots.perf:
-		Engine.max_fps = int(Settings.get_value("fps_limit"))
+		Engine.max_fps = Settings.frame_limit()
 	# The "shadows" toggle (and a quality change) must reach the sun even
 	# after the scene has already loaded, not just at EnvironmentSetup.create().
 	var sun := get_node_or_null("Sun") as DirectionalLight3D

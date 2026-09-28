@@ -103,6 +103,14 @@ func show_result(r: Dictionary) -> void:
 	b_menu.pressed.connect(func() -> void: menu.emit())
 	buttons.add_child(b_retry)
 	buttons.add_child(b_menu)
+	# Slide up and fade in over the dimmed drive.
+	panel.modulate.a = 0.0
+	dim.modulate.a = 0.0
+	margin.position.y = 40.0
+	var tw := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(dim, "modulate:a", 1.0, 0.25)
+	tw.tween_property(panel, "modulate:a", 1.0, 0.3).set_delay(0.08)
+	tw.tween_property(margin, "position:y", 0.0, 0.38).set_delay(0.08)
 
 
 func _entry_row(e: Dictionary) -> Control:

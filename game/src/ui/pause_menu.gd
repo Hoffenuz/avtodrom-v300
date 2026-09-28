@@ -33,25 +33,26 @@ func _ready() -> void:
 	_panel = PanelContainer.new()
 	_panel.custom_minimum_size = Vector2(460, 0)
 	center.add_child(_panel)
+	_panel.add_theme_stylebox_override("panel", UITheme.box(Color(0.07, 0.09, 0.12, 0.94), 26, 1, UITheme.LINE, 22))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
+	v.add_theme_constant_override("separation", 10)
 	_panel.add_child(v)
 	var title := UITheme.label(Loc.t("pause.title"), 34, UITheme.TEXT, true)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(title)
-	var b_resume := UITheme.primary_button(Loc.t("pause.resume"))
+	var b_resume := _tile(Loc.t("pause.resume"), "play", UITheme.GO, true)
 	b_resume.pressed.connect(func() -> void: resume.emit())
 	v.add_child(b_resume)
-	_restart = UITheme.button(Loc.t("pause.restart"))
+	_restart = _tile(Loc.t("pause.restart"), "restart", Color(1.0, 0.6, 0.2))
 	_restart.pressed.connect(func() -> void: restart.emit())
 	v.add_child(_restart)
-	var b_settings := UITheme.button(Loc.t("menu.settings"))
+	var b_settings := _tile(Loc.t("menu.settings"), "gear", UITheme.INFO)
 	b_settings.pressed.connect(_open_settings)
 	v.add_child(b_settings)
-	_layout_btn = UITheme.button(Loc.t("pause.layout"))
+	_layout_btn = _tile(Loc.t("pause.layout"), "wheel", UITheme.CAUTION)
 	_layout_btn.pressed.connect(func() -> void: edit_layout.emit())
 	v.add_child(_layout_btn)
-	var b_menu := UITheme.button(Loc.t("pause.menu"))
+	var b_menu := _tile(Loc.t("pause.menu"), "exit", UITheme.STOP)
 	b_menu.pressed.connect(func() -> void: quit_to_menu.emit())
 	v.add_child(b_menu)
 	_warn = UITheme.label(Loc.t("pause.warn_exam"), 18, UITheme.STOP)
@@ -68,6 +69,19 @@ func open(exam_running: bool, touch_controls := false) -> void:
 	_restart.visible = not exam_running
 	_layout_btn.visible = touch_controls
 	_panel.visible = true
+	# A quick pop-in, as mobile games do.
+	_panel.pivot_offset = _panel.size * 0.5
+	_panel.scale = Vector2(0.94, 0.94)
+	_panel.modulate.a = 0.0
+	var tw := _panel.create_tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_panel, "scale", Vector2.ONE, 0.22)
+	tw.tween_property(_panel, "modulate:a", 1.0, 0.16)
+
+
+func _tile(title: String, icon: String, accent: Color, primary := false) -> MenuCard:
+	var b := MenuCard.new(title, icon, accent, primary)
+	b.custom_minimum_size = Vector2(0, 66)
+	return b
 
 
 func close() -> void:
