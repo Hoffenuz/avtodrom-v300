@@ -43,7 +43,13 @@ func _ready() -> void:
 		["top", 40, Vector3(0.01, 8.0, 0.0), Vector3(0, 0, 0)],
 		["cockpit", -1, Vector3.ZERO, Vector3.ZERO],
 		["cockpit_wide", -2, Vector3.ZERO, Vector3.ZERO],
+		# The driver turning the head (the cockpit camera skips BodyOuter).
+		["cockpit_left", -1, Vector3(0, 1.4, 0), Vector3.ZERO],
+		["cockpit_right", -1, Vector3(0, -1.4, 0), Vector3.ZERO],
+		["cockpit_back", -1, Vector3(0, PI, -0.15), Vector3.ZERO],
+		["cockpit_down", -1, Vector3(0, 0.3, -0.8), Vector3.ZERO],
 		["dash_centre", 60, Vector3(0.1, 1.15, 0.45), Vector3(0.0, 0.9, -0.55)],
+		["headlight", 30, Vector3(-1.6, 0.95, -3.4), Vector3(-0.62, 0.66, -1.9)],
 		["passenger", 70, Vector3(0.38, 1.12, 0.2), Vector3(-0.2, 0.85, -0.7)],
 	]
 
@@ -63,9 +69,13 @@ func _process(_delta: float) -> void:
 	var xf := car.global_transform
 	var fov: float = s[1]
 	if fov < 0:
-		cam.global_transform = Transform3D(xf.basis * Basis(Vector3.RIGHT, -0.07), xf * car.cockpit_eye)
+		var look: Vector3 = s[2] # (unused, yaw, pitch) of the head
+		var head := Basis(Vector3.UP, look.y) * Basis(Vector3.RIGHT, look.z - 0.07)
+		cam.global_transform = Transform3D(xf.basis * head, xf * car.cockpit_eye)
 		cam.fov = 72 if fov == -1 else 95
+		cam.cull_mask &= ~Car.LAYER_EXTERIOR
 	else:
+		cam.cull_mask |= Car.LAYER_EXTERIOR
 		cam.fov = fov
 		cam.global_position = xf * (s[2] as Vector3)
 		cam.look_at(xf * (s[3] as Vector3), Vector3.UP)

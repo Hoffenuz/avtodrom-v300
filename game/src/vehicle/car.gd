@@ -25,6 +25,10 @@ const MODELS := {
 const GAUGE_SHADER := preload("res://assets/shaders/gauge.gdshader")
 const BLINK_HZ := 1.5 # 90 flashes per minute (UNECE R48)
 const LAYER_CAR := 2
+## Render layer of the body shell the driver cannot see from the seat
+## (BodyOuter, split off in pipeline/blender/refine_car.py): the cockpit
+## camera leaves it out, mirrors and outside views draw it.
+const LAYER_EXTERIOR := 1 << 17 # layer 18
 const MASK_WORLD := 1 | 4
 
 var indicator: Indicator = Indicator.OFF
@@ -130,6 +134,9 @@ func _load_model() -> void:
 		if mi:
 			_lamps[n] = mi
 	_apply_materials(model)
+	var outer := model.find_child("BodyOuter", true, false) as VisualInstance3D
+	if outer:
+		outer.layers = LAYER_EXTERIOR
 	_make_gauges(spec)
 	_make_collision()
 	_add_shadow_proxy(spec)
@@ -222,6 +229,8 @@ func _apply_materials(root: Node) -> void:
 		"dash_trim": _cabin(Color(0.1, 0.1, 0.11), 0.5),
 		"mirror": _pbr(Color(0.9, 0.92, 0.94), 1.0, 0.02),
 		"lamp_white": _pbr(Color(0.82, 0.84, 0.86), 0.3, 0.12),
+		"headlamp": _pbr(Color(0.3, 0.31, 0.33), 0.4, 0.45),
+		"headlamp_lens": _pbr(Color(0.36, 0.38, 0.41), 0.85, 0.22),
 		"plate": _pbr(Color(0.92, 0.93, 0.94), 0.0, 0.45),
 	}
 	for mi in root.find_children("*", "MeshInstance3D", true, false):

@@ -27,6 +27,7 @@ import sys
 import bpy  # before bmesh: needed when run through the bpy pip module
 import bmesh
 from mathutils import Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
 SRC, OUT, CAR = argv[0], argv[1], argv[2]
@@ -42,6 +43,7 @@ SPEC = {
         "body_tris": 34000,
         "tunnel": True,  # the decimated gear-lever tunnel is spiky: rebuilt with a manual lever
         "seats": None,  # the Nexia's own seats survived the decimation
+        "headlight": None,
     },
     "cobalt_at": {
         "half_width": 0.76, "y_back": 0.72, "z_top": 0.95, "z_knee": 0.58, "z_floor": 0.45,
@@ -53,6 +55,10 @@ SPEC = {
         "seats": {"front_x": 0.35, "front_w": 0.48, "cushion": (0.32, 0.40), "back": (-0.01, 0.64),
                   "head": (-0.13, 1.02), "rear_cushion": (-0.70, 0.45), "rear_back": (-1.08, 0.68),
                   "rear_head": (-1.2, 0.99), "rear_w": 1.2},
+        # Headlamp box (|x|, y, z ranges): its chrome projector tube pokes out
+        # through the lens and the housing is open underneath. The chrome
+        # inside is dropped and a plain solid lamp sits behind the lens.
+        "headlight": {"x": (0.45, 0.86), "y": (1.5, 2.1), "z": (0.5, 0.88), "turn_x": 0.71},
     },
 }[CAR]
 
@@ -133,6 +139,101 @@ for o in list(scene.objects):
         decimate(o, 3000)
     elif o.name.startswith("Hub_"):
         decimate(o, 400)
+
+# --- 1b. Simple headlamps ------------------------------------------------------------------
+if SPEC["headlight"]:
+    box = SPEC["headlight"]
+
+    def in_lamp(c):
+        return (box["x"][0] < abs(c.x) < box["x"][1] and box["y"][0] < c.y < box["y"][1]
+                and box["z"][0] < c.z < box["z"][1])
+
+    body = obj["Body"]
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    mats = [m.name if m else "" for m in body.data.materials]
+    dead = [f for f in bm.faces if mats[f.material_index] == "chrome" and in_lamp(f.calc_center_median())]
+    bmesh.ops.delete(bm, geom=dead, context="FACES")
+    bm.to_mesh(body.data)
+    bm.free()
+    print("headlamps: removed", len(dead), "chrome faces")
+    # In its place a solid lamp body that fills the lens: the convex hull of
+    # the lens, shrunk a little. Its faces towards the viewer become the lamp
+    # itself (Lamp_Head, the outer end Lamp_TurnF*), the rest a grey housing.
+    lens = obj["LampGlass"]
+    lens_pts = [lens.matrix_world @ v.co for v in lens.data.vertices]
+    head_bm, housing_bm = bmesh.new(), bmesh.new()
+    turn_bm = {-1: bmesh.new(), 1: bmesh.new()}
+    for side in (-1, 1):
+        pts = [v for v in lens_pts if v.x * side > 0 and in_lamp(v)]
+        centre = sum(pts, Vector()) / len(pts)
+        hb = bmesh.new()
+        for v in pts:
+            hb.verts.new(centre + (v - centre) * 0.985 + Vector((0, -0.004, 0)))
+        bmesh.ops.convex_hull(hb, input=hb.verts)
+        bmesh.ops.recalc_face_normals(hb, faces=hb.faces)
+        for f in hb.faces:
+            n = f.normal
+            c = f.calc_center_median()
+            facing = n.y > 0.25 or n.x * side > 0.6
+            if facing and abs(c.x) >= box["turn_x"]:
+                dst = turn_bm[side]
+            elif facing:
+                dst = head_bm
+            else:
+                dst = housing_bm
+            dst.faces.new([dst.verts.new(v.co) for v in f.verts])
+        # A round projector lens in the middle of the lamp, so it reads as a
+        # headlamp rather than a filled hole.
+        front = [f for f in hb.faces if f.normal.y > 0.25 and abs(f.calc_center_median().x) < box["turn_x"]]
+        if front:
+            area = sum(f.calc_area() for f in front)
+            c = sum((f.calc_center_median() * f.calc_area() for f in front), Vector()) / area
+            n = sum((f.normal * f.calc_area() for f in front), Vector()).normalized()
+            # The weighted centre lies inside the curved lamp: put the disc on
+            # the front surface, where a ray from outside first meets it.
+            hit = BVHTree.FromBMesh(hb).ray_cast(c + n * 0.3, -n)[0]
+            if hit is not None:
+                c = hit
+            u = n.cross(Vector((0, 0, 1))).normalized()
+            w = u.cross(n)
+            ring = [head_bm.verts.new(c + n * 0.012 + (u * math.cos(k / 16 * math.tau)
+                                                          + w * math.sin(k / 16 * math.tau)) * 0.036)
+                    for k in range(16)]
+            f = head_bm.faces.new(list(reversed(ring)))  # wound to face n
+            f.material_index = 1
+        hb.free()
+    for b_ in [head_bm, housing_bm, *turn_bm.values()]:
+        bmesh.ops.remove_doubles(b_, verts=b_.verts, dist=1e-5)
+        for f in b_.faces:
+            f.smooth = True
+
+    def replace(name, bm_src, mat):
+        me = bpy.data.meshes.new(name)
+        bm_src.to_mesh(me)
+        bm_src.free()
+        me.materials.append(mat)
+        o = obj.get(name)
+        if o is None:
+            o = bpy.data.objects.new(name, me)
+            collection.objects.link(o)
+            obj[name] = o
+        else:
+            o.data = me
+            o.matrix_world = Matrix.Identity(4)
+        return o
+
+    lamp_off = material("headlamp_lens", (0.8, 0.82, 0.85))
+    head = replace("Lamp_Head", head_bm, lamp_off)
+    head.data.materials.append(bpy.data.materials["lamp_white"])
+    replace("Lamp_TurnFL", turn_bm[-1], lamp_off)
+    replace("Lamp_TurnFR", turn_bm[1], lamp_off)
+    housing = replace("HeadlampHousing", housing_bm, material("headlamp", (0.5, 0.52, 0.55)))
+    activate(body)
+    housing.select_set(True)
+    bpy.ops.object.join()
+    obj["Body"] = bpy.context.view_layer.objects.active
+    obj["Body"].name = "Body"
 
 # --- 2. Cut the old dashboard out of the interior ---------------------------------------------
 interior = obj["Interior"]
@@ -405,6 +506,70 @@ for i, m in enumerate(wheel.data.materials):
 for i, m in enumerate(interior.data.materials):
     if m and m.name == "trim_black":
         interior.data.materials[i] = material("interior_black", (0.03, 0.03, 0.03))
+
+# --- 4b. Split the body by what the driver can see ------------------------------------------
+# From the driver's seat most of the body shell is hidden behind the cabin or
+# faces away (single-sided), yet costs as much as the rest of the car. Faces
+# the driver's eye can see stay in Body; the rest goes to BodyOuter, which the
+# game leaves out of the cockpit camera (mirrors and outside views keep it).
+# The cockpit camera only turns about the eye, so visibility from that point
+# (with a few centimetres of margin) is exact.
+body = obj["Body"]
+occ_bm = bmesh.new()
+for o in (body, interior):
+    tmp = bmesh.new()
+    tmp.from_mesh(o.data)
+    tmp.transform(o.matrix_world)
+    me_tmp = bpy.data.meshes.new("occ")
+    tmp.to_mesh(me_tmp)
+    tmp.free()
+    occ_bm.from_mesh(me_tmp)
+    bpy.data.meshes.remove(me_tmp)
+occluders = BVHTree.FromBMesh(occ_bm)
+occ_bm.free()
+eyes = [eye + Vector(d) for d in ((0, 0, 0), (0.04, 0, 0), (-0.04, 0, 0), (0, 0.04, 0.02), (0, -0.04, -0.02))]
+
+bm = bmesh.new()
+bm.from_mesh(body.data)
+bm.transform(body.matrix_world)
+bm.normal_update()
+
+
+def seen(f):
+    c = f.calc_center_median()
+    samples = [c] + [c + (v.co - c) * 0.8 for v in f.verts]
+    for e in eyes:
+        if f.normal.dot(e - c) <= 0.0:
+            continue
+        for p in samples:
+            d = p - e
+            dist = d.length
+            hit = occluders.ray_cast(e, d / dist, dist)
+            if hit[0] is None or hit[3] >= dist - 0.004:
+                return True
+    return False
+
+
+bm.faces.index_update()
+visible = {f.index for f in bm.faces if seen(f)}
+print(f"body split: {len(visible)} faces seen from the driver's seat, {len(bm.faces) - len(visible)} not")
+outer_bm = bm.copy()
+outer_bm.faces.index_update()
+bmesh.ops.delete(outer_bm, geom=[f for f in outer_bm.faces if f.index in visible], context="FACES")
+bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in visible], context="FACES")
+for b_ in (bm, outer_bm):
+    bmesh.ops.delete(b_, geom=[v for v in b_.verts if not v.link_faces], context="VERTS")
+    b_.transform(body.matrix_world.inverted())
+outer_me = bpy.data.meshes.new("BodyOuter")
+outer_bm.to_mesh(outer_me)
+outer_bm.free()
+for m in body.data.materials:
+    outer_me.materials.append(m)
+bm.to_mesh(body.data)
+bm.free()
+outer_obj = bpy.data.objects.new("BodyOuter", outer_me)
+outer_obj.matrix_world = body.matrix_world
+collection.objects.link(outer_obj)
 
 # --- 5. Report + export -----------------------------------------------------------------------
 total = 0

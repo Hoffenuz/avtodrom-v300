@@ -60,6 +60,11 @@ func set_mode(m: Mode) -> void:
 	reset_view()
 	_initialised = false
 	car.set_interior_audio(mode == Mode.COCKPIT)
+	# From the seat most of the body shell is out of sight: skip drawing it.
+	if mode == Mode.COCKPIT:
+		camera.cull_mask &= ~Car.LAYER_EXTERIOR
+	else:
+		camera.cull_mask |= Car.LAYER_EXTERIOR
 	mode_changed.emit(mode)
 
 
