@@ -20,6 +20,9 @@ var quality := 1
 var autopilot: Autopilot
 var _indicator_peak := 0.0
 var _last_indicator := Car.Indicator.OFF
+## Seconds the starter has turned after a key tap (-1: not cranking).
+var _crank_t := -1.0
+const CRANK_MAX_S := 2.5
 
 
 func _ready() -> void:
@@ -152,6 +155,8 @@ func _debug_options() -> void:
 			director.penalty_added.connect(func(e: Dictionary) -> void:
 				print("PENALTY №%d +%d (%s) at %.1f s: %s [%s]" % [e["no"], e["points"], e["exercise"], e["time"],
 						PenaltyTable.text(int(e["no"])), e["detail"]]))
+			director.milestone.connect(func(text: String) -> void:
+				print("[%6.1f s] milestone: %s" % [director.exam_time, text]))
 			director.exercise_changed.connect(func() -> void:
 				var ex := director.current_exercise()
 				if ex:
@@ -191,9 +196,7 @@ func _connect_controls() -> void:
 	controls.handbrake_pressed.connect(func() -> void: car.handbrake = 0.0 if car.handbrake > 0.5 else 1.0)
 	controls.camera_pressed.connect(_cycle_camera)
 	controls.pause_pressed.connect(_pause)
-	controls.ignition_pressed.connect(func() -> void:
-		car.ignition = not car.ignition
-		car.starter = false)
+	controls.ignition_pressed.connect(_on_key_tap)
 	controls.starter_changed.connect(_on_starter)
 	controls.gear_requested.connect(_on_gear)
 	controls.gear_step.connect(func(d: int) -> void:
@@ -207,6 +210,19 @@ func _connect_controls() -> void:
 func _cycle_camera() -> void:
 	rig.cycle()
 	Settings.set_value("camera", ["cockpit", "chase", "top"][rig.mode])
+
+
+## One tap on the key starts the engine (the starter turns until it catches,
+## like a start button); a tap with the engine running switches it off.
+func _on_key_tap() -> void:
+	if car.is_engine_running():
+		car.ignition = false
+		car.starter = false
+		_crank_t = -1.0
+		return
+	_on_starter(true)
+	if car.starter:
+		_crank_t = 0.0
 
 
 func _on_starter(held: bool) -> void:
@@ -244,9 +260,14 @@ func start_autopilot() -> void:
 	autopilot.active = true
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if car == null:
 		return
+	if _crank_t >= 0.0:
+		_crank_t += delta
+		if car.is_engine_running() or _crank_t > CRANK_MAX_S:
+			car.starter = false
+			_crank_t = -1.0
 	controls.car_speed = car.get_forward_speed()
 	if autopilot and autopilot.active:
 		return

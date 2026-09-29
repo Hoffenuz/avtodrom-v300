@@ -57,6 +57,8 @@ func _tick(_dt: float, p: CarProbe) -> void:
 			if inside and p.stopped_time > STABLE_STOP:
 				last_on_line = _right_wheels_on_line(p)
 				set_hint("hint.parallel_leave" if last_on_line else "hint.parallel_fix")
+				if last_on_line:
+					milestone("done.parallel_parked")
 			if not p.inside(pocket, 1.0) and p.speed > 0.2:
 				_judge(p)
 				phase = Phase.LEAVING

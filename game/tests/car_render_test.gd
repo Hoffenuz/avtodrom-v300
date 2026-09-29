@@ -10,6 +10,8 @@ var cam: Camera3D
 var shots: Array = []
 var idx := 0
 var wait := 0
+## "spin" mode: close-ups of the left and right wheels at several spin angles.
+var spin_mode := false
 
 
 func _ready() -> void:
@@ -35,6 +37,8 @@ func _ready() -> void:
 		car.headlights = true
 	elif args.size() > 2 and args[2] == "lamps":
 		car.lamp_prewarm = true # every lamp lit
+	elif args.size() > 2 and args[2] == "spin":
+		spin_mode = true
 	var data := CourseData.get_default()
 	var start: Dictionary = data.exercise("start")["spawn"]
 	car.teleport(builder.spawn_transform(CourseData.v2(start["pos"]), float(start["yaw"])), true)
@@ -61,6 +65,12 @@ func _ready() -> void:
 		["headlight", 30, Vector3(-1.6, 0.95, -3.4), Vector3(-0.62, 0.66, -1.9)],
 		["passenger", 70, Vector3(0.38, 1.12, 0.2), Vector3(-0.2, 0.85, -0.7)],
 	]
+	if spin_mode:
+		shots = []
+		for k in 6:
+			var a := k * TAU / 6.0
+			shots.append(["spin_left_%d" % k, 30, Vector3(-3.2, 0.45, -1.3), Vector3(-0.75, 0.3, -1.3), a])
+			shots.append(["spin_right_%d" % k, 30, Vector3(3.2, 0.45, -1.3), Vector3(0.75, 0.3, -1.3), a])
 
 
 func _process(_delta: float) -> void:
@@ -76,6 +86,13 @@ func _process(_delta: float) -> void:
 		return
 	var s: Array = shots[idx]
 	var xf := car.global_transform
+	if spin_mode:
+		# The wheels turned by hand (the car stands still): a wobbling or
+		# off-centre part shows as it moves between the shots.
+		car.rest_pose = true
+		for sp in car._wheel_spins:
+			if sp:
+				sp.rotation.x = float(s[4])
 	var fov: float = s[1]
 	if fov < 0:
 		var look: Vector3 = s[2] # (unused, yaw, pitch) of the head

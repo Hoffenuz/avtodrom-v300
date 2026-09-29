@@ -66,6 +66,8 @@ func _tick(dt: float, p: CarProbe) -> void:
 			set_hint("hint.hold_3s", [int(ceil(float(def.get("min_wait", 3.0)) - stop_len))])
 		else:
 			set_hint("hint.hill_go")
+			if not rollback_flagged:
+				milestone("done.hold")
 		# Moving off: counted once the car has gone forwards past its stop point.
 		if along > 0.6:
 			in_stop = false

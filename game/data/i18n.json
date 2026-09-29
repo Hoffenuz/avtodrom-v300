@@ -405,9 +405,9 @@
   "ru": "Ремень"
  },
  "key.key": {
-  "uz_latn": "Kalit (bosib turing — o‘t oldirish)",
-  "uz_cyrl": "Калит (босиб туринг — ўт олдириш)",
-  "ru": "Ключ (удерживать — запуск)"
+  "uz_latn": "Kalit (bir bosish — o‘t oldirish / o‘chirish)",
+  "uz_cyrl": "Калит (бир босиш — ўт олдириш / ўчириш)",
+  "ru": "Ключ (нажатие — запуск / выключение)"
  },
  "key.handbrake": {
   "uz_latn": "Qo‘l tormozi",
@@ -535,9 +535,9 @@
   "ru": "Ремень"
  },
  "prep.engine": {
-  "uz_latn": "Dvigatel (kalitni bosib turing)",
-  "uz_cyrl": "Двигател (калитни босиб туринг)",
-  "ru": "Двигатель (удерживайте ключ)"
+  "uz_latn": "Dvigatel (kalitni bosing)",
+  "uz_cyrl": "Двигател (калитни босинг)",
+  "ru": "Двигатель (нажмите ключ)"
  },
  "prep.handbrake": {
   "uz_latn": "Qo‘l tormozi",
@@ -563,6 +563,26 @@
   "uz_latn": "Chiziqdan oldin to‘xtang (1 m gacha)",
   "uz_cyrl": "Чизиқдан олдин тўхтанг (1 м гача)",
   "ru": "Остановитесь перед линией (до 1 м)"
+ },
+ "done.box_parked": {
+  "uz_latn": "To‘g‘ri to‘xtadingiz — boksdan chiqishingiz mumkin",
+  "uz_cyrl": "Тўғри тўхтадингиз — боксдан чиқишингиз мумкин",
+  "ru": "Правильно — можно выезжать из бокса"
+ },
+ "done.parallel_parked": {
+  "uz_latn": "To‘g‘ri to‘xtadingiz — chiqishingiz mumkin",
+  "uz_cyrl": "Тўғри тўхтадингиз — чиқишингиз мумкин",
+  "ru": "Правильно — можно выезжать"
+ },
+ "done.hold": {
+  "uz_latn": "To‘xtash to‘g‘ri — harakatni davom ettiring",
+  "uz_cyrl": "Тўхташ тўғри — ҳаракатни давом эттиринг",
+  "ru": "Остановка выполнена — продолжайте движение"
+ },
+ "done.exercise": {
+  "uz_latn": "«{0}» bajarildi",
+  "uz_cyrl": "«{0}» бажарилди",
+  "ru": "«{0}» выполнено"
  },
  "hint.wait3": {
   "uz_latn": "Kuting: {0} s",

@@ -1,6 +1,14 @@
 // Building walls with windows, from world position alone (no textures, no
 // UVs): one material for the exam centre and every distant block.
 // Wall colour = tint × vertex/instance colour; roofs are darker.
+// The colour's alpha picks the facade style (the city's MultiMesh sets it
+// per building; the exam centre's vertex colours are opaque = plain):
+//   < 0.2   panel block with balconies (the Tashkent 9-storey)
+//   < 0.4   panel block, seams between the panels
+//   < 0.6   panel block with a glazed stair column every 5 bays
+//   < 0.75  glass tower (curtain wall, mullions every bay)
+//   < 0.9   blank wall (lift housings and other roof boxes)
+//   else    plain wall with windows
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 
@@ -23,18 +31,52 @@ float hash(vec2 p) {
 
 void fragment() {
 	vec3 base = tint.rgb * COLOR.rgb;
+	float style = COLOR.a;
 	float wall = 1.0 - step(0.5, abs(wn.y));
 	float u = abs(wn.x) > abs(wn.z) ? wp.z : wp.x;
 	vec2 cell = vec2(floor(u / bay_w), floor(wp.y / floor_h));
 	float fy = fract(wp.y / floor_h);
 	float fx = fract(u / bay_w);
-	float win = step(0.32, fy) * step(fy, 0.8) * step(0.16, fx) * step(fx, 0.84) * wall
-			* step(ground_floor, wp.y);
-	vec3 glass = vec3(0.13, 0.18, 0.25) + vec3(0.1, 0.1, 0.08) * hash(cell);
+	float above_ground = step(ground_floor, wp.y);
+	float win = step(0.32, fy) * step(fy, 0.8) * step(0.16, fx) * step(fx, 0.84) * wall * above_ground;
+	// Glass: some panes lit or curtained, the rest dark sky-blue.
+	float h = hash(cell + floor(wp.xz / 97.0));
+	vec3 glass = vec3(0.13, 0.18, 0.25) + vec3(0.1, 0.1, 0.08) * h;
+	glass = mix(glass, vec3(0.62, 0.58, 0.48), step(0.93, h) * 0.6);
+	vec3 wallc = base;
+	float rough = 0.88;
+	if (style < 0.6) {
+		// Soviet panel block: a darker ground floor, faint panel seams.
+		float seam = (1.0 - smoothstep(0.0, 0.03, fy)) + (1.0 - smoothstep(0.0, 0.02, fract(u / (bay_w * 2.0))));
+		wallc *= 1.0 - 0.1 * clamp(seam, 0.0, 1.0) * wall;
+		wallc = mix(wallc, base * 0.62, (1.0 - above_ground) * wall);
+		if (style < 0.2) {
+			// Balconies: a light slab and railing under the windows of every
+			// other bay, the loggia behind them in shade.
+			float balcony_bay = step(0.5, fract(cell.x * 0.5));
+			float slab = step(0.02, fy) * step(fy, 0.3) * balcony_bay * above_ground * wall;
+			wallc = mix(wallc, base * 1.12 + vec3(0.04), slab);
+			win *= 1.0 - balcony_bay * 0.35;
+		} else if (style >= 0.4) {
+			// Stair column: a narrow strip of glass up the whole height.
+			float stair = step(4.5, mod(cell.x, 5.0)) * wall * above_ground;
+			float sw = step(0.2, fx) * step(fx, 0.8) * stair;
+			win = max(win * (1.0 - stair), sw);
+		}
+	} else if (style < 0.75) {
+		// Curtain wall: glass everywhere but thin mullions and floor bands.
+		float mull = (1.0 - step(0.06, fx)) + (1.0 - step(0.08, fy));
+		win = wall * (1.0 - clamp(mull, 0.0, 1.0));
+		glass = vec3(0.18, 0.27, 0.36) + vec3(0.05, 0.06, 0.07) * h;
+		wallc = base * 0.75;
+		rough = 0.35;
+	} else if (style < 0.9) {
+		win = 0.0;
+	}
 	vec3 roof = base * 0.55;
-	vec3 c = mix(roof, base, wall);
+	vec3 c = mix(roof, wallc, wall);
 	ALBEDO = mix(c, glass, win);
-	ROUGHNESS = mix(0.88, 0.12, win);
+	ROUGHNESS = mix(rough, 0.12, win);
 	SPECULAR = mix(0.3, 0.7, win);
 	METALLIC = 0.0;
 }

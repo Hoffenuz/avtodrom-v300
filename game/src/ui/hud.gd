@@ -87,6 +87,7 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 	_build()
 	if director:
 		director.penalty_added.connect(_on_penalty)
+		director.milestone.connect(_on_milestone)
 		director.hint_changed.connect(_refresh_card)
 		director.exercise_changed.connect(_refresh_card)
 		director.state_changed.connect(_refresh_card)
@@ -639,6 +640,37 @@ func _on_penalty(entry: Dictionary) -> void:
 		var last := toasts.get_child(toasts.get_child_count() - 1)
 		toasts.remove_child(last)
 		last.queue_free()
+
+
+## A step done right: a green banner at the top and a bright chime.
+func _on_milestone(text: String) -> void:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.04, 0.12, 0.07, 0.9), 14, 2, UITheme.GO, 12))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	p.add_child(h)
+	h.add_child(UITheme.label("✓", 22, UITheme.GO, true))
+	var txt := UITheme.label(text, 18, UITheme.TEXT, true)
+	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	txt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(txt)
+	p.set_meta("life", 4.0)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toasts.add_child(p)
+	toasts.move_child(p, 0)
+	while toasts.get_child_count() > 2:
+		var last := toasts.get_child(toasts.get_child_count() - 1)
+		toasts.remove_child(last)
+		last.queue_free()
+	if _success_sound == null:
+		_success_sound = AudioStreamPlayer.new()
+		_success_sound.stream = AudioSynth.success()
+		_success_sound.volume_db = -5.0
+		add_child(_success_sound)
+	_success_sound.play()
+
+
+var _success_sound: AudioStreamPlayer
 
 
 func _on_emergency(on: bool) -> void:

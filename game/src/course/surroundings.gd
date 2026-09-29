@@ -362,9 +362,10 @@ func _build_poplars() -> void:
 	crown.rings = 5 if quality >= 2 else 4
 	_scatter("Poplar", pts, trunk, crown, func(s: float) -> Array:
 		# [trunk basis/offset, crown scale, crown centre height]
-		var hgt := 10.0 * s
-		return [Vector3(1.0, 1.0, 1.0) * s, Vector3(1.25 * s, hgt * 0.5, 1.25 * s), 2.0 * s + hgt * 0.5],
-		Color(0.16, 0.3, 0.12), Color(0.24, 0.38, 0.15))
+		var hgt := 10.0 * s * _rng.randf_range(0.85, 1.2)
+		var wid := 1.25 * s * _rng.randf_range(0.8, 1.2)
+		return [Vector3(1.0, 1.0, 1.0) * s, Vector3(wid, hgt * 0.5, wid), 2.0 * s + hgt * 0.5],
+		Color(0.14, 0.28, 0.11), Color(0.27, 0.4, 0.15))
 
 
 func _build_park_trees() -> void:
@@ -385,15 +386,70 @@ func _build_park_trees() -> void:
 			_: p = Vector2(fence.end.x + dist, lerpf(outer.position.y, outer.end.y, along))
 		if _clear_of(p, 3.0):
 			pts.append(p)
+	# Three kinds, so the park is not one tree copied a hundred times:
+	# broad-leaved (plane, elm), conifers (archa / spruce) and small round
+	# ornamental trees, each with its own spread of greens.
+	var broad: Array[Vector2] = []
+	var conifer: Array[Vector2] = []
+	var small: Array[Vector2] = []
+	for p in pts:
+		var r := _rng.randf()
+		if r < 0.5:
+			broad.append(p)
+		elif r < 0.75:
+			conifer.append(p)
+		else:
+			small.append(p)
+	_scatter("ParkTree", broad, _trunk(0.13, 0.22), _crown_mesh(), func(s: float) -> Array:
+		var spread := _rng.randf_range(0.85, 1.2)
+		return [Vector3(1.0, 1.0, 1.0) * s, Vector3(2.4 * spread, 2.1, 2.4 * spread) * s, 4.2 * s],
+		Color(0.2, 0.36, 0.14), Color(0.38, 0.48, 0.17))
+	_scatter("Conifer", conifer, _trunk(0.1, 0.18), _conifer_mesh(), func(s: float) -> Array:
+		var tall := _rng.randf_range(0.9, 1.35)
+		return [Vector3(1.0, 0.5, 1.0) * s, Vector3(1.9, 3.6 * tall, 1.9) * s, (0.8 + 3.6 * tall) * s],
+		Color(0.07, 0.19, 0.09), Color(0.12, 0.26, 0.12))
+	_scatter("SmallTree", small, _trunk(0.08, 0.13), _round_crown_mesh(), func(s: float) -> Array:
+		return [Vector3(0.7, 0.7, 0.7) * s, Vector3(1.5, 1.3, 1.5) * s, 2.9 * s],
+		Color(0.34, 0.5, 0.18), Color(0.52, 0.56, 0.2))
+
+
+func _trunk(top: float, bottom: float) -> CylinderMesh:
 	var trunk := CylinderMesh.new()
-	trunk.top_radius = 0.13
-	trunk.bottom_radius = 0.22
+	trunk.top_radius = top
+	trunk.bottom_radius = bottom
 	trunk.height = 3.0
 	trunk.radial_segments = 5
 	trunk.rings = 0
-	_scatter("ParkTree", pts, trunk, _crown_mesh(), func(s: float) -> Array:
-		return [Vector3(1.0, 1.0, 1.0) * s, Vector3(2.4, 2.1, 2.4) * s, 4.2 * s],
-		Color(0.2, 0.36, 0.14), Color(0.36, 0.46, 0.18))
+	return trunk
+
+
+## A spruce/archa: three stacked cones, the crown's y from -1 to +1.
+func _conifer_mesh() -> ArrayMesh:
+	var st := _st()
+	var tiers := [[1.0, -1.0, 0.95], [0.78, -0.45, 0.85], [0.52, 0.12, 0.88]] # radius, base y, height
+	var segs := 7 if quality >= 1 else 5
+	for t in tiers:
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = float(t[0])
+		cone.height = float(t[2])
+		cone.radial_segments = segs
+		cone.rings = 0
+		cone.cap_bottom = true
+		st.append_from(cone, 0, Transform3D(Basis(), Vector3(0, float(t[1]) + float(t[2]) * 0.5, 0)))
+	return st.commit()
+
+
+## A small ornamental tree: one slightly flattened ball.
+func _round_crown_mesh() -> ArrayMesh:
+	var st := _st()
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.0
+	sphere.height = 2.0
+	sphere.radial_segments = 7 if quality >= 1 else 5
+	sphere.rings = 4 if quality >= 1 else 3
+	st.append_from(sphere, 0, Transform3D())
+	return st.commit()
 
 
 ## Trunks and crowns as MultiMeshes, one pair per sector around the field
@@ -462,32 +518,93 @@ static func _sector(d: Vector2) -> int:
 
 
 # --------------------------------------------------------------------------- city
+## A ring of blocks 230–420 m away, softened by the fog: Tashkent's mix of
+## 9- and 16-storey panel blocks (balconies, panel seams, stair columns),
+## low 4–5 storey houses under pitched roofs and a few glass towers. Some
+## blocks have a second wing (L plan) and every flat roof its lift housing.
+## Three MultiMeshes: walls, roof boxes, pitched roofs.
 func _build_city() -> void:
-	# A ring of blocks 230–420 m away: a skyline, softened by the fog.
 	var count := 90 if quality >= 1 else 50
 	var box := BoxMesh.new()
 	box.size = Vector3.ONE
 	box.material = _facade
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = box
-	mm.instance_count = count
-	var colours := [Color(0.9, 0.87, 0.8), Color(0.85, 0.85, 0.83), Color(0.78, 0.82, 0.86), Color(0.92, 0.84, 0.72),
-			Color(0.8, 0.76, 0.7)]
+	var blocks: Array = [] # [transform, colour]
+	var roof_boxes: Array = []
+	var roofs: Array = [] # pitched
+	var panel_colours := [Color(0.9, 0.87, 0.8), Color(0.85, 0.85, 0.83), Color(0.78, 0.82, 0.86),
+			Color(0.92, 0.84, 0.72), Color(0.8, 0.76, 0.7), Color(0.93, 0.9, 0.84), Color(0.86, 0.8, 0.74),
+			Color(0.76, 0.8, 0.78)]
+	var roof_colours := [Color(0.45, 0.2, 0.16), Color(0.36, 0.38, 0.4), Color(0.5, 0.3, 0.22), Color(0.3, 0.42, 0.36)]
 	for i in count:
 		var ang := TAU * (i + _rng.randf_range(-0.35, 0.35)) / count
 		var rad := _rng.randf_range(230.0, 420.0)
-		var tall := _rng.randf() < 0.18
-		var h := _rng.randf_range(24.0, 48.0) if tall else _rng.randf_range(9.0, 21.0)
-		var w := _rng.randf_range(14.0, 30.0)
-		var d := _rng.randf_range(12.0, 24.0)
-		var pos := Vector3(cos(ang) * rad, h * 0.5, sin(ang) * rad * 0.8)
-		var basis := Basis(Vector3.UP, -ang + PI * 0.5 + _rng.randf_range(-0.2, 0.2)).scaled(Vector3(w, h, d))
-		mm.set_instance_transform(i, Transform3D(basis, pos))
-		mm.set_instance_color(i, colours[_rng.randi() % colours.size()])
+		var kind := _rng.randf()
+		var h: float
+		var style: float
+		var col: Color = panel_colours[_rng.randi() % panel_colours.size()]
+		if kind < 0.1:
+			h = _rng.randf_range(45.0, 80.0) # glass tower
+			style = 0.68
+			col = [Color(0.72, 0.8, 0.86), Color(0.8, 0.82, 0.84), Color(0.66, 0.74, 0.78)][_rng.randi() % 3]
+		elif kind < 0.3:
+			h = 16 * 3.0 + 1.5 # 16 storeys
+			style = [0.1, 0.3, 0.5][_rng.randi() % 3]
+		elif kind < 0.72:
+			h = 9 * 3.0 + 1.5 # 9 storeys
+			style = [0.1, 0.1, 0.3, 0.5][_rng.randi() % 4]
+		else:
+			h = _rng.randi_range(4, 5) * 3.0 + 1.0 # low houses, pitched roofs
+			style = 0.95
+		var w := _rng.randf_range(24.0, 60.0) if kind >= 0.1 and kind < 0.72 else _rng.randf_range(14.0, 30.0)
+		var d := _rng.randf_range(12.0, 15.0) if kind >= 0.1 else _rng.randf_range(20.0, 30.0)
+		var yaw := -ang + PI * 0.5 + _rng.randf_range(-0.2, 0.2)
+		var rot := Basis(Vector3.UP, yaw)
+		var pos := Vector3(cos(ang) * rad, 0.0, sin(ang) * rad * 0.8)
+		col.a = style
+		blocks.append([Transform3D(rot.scaled(Vector3(w, h, d)), pos + Vector3(0, h * 0.5, 0)), col])
+		var flat := kind < 0.72
+		if flat:
+			# Lift / stair housing on the roof.
+			var rb := Vector3(minf(w * 0.18, 7.0), 2.8, d * 0.45)
+			var off := rot * Vector3(_rng.randf_range(-w * 0.3, w * 0.3), h + rb.y * 0.5, 0.0)
+			roof_boxes.append([Transform3D(rot.scaled(rb), pos + off), Color(col.r * 0.9, col.g * 0.9, col.b * 0.9, 0.8)])
+		else:
+			var rh := d * 0.28
+			roofs.append([Transform3D(rot * Basis(Vector3.UP, PI * 0.5).scaled(Vector3(d * 1.04, rh, w * 1.02)),
+					pos + Vector3(0, h + rh * 0.5, 0)), roof_colours[_rng.randi() % roof_colours.size()]])
+		if kind >= 0.1 and kind < 0.72 and _rng.randf() < 0.3:
+			# A second wing at right angles: an L-shaped block.
+			var w2 := _rng.randf_range(18.0, 30.0)
+			var wing := rot * Basis(Vector3.UP, PI * 0.5)
+			var side := 1.0 if _rng.randf() < 0.5 else -1.0
+			var off2 := rot * Vector3(side * (w * 0.5 - d * 0.5), 0.0, w2 * 0.5 + d * 0.5)
+			blocks.append([Transform3D(wing.scaled(Vector3(w2, h, d)), pos + off2 + Vector3(0, h * 0.5, 0)), col])
+	_multimesh("City", box, blocks)
+	var rbox := BoxMesh.new()
+	rbox.size = Vector3.ONE
+	rbox.material = _facade
+	_multimesh("CityRoofBoxes", rbox, roof_boxes)
+	if not roofs.is_empty():
+		var prism := PrismMesh.new()
+		prism.size = Vector3.ONE
+		var rm := StandardMaterial3D.new()
+		rm.vertex_color_use_as_albedo = true
+		rm.roughness = 0.85
+		prism.material = rm
+		_multimesh("CityRoofs", prism, roofs)
+
+
+func _multimesh(node_name: String, mesh: Mesh, items: Array) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = items.size()
+	for i in items.size():
+		mm.set_instance_transform(i, items[i][0])
+		mm.set_instance_color(i, items[i][1])
 	var mmi := MultiMeshInstance3D.new()
-	mmi.name = "City"
+	mmi.name = node_name
 	mmi.multimesh = mm
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mmi)

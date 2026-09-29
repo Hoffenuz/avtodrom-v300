@@ -49,6 +49,8 @@ func _tick(dt: float, p: CarProbe) -> void:
 			set_hint("hint.wait3", [int(ceil(min_wait - stop_len))])
 		else:
 			set_hint("hint.go")
+			if not over_line_flagged and stop_gap <= float(def.get("max_gap", 1.0)):
+				milestone("done.hold")
 	elif in_stop and p.speed > STOP_SPEED:
 		in_stop = false
 		if front_past < -max_gap - 2.0:

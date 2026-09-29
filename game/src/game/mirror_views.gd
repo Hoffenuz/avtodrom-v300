@@ -29,6 +29,10 @@ var _vps: Array[SubViewport] = []
 var _cams: Array[Camera3D] = []
 var _rects: Array[TextureRect] = []
 var _frames: Array[Panel] = []
+var _glasses: Array[Panel] = []
+const FRAME_RADIUS := 26
+const INSET := 4.0
+const GLASS_RADIUS := FRAME_RADIUS - 4
 var _visible := false
 
 
@@ -55,19 +59,27 @@ func setup(p_car: Car, hud_root: Control, p_quality: int, sun: DirectionalLight3
 		_vps.append(vp)
 		_cams.append(cam)
 		var frame := Panel.new()
-		frame.add_theme_stylebox_override("panel", UITheme.box(Color(0.03, 0.03, 0.04, 0.95), 26, 3,
+		frame.add_theme_stylebox_override("panel", UITheme.box(Color(0.03, 0.03, 0.04, 0.95), FRAME_RADIUS, 3,
 				Color(0.25, 0.27, 0.3), 0))
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		frame.visible = false
 		hud_root.add_child(frame)
 		hud_root.move_child(frame, 1)
+		# The picture is cut to the rounded glass (a square image over the
+		# rounded frame left its corners sticking out of it).
+		var glass := Panel.new()
+		glass.add_theme_stylebox_override("panel", UITheme.box(Color.WHITE, GLASS_RADIUS, 0, Color.WHITE, 0))
+		glass.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+		glass.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(glass)
+		_glasses.append(glass)
 		var tr := TextureRect.new()
 		tr.texture = vp.get_texture()
 		tr.flip_h = true # a mirror reverses left and right
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		frame.add_child(tr)
+		glass.add_child(tr)
 		_rects.append(tr)
 		_frames.append(frame)
 	hud_root.get_viewport().size_changed.connect(_layout)
@@ -117,8 +129,10 @@ func _layout() -> void:
 	_frames[1].position = Vector2(vp.x * 0.5 + 110, y)
 	for i in 2:
 		_frames[i].size = Vector2(w, h)
-		_rects[i].position = Vector2(4, 4)
-		_rects[i].size = Vector2(w - 8, h - 8)
+		_glasses[i].position = Vector2(INSET, INSET)
+		_glasses[i].size = Vector2(w - 2.0 * INSET, h - 2.0 * INSET)
+		_rects[i].position = Vector2.ZERO
+		_rects[i].size = _glasses[i].size
 
 
 func _process(_delta: float) -> void:

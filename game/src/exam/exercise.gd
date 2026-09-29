@@ -21,6 +21,7 @@ var hint_args: Array = []
 var highlight: Array = []
 var performed := false # the manoeuvre itself was carried out
 var penalties_here := 0
+var _milestones := {}
 
 
 func _init(p_def: Dictionary, p_director: ExamDirector) -> void:
@@ -52,6 +53,18 @@ func finish() -> void:
 		return
 	state = State.DONE
 	_on_finish()
+	# Clean and carried out: tell the learner (not for the start, whose
+	# "exercise" is only pulling away, nor each intersection pass).
+	if performed and penalties_here == 0 and type not in ["start", "intersection"]:
+		milestone("done.exercise", [title()])
+
+
+## Tells the learner a step went right (HUD banner + chime), once per key.
+func milestone(key: String, args: Array = []) -> void:
+	if _milestones.has(key):
+		return
+	_milestones[key] = true
+	director.milestone.emit(Loc.t(key, args))
 
 
 ## Called when the car has moved past s1 without the exercise finishing

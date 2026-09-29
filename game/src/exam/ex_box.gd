@@ -79,6 +79,8 @@ func _tick(_dt: float, p: CarProbe) -> void:
 			if _in_bay(p) and p.stopped_time > STABLE_STOP:
 				last_ok = _rear_wheels_on_band(p)
 				set_hint("hint.box_leave" if last_ok else "hint.box_fix")
+				if last_ok and not limit_hit:
+					milestone("done.box_parked")
 			if not Geometry2D.is_point_in_polygon(p.rear, bay) and p.speed > 0.2:
 				_judge(p)
 				phase = Phase.LEAVING

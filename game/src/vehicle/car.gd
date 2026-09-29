@@ -165,9 +165,7 @@ func _load_model() -> void:
 			if src and src.resource_name == "lamp_red":
 				_tail_lenses.append([m, s])
 				_tail_lens_off = m.get_surface_override_material(s)
-	for n in spec.get("smooth_lamps", []):
-		if _lamps.has(n):
-			_smooth_lamp(_lamps[n])
+	_smooth_lamps(spec.get("smooth_lamps", []))
 	var outer := model.find_child("BodyOuter", true, false) as VisualInstance3D
 	if outer:
 		outer.layers = LAYER_EXTERIOR
@@ -179,41 +177,63 @@ func _load_model() -> void:
 
 
 ## The Cobalt's headlamp lenses are the flat-shaded front of a convex hull
-## (pipeline/blender/refine_car.py): its long facets each caught the light on
-## their own, a fan of dark and bright triangles across the lamp. The lens
-## gets one normal (its area-weighted average), so it shades as one smooth
-## piece of glass, and the projector disc becomes a chrome lens.
-func _smooth_lamp(mi: MeshInstance3D) -> void:
-	var src := mi.mesh
-	var out := ArrayMesh.new()
-	for s in src.get_surface_count():
-		var arrays := src.surface_get_arrays(s)
-		if s == 0:
-			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-			var sum := Vector3.ZERO
-			var count := idx.size() if not idx.is_empty() else verts.size()
-			for t in range(0, count - 2, 3):
-				var a := verts[idx[t] if not idx.is_empty() else t]
-				var b := verts[idx[t + 1] if not idx.is_empty() else t + 1]
-				var c := verts[idx[t + 2] if not idx.is_empty() else t + 2]
-				sum += (b - a).cross(c - a) # clockwise front faces: points inward
-			var n := -sum.normalized() if sum.length() > 0.0 else Vector3.FORWARD
-			var normals := PackedVector3Array()
-			normals.resize(verts.size())
-			normals.fill(n)
-			arrays[Mesh.ARRAY_NORMAL] = normals
-			arrays[Mesh.ARRAY_TANGENT] = null
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		out.surface_set_material(s, src.surface_get_material(s))
-	var overrides: Array[Material] = []
-	for s in src.get_surface_count():
-		overrides.append(mi.get_surface_override_material(s))
-	mi.mesh = out
-	for s in overrides.size():
-		mi.set_surface_override_material(s, overrides[s])
-	if out.get_surface_count() > 1:
-		mi.set_surface_override_material(1, _pbr(Color(0.36, 0.38, 0.41), 1.0, 0.12))
+## (pipeline/blender/refine_car.py), split into the lamp and its indicator
+## end: each long facet (and each piece) caught the light on its own, a grey
+## patchwork. Per side, all the pieces get one smooth, gently domed normal
+## field (the area-weighted average normal, bent outwards from the lamp's
+## centre), so the lamp reads as one curved clear lens over a chrome
+## reflector; the projector disc becomes a dark glass lens.
+const LAMP_DOME := 2.2 # how strongly the normals fan out, per metre from the centre
+
+
+func _smooth_lamps(names: Array) -> void:
+	var mis: Array[MeshInstance3D] = []
+	for n in names:
+		if _lamps.has(n):
+			mis.append(_lamps[n])
+	# Per side (-1 / +1): vertex sum and count, area-weighted normal sum.
+	var stats := {-1: [Vector3.ZERO, 0, Vector3.ZERO], 1: [Vector3.ZERO, 0, Vector3.ZERO]}
+	for mi in mis:
+		var arrays := mi.mesh.surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var count := idx.size() if not idx.is_empty() else verts.size()
+		for t in range(0, count - 2, 3):
+			var a := verts[idx[t] if not idx.is_empty() else t]
+			var b := verts[idx[t + 1] if not idx.is_empty() else t + 1]
+			var c := verts[idx[t + 2] if not idx.is_empty() else t + 2]
+			var side := 1 if (a + b + c).x > 0.0 else -1
+			stats[side][2] -= (b - a).cross(c - a) # clockwise front faces: the cross points inward
+		for v in verts:
+			var side := 1 if v.x > 0.0 else -1
+			stats[side][0] += v
+			stats[side][1] += 1
+	for mi in mis:
+		var src := mi.mesh
+		var out := ArrayMesh.new()
+		for s in src.get_surface_count():
+			var arrays := src.surface_get_arrays(s)
+			if s == 0:
+				var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+				var normals := PackedVector3Array()
+				normals.resize(verts.size())
+				for i in verts.size():
+					var st: Array = stats[1 if verts[i].x > 0.0 else -1]
+					var centre: Vector3 = st[0] / maxf(float(st[1]), 1.0)
+					var avg: Vector3 = (st[2] as Vector3).normalized()
+					normals[i] = (avg + (verts[i] - centre) * LAMP_DOME).normalized()
+				arrays[Mesh.ARRAY_NORMAL] = normals
+				arrays[Mesh.ARRAY_TANGENT] = null
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			out.surface_set_material(s, src.surface_get_material(s))
+		var overrides: Array[Material] = []
+		for s in src.get_surface_count():
+			overrides.append(mi.get_surface_override_material(s))
+		mi.mesh = out
+		for s in overrides.size():
+			mi.set_surface_override_material(s, overrides[s])
+		if out.get_surface_count() > 1:
+			mi.set_surface_override_material(1, _pbr(Color(0.1, 0.11, 0.13), 0.85, 0.05))
 
 
 ## Invisible 2.5k-triangle copy of the car that only casts the shadow.
@@ -303,8 +323,8 @@ func _apply_materials(root: Node, paint_color: Color) -> void:
 		"dash_trim": _cabin(Color(0.1, 0.1, 0.11), 0.5),
 		"mirror": _pbr(Color(0.9, 0.92, 0.94), 1.0, 0.02),
 		"lamp_white": _pbr(Color(0.82, 0.84, 0.86), 0.3, 0.12),
-		"headlamp": _pbr(Color(0.3, 0.31, 0.33), 0.4, 0.45),
-		"headlamp_lens": _pbr(Color(0.58, 0.6, 0.63), 0.9, 0.16),
+		"headlamp": _pbr(Color(0.09, 0.095, 0.1), 0.3, 0.4),
+		"headlamp_lens": _pbr(Color(0.8, 0.82, 0.86), 1.0, 0.15),
 		"plate": _pbr(Color(0.92, 0.93, 0.94), 0.0, 0.45),
 		"headliner": _cabin(Color(0.46, 0.45, 0.43), 0.9),
 	}

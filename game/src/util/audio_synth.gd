@@ -83,6 +83,32 @@ static func chime(f1 := 880.0, f2 := 660.0) -> AudioStreamWAV:
 	return _cache[key]
 
 
+## "Well done": three bright bell notes rising (C6 E6 G6), soft and short.
+static func success() -> AudioStreamWAV:
+	if _cache.has("success"):
+		return _cache["success"]
+	var notes := [1046.5, 1318.5, 1568.0]
+	var step := 0.11
+	var n := int(RATE * (step * notes.size() + 0.7))
+	var s := PackedFloat32Array()
+	s.resize(n)
+	for i in n:
+		var t := float(i) / RATE
+		var v := 0.0
+		for k in notes.size():
+			var tt := t - k * step
+			if tt < 0.0:
+				continue
+			var f: float = notes[k]
+			var env := exp(-tt * 5.5) * minf(1.0, tt * 300.0)
+			# A bell: the fundamental, a soft octave and a faint inharmonic partial.
+			v += (sin(TAU * f * tt) * 0.55 + sin(TAU * f * 2.0 * tt) * 0.18
+					+ sin(TAU * f * 2.76 * tt) * 0.06 * exp(-tt * 9.0)) * env
+		s[i] = v * 0.42
+	_cache["success"] = _wav(_normalize(s, 0.7))
+	return _cache["success"]
+
+
 ## Continuous beeper for the emergency-stop signal (looping, 2.5 Hz pulses).
 static func beeper() -> AudioStreamWAV:
 	if _cache.has("beeper"):

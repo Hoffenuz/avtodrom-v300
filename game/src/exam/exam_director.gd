@@ -6,6 +6,9 @@ extends Node
 
 signal penalty_added(entry: Dictionary)
 signal hint_changed
+## A step done right (parked on the line, the stop held, an exercise clean):
+## the text for the HUD's green banner and chime.
+signal milestone(text: String)
 signal exercise_changed
 signal state_changed
 signal start_signal

@@ -93,7 +93,16 @@ ISLAND_CUT_PX = [(1781.8, 995, 1853.3, 1012.5), (2025, 488, 2045, 530), (1110, 4
 # the rest); the lower corridor is the trucks' one and stays as drawn.
 T90_CAR_LEG_X = (1073 - 58 * 12, 1073 - 53.5 * 12)  # px: west kerb, new east kerb
 T90_CAR_STRIP_PX = (T90_CAR_LEG_X[1], 282.4, 485, 470)  # the leg's east strip, exit-lane kerb to the entry lane's
-ISLAND_FILL_PX = [T90_CAR_STRIP_PX,
+# The car box (pad 5): the scheme's bay is 4.46 m wide and 7.0 m deep, roomy
+# enough to reverse in without aiming. It is 3.6 m x 6.0 m now: the grass
+# grows in from both sides and from the back (as traced: back kerb x 1590.1,
+# side kerbs y 744.1 / 797.5, the stem's kerb x 1674.1 at the mouth).
+_BOX_SIDE_IN = (4.455 - 3.6) / 2 * 12
+_BOX_BACK_IN = (6.996 - 6.0) * 12
+BOX_NARROW_PX = [(1584.0, 739.0, 1674.05, 744.09 + _BOX_SIDE_IN),
+                 (1584.0, 797.55 - _BOX_SIDE_IN, 1674.05, 803.0),
+                 (1584.0, 739.0, 1590.1 + _BOX_BACK_IN, 803.0)]
+ISLAND_FILL_PX = [T90_CAR_STRIP_PX, *BOX_NARROW_PX,
                   [(1782, 1044.4), (1792, 1049), (1805, 1051), (1826, 1051.3), (1826, 1030), (1782, 1030)],
                   [(683, 725), (683, 703), (690, 691), (702, 682), (718, 675), (740, 667), (760, 662), (760, 725)],
                   (990, 452, 1015, 528), (1129, 470, 1150, 520), (1200, 530, 1229, 572),
@@ -273,6 +282,9 @@ def clean_island(P, pads_px):
 
 _pads_px_reg = [regularize(Polygon([px_of(q) for q in p]).buffer(0), True) for p in layout["pads"]]
 _pads_px_reg[9] = max(_parts(_pads_px_reg[9].difference(box(*T90_CAR_STRIP_PX))), key=lambda g: g.area)
+_box_pad = next(i for i, p in enumerate(_pads_px_reg) if p.contains(Point(1630, 771)))
+_pads_px_reg[_box_pad] = max(_parts(_pads_px_reg[_box_pad].difference(unary_union([box(*r) for r in BOX_NARROW_PX]))),
+                             key=lambda g: g.area)
 
 
 def _is_pocket(poly):

@@ -126,6 +126,12 @@ Ilova ochilishidagi rasm (Godot boot splash — skriptlardan oldin
 ko'rinadi, keyin uni loading sahifasi davom ettiradi):
 `python pipeline/make_splash.py` → `game/assets/ui/boot_splash.png`.
 
+G'ildiraklarni alohida tuzatish (kuzovga tegmasdan):
+`replace_wheels.py` — Nexia g'ildiraklarini manbadan qayta yig'adi (silliq
+shina, kolpak ~2200 uchburchak, support aylanmaydi); `fix_wheels.py --align
+--drop metal` — Cobalt'ning chap g'ildiraklari 3.4° qiyshiq edi (aylanganda
+tebranardi), o'qiga to'g'rilanadi va aylanuvchi plastinasi olib tashlanadi.
+
 Kuzov rangi `car.gd` dagi `MODELS[...]["paint"]` da (Gentra — qora,
 qolganlari oq).
 
