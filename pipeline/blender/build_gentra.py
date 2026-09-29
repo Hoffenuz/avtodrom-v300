@@ -43,8 +43,9 @@ SW_SRC = Vector((1.07, -1.71, 2.68))
 WHEEL_OBJECTS = {"Object_23", "Object_48", "Object_49", "Object_50", "Object_51", "Object_52",
                  "Object_53", "Object_54", "Object_55", "Object_56"}
 # Dropped: the 5 cm chrome logos on the hub caps (16.5k triangles each) and
-# the number plates' blue and yellow flag details (the game shows plain plates).
-DROP = {"Object_40", "Object_42", "Object_44", "Object_45", "Object_11", "Object_13"}
+# the number plates' yellow flag details (the game shows plain plates; their
+# blue field turns white below).
+DROP = {"Object_40", "Object_42", "Object_44", "Object_45", "Object_13"}
 # The grille and boot-lid badges (15k triangles each, 10 cm across) are
 # thinned before they join the body, so they do not eat its budget.
 BADGES = {"Object_36": 700, "Object_39": 700}
@@ -160,7 +161,7 @@ def single_material(o, name):
 
 BODY_RULE = {
     "carpaint": "paint", "black": "trim_black", "chrome": "chrome", "LicPlate_white": "plate",
-    "LicPlate_black": "trim_black",
+    "LicPlate_black": "trim_black", "LicPlate_blue": "plate",
     "windowglass": "window", "darkglass": "window", "clearglass": "lamp_glass",
 }
 
@@ -465,12 +466,13 @@ join(glass, "Glass")
 interior = [interior_src, one("Object_18")]  # Object_18: the dash's black details
 assign(interior_src, lambda s: "interior")
 # Headliner and pillar trims (the cabin shell above the waist line) are light
-# grey in the real car; seats, headrests and the mirror are separate pieces.
+# grey in the real car; seats, headrests and the mirror are separate pieces,
+# and the parcel shelf (facing up) stays dark.
 interior_src.data.materials.append(sem["headliner"])
 shell = max(face_islands(interior_src), key=len)
 for fi in shell:
     p = interior_src.data.polygons[fi]
-    if p.center.z > 1.02:
+    if p.center.z > 1.02 and p.normal.z < 0.3:
         p.material_index = len(interior_src.data.materials) - 1
 assign(one("Object_18"), lambda s: "trim_black")
 join(interior, "Interior")
@@ -492,10 +494,14 @@ for side_name, sign in (("L", -1), ("R", 1)):
     print(f"mirror {side_name}: glass {tuple(round(v, 3) for v in mn)} .. {tuple(round(v, 3) for v in mx)}")
 
 # --- 9. Everything else is the body ---------------------------------------------------------------------
-# Number plates: keep the black border, drop the lettering (plain plates).
-plate_ink = one("Object_10")
-lettering = partition(plate_ink, island_labels(plate_ink, lambda mn, mx, n: mx.x - mn.x < 0.3), "PlateLettering")
-bpy.data.objects.remove(lettering, do_unlink=True)
+# Number plates: keep the black border and the white field, drop the lettering
+# (black numbers, white country code): plain plates.
+for name in ("Object_10", "Object_12"):
+    plate_part = one(name)
+    lettering = partition(plate_part, island_labels(plate_part, lambda mn, mx, n: mx.x - mn.x < 0.3),
+                          "PlateLettering")
+    if lettering is not None:
+        bpy.data.objects.remove(lettering, do_unlink=True)
 
 KEEP = ("Spin_", "Lamp_", "SteeringWheel", "Glass", "LampGlass", "Interior", "MirrorGlass", "CollisionHull")
 rest = [o for o in meshes() if not o.name.startswith(KEEP)]

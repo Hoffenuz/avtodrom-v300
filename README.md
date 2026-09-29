@@ -6,12 +6,15 @@ imtihonining simulyatori. Android (asosiy) va Windows uchun.
 - Avtodrom rasmiy sxema bo'yicha qurilgan (12 px = 1 m; yo'l bo'laklari
   ~3.2–3.7 m). Marshrutdagi har bir burilishdan oldin buyuruvchi belgi
   (4.1.x) turadi.
+- 90° burilish: birinchi yo'lak yengil avtomobillar uchun (o'rta qismi
+  4.5 m — sxemadagi 7 m emas), ikkinchisi yuk avtomobillari uchun; kirishdan
+  oldingi 4.1.3 belgilari ostida 7.4.3 (yengil) va 7.4.1 (yuk) lavhalari.
 - 12 ta mashq va imtihon rasmiy 32 bandli jarima jadvali bo'yicha baholanadi
   (100 balldan kam — "o'tdi"; 100 ga yetganda imtihon darhol to'xtaydi).
 - Haqiqiy fizika: dvigatel, ilashish (mufta), 5 pog'onali mexanika yoki
   avtomat, shinalar modeli, ABS, osma — hammasi C++ da.
-- Uch mashina: **Nexia 2** (mexanika, 5 pog'ona), **Gentra** (qora,
-  mexanika, 5 pog'ona) va **Cobalt** (avtomat, 6 pog'ona) — har biri zavod
+- Uch mashina: **Nexia 2** (mexanika, 5 pog'ona), **Cobalt** (avtomat,
+  6 pog'ona) va **Gentra** (qora, mexanika, 5 pog'ona) — har biri zavod
   ma'lumotlari bo'yicha (massa, dvigatel momenti, uzatmalar, g'ildirak
   bazasi, shinalar).
 - Uch rejim:

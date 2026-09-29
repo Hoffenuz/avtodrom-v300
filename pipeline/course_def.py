@@ -87,7 +87,14 @@ KERB_STEP_BOX_PX = [(1480, 495, 1550, 531), (1725, 495, 1800, 528), (1975, 495, 
 # Straight kerb faces where the tracer followed sign icons past the kerb.
 ISLAND_CUT_PX = [(1781.8, 995, 1853.3, 1012.5), (2025, 488, 2045, 530), (1110, 470, 1129, 520), (1229, 533, 1262, 580),
                  [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1110, 800), (1110, 680)]]
-ISLAND_FILL_PX = [[(1782, 1044.4), (1792, 1049), (1805, 1051), (1826, 1051.3), (1826, 1030), (1782, 1030)],
+# The 90° corridor for cars (upper pad, the exam route): the scheme draws its
+# middle leg 7 m wide, which a car turns through without any skill. At the
+# centre it is a car-sized 4.5 m (west kerb kept, the east island grows over
+# the rest); the lower corridor is the trucks' one and stays as drawn.
+T90_CAR_LEG_X = (1073 - 58 * 12, 1073 - 53.5 * 12)  # px: west kerb, new east kerb
+T90_CAR_STRIP_PX = (T90_CAR_LEG_X[1], 282.4, 485, 470)  # the leg's east strip, exit-lane kerb to the entry lane's
+ISLAND_FILL_PX = [T90_CAR_STRIP_PX,
+                  [(1782, 1044.4), (1792, 1049), (1805, 1051), (1826, 1051.3), (1826, 1030), (1782, 1030)],
                   [(683, 725), (683, 703), (690, 691), (702, 682), (718, 675), (740, 667), (760, 662), (760, 725)],
                   (990, 452, 1015, 528), (1129, 470, 1150, 520), (1200, 530, 1229, 572),
                   [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1165, 800), (1165, 680)],
@@ -265,6 +272,7 @@ def clean_island(P, pads_px):
 
 
 _pads_px_reg = [regularize(Polygon([px_of(q) for q in p]).buffer(0), True) for p in layout["pads"]]
+_pads_px_reg[9] = max(_parts(_pads_px_reg[9].difference(box(*T90_CAR_STRIP_PX))), key=lambda g: g.area)
 
 
 def _is_pocket(poly):
@@ -459,6 +467,7 @@ BOX_ROUTE_X = 1702
 BOX_ROUTE_TOP = 736
 
 route_parts = []
+T90_ROUTE_X = (408, 392)  # leg: east half after the left turn, west half before the right one
 
 
 def add(points):
@@ -468,7 +477,7 @@ def add(points):
 # 1. Start, pedestrian crossing, estakada, top-left corner, down the left road.
 # 2. Left road -> left turn -> 90° corridor (upper pad): east, left (north), right (east).
 add(fillet_path([
-    (1454, 156, 0), (128, 156, 150), (128, 433, 60), (424, 433, 52), (424, 250, 52), (1049, 250, 75),
+    (1454, 156, 0), (128, 156, 150), (128, 433, 60), (T90_ROUTE_X[0], 433, 46), (T90_ROUTE_X[1], 242, 40), (1049, 242, 75),
     (1049, 520, 0),
 ]))
 # The four passes through the intersection follow the scheme's lane arrows, one
@@ -1093,7 +1102,10 @@ sign("2.5", HILL_STOP_X - 2, 91.5, "W")
 sign("1.13", 616, 91.5, "W")                      # steep descent
 # Scheme icons are drawn rotated so that the top of the sign points the way its
 # traffic drives; a map arrow is read in that frame (down for southbound = straight).
-sign("4.1.3", 38, 358, "S")                       # left road: left into the 90° corridor
+# Left road, southbound: cars (plate 7.4.3) turn left into the first 90°
+# corridor, trucks (7.4.1) go on and turn left into the second one.
+sign("4.1.3", 38, 358, "S", plates=("7.4.3",))
+sign("4.1.3", 38, 432, "S", plates=("7.4.1",))
 sign("1.12.2", 224, 482, "E")                     # 90° corridor (upper): first turn left
 sign("1.12.2", 523, 564, "E")                     # 90° corridor (lower): first turn left
 sign("4.1.3", 266, 566, "W")                      # the gore: left onto the left road

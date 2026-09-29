@@ -28,7 +28,7 @@ const MODELS := {
 }
 const WHITE_PAINT := Color(0.93, 0.94, 0.95)
 ## The cars on offer, in the order the menu shows them.
-const IDS := ["nexia2", "gentra", "cobalt_at"]
+const IDS := ["nexia2", "cobalt_at", "gentra"]
 const GAUGE_SHADER := preload("res://assets/shaders/gauge.gdshader")
 const BLINK_HZ := 1.5 # 90 flashes per minute (UNECE R48)
 const LAYER_CAR := 2
@@ -53,6 +53,11 @@ var body_half_width := 0.83
 var mirror_eye := Vector3(0.88, 0.93, -0.37)
 var _wheel_pivots: Array[Node3D] = []
 var _wheel_spins: Array[Node3D] = []
+## A car on display (the menu): frozen, no suspension runs, so the wheels keep
+## the model's own resting place instead of the physics' full-droop reset
+## (which leaves them hanging ~9 cm into the floor).
+var rest_pose := false
+var _wheel_rest: Array[Transform3D] = []
 var _steering: Node3D
 var _gauge_speed: ShaderMaterial
 var _gauge_rpm: ShaderMaterial
@@ -64,6 +69,10 @@ var _lamps := {}
 var lamp_prewarm := false
 var _lamp_on := {}
 var _lamp_off := {}
+## Red tail-lamp lenses that are part of the body shell ([mesh, surface]):
+## on the Nexia they sit in front of Lamp_Tail, so they light with it.
+var _tail_lenses: Array = []
+var _tail_lens_off: Material
 var _blink_t := 0.0
 var _engine_sound: EngineSound
 var _click: AudioStreamPlayer
@@ -109,11 +118,13 @@ func _clear_model() -> void:
 			n.free()
 	model = null
 	_wheel_pivots.clear()
+	_wheel_rest.clear()
 	_wheel_spins.clear()
 	_steering = null
 	_gauge_speed = null
 	_gauge_rpm = null
 	_lamps.clear()
+	_tail_lenses.clear()
 	_lamp_on.clear()
 	_lamp_off.clear()
 
@@ -133,6 +144,7 @@ func _load_model() -> void:
 		var pivot := model.find_child("Wheel_" + corner, true, false) as Node3D
 		var spin := model.find_child("Spin_" + corner, true, false) as Node3D
 		_wheel_pivots.append(pivot)
+		_wheel_rest.append(pivot.transform if pivot else Transform3D())
 		_wheel_spins.append(spin)
 	_steering = model.find_child("SteeringWheel", true, false) as Node3D
 	var pivot_node := model.find_child("SteeringPivot", true, false) as Node3D
@@ -144,6 +156,15 @@ func _load_model() -> void:
 		if mi:
 			_lamps[n] = mi
 	_apply_materials(model, spec.get("paint", WHITE_PAINT))
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null or m.name.begins_with("Lamp_"):
+			continue
+		for s in m.mesh.get_surface_count():
+			var src := m.mesh.surface_get_material(s)
+			if src and src.resource_name == "lamp_red":
+				_tail_lenses.append([m, s])
+				_tail_lens_off = m.get_surface_override_material(s)
 	for n in spec.get("smooth_lamps", []):
 		if _lamps.has(n):
 			_smooth_lamp(_lamps[n])
@@ -362,6 +383,9 @@ func _set_lamp(n: String, on: bool, variant := "") -> void:
 	var mat: Material = _lamp_on.get(n + variant, _lamp_on.get(n)) if on else _lamp_off[n]
 	if mi.get_surface_override_material(0) != mat:
 		mi.set_surface_override_material(0, mat)
+	if n == "Lamp_Tail":
+		for lens in _tail_lenses:
+			(lens[0] as MeshInstance3D).set_surface_override_material(lens[1], mat if on else _tail_lens_off)
 
 
 # --------------------------------------------------------------------------- audio
@@ -467,6 +491,9 @@ func _update_wheels() -> void:
 	for i in 4:
 		var pivot := _wheel_pivots[i]
 		if pivot == null:
+			continue
+		if rest_pose:
+			pivot.transform = _wheel_rest[i]
 			continue
 		pivot.transform = Transform3D(Basis(Vector3.UP, -get_wheel_steer(i)), get_wheel_position(i))
 		if _wheel_spins[i]:

@@ -1,6 +1,7 @@
 extends Node
-## Main menu: the chosen car on the avtodrom, the camera slowly circling it
-## (a "garage" view), with the menu over the left half of the screen.
+## Main menu: the chosen car on a turntable in an open showroom (sky and a
+## floor fading into the haze, no avtodrom behind it: lighter and calmer), the
+## camera slowly circling it, with the menu over the left half of the screen.
 ##   Home      — three modes (exam, exercises, free drive), the car, and
 ##               results / penalties / settings;
 ##   Exam      — what the exam is in four lines, then start (or watch it);
@@ -43,24 +44,24 @@ func _ready() -> void:
 		"history": _show_history()
 
 
+const DISC_TOP := 0.05 # turntable deck height (m)
+
+
 func _build_world() -> void:
 	_world = Node3D.new()
 	add_child(_world)
 	var q := mini(int(Settings.get_value("quality")), 1)
 	EnvironmentSetup.create(_world, q)
-	var data := CourseData.get_default()
-	var course := CourseBuilder.load_or_build(data, q)
-	_world.add_child(course)
+	_world.add_child(_floor())
+	_world.add_child(_turntable(Vector3.ZERO))
 	var car := Car.new()
+	car.rest_pose = true
 	_world.add_child(car)
 	car.configure(Session.car_id())
 	_menu_car = car
-	var sp: Dictionary = data.exercise("start")["spawn"]
-	var xf := course.spawn_transform(CourseData.v2(sp["pos"]), float(sp["yaw"]))
-	car.teleport(xf, false)
+	car.teleport(Transform3D(Basis(Vector3.UP, deg_to_rad(-30.0)), Vector3(0.0, DISC_TOP, 0.0)), false)
 	car.freeze = true
-	_car_focus = xf.origin + Vector3.UP * 0.75
-	_world.add_child(_turntable(xf.origin))
+	_car_focus = Vector3(0.0, DISC_TOP + 0.75, 0.0)
 	_cam = Camera3D.new()
 	_cam.fov = 42.0
 	_cam.far = 1200.0
@@ -72,8 +73,21 @@ func _build_world() -> void:
 	Engine.max_fps = 30
 
 
-## A low dark platform with a lit rim under the menu car: the car stands in
-## a showroom, not on the start box's painted lines and letters.
+## The showroom floor: one big quad, fading into the sky at the horizon.
+func _floor() -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "Floor"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(240.0, 240.0)
+	mi.mesh = plane
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://assets/shaders/showroom_floor.gdshader")
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
+
+
+## A low dark platform with a lit rim under the menu car.
 func _turntable(at: Vector3) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Turntable"
@@ -82,11 +96,11 @@ func _turntable(at: Vector3) -> Node3D:
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = 3.25
 	cyl.bottom_radius = 3.4
-	cyl.height = 0.05
+	cyl.height = DISC_TOP
 	cyl.radial_segments = 64
 	cyl.rings = 1
 	disc.mesh = cyl
-	disc.position.y = 0.022
+	disc.position.y = DISC_TOP * 0.5
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.06, 0.07, 0.085)
 	m.metallic = 0.4
@@ -101,7 +115,7 @@ func _turntable(at: Vector3) -> Node3D:
 	torus.rings = 64
 	torus.ring_segments = 6
 	ring.mesh = torus
-	ring.position.y = 0.045
+	ring.position.y = DISC_TOP - 0.004
 	ring.scale = Vector3(1.0, 0.25, 1.0)
 	var rm := StandardMaterial3D.new()
 	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED

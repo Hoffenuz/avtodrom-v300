@@ -1,7 +1,7 @@
 extends Node
 ## Renders the exam car from outside and from the driver's seat and saves PNGs
 ## (needs a GPU, not --headless). Used to review the car model and cabin:
-##   godot --path game res://tests/car_render_test.tscn -- <out_dir> [car preset]
+##   godot --path game res://tests/car_render_test.tscn -- <out_dir> [car preset] [brake|lamps]
 
 var out_dir := "user://car_shots"
 var world: Node3D
@@ -27,6 +27,14 @@ func _ready() -> void:
 	car = Car.new()
 	world.add_child(car)
 	car.configure(args[1] if args.size() > 1 else "nexia2")
+	# Optional third argument "brake": ignition on, foot on the brake (the
+	# stop lamps must light), headlights on.
+	if args.size() > 2 and args[2] == "brake":
+		car.ignition = true
+		car.brake = 1.0
+		car.headlights = true
+	elif args.size() > 2 and args[2] == "lamps":
+		car.lamp_prewarm = true # every lamp lit
 	var data := CourseData.get_default()
 	var start: Dictionary = data.exercise("start")["spawn"]
 	car.teleport(builder.spawn_transform(CourseData.v2(start["pos"]), float(start["yaw"])), true)
