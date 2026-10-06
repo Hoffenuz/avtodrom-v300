@@ -98,6 +98,10 @@ Kutilgan natija: `RESULT ... penalty=0`.
 - `shading/overrides/force_vertex_shading.web=true`: ANGLE D3D11 kompilyatsiyasi ~4x tez (sovuq: menyu 3.7 s, haydash 6.9 s; oldin 16.5 + 34). Faqat quyosh bor — ko'rinish deyarli bir xil.
 - To'liq ekran / telefon: preset `html/head_include` JS — birinchi bosish/tugmada requestFullscreen (+ telefonda landscape lock, desktopda Escape keyboard.lock), tik holatda `#rotate-hint`. PWA yoqilgan (display fullscreen, landscape, ikonkalar).
 - Sovuq kirishni natively takrorlash: shader_cache'ni o'chirib `--rendering-driver opengl3_angle` (ANGLE D3D11, brauzer bilan bir xil vaqtlar).
+- Shell: `game/web/shell.html` (MB progress — sizes `package_web` tomonidan `__AVTODROM_SIZES__` o'rniga yoziladi; ilova havolalari `window.AVTODROM` + `WebLinks`; telefon DPR 1.5 ga cheklangan — Emscripten `blitOffscreenFramebuffer` getParameter stall'i 2.6x da kadrning 67% edi). Service worker ataylab ro'yxatdan o'tkazilmaydi.
+- Webda `Engine.max_fps` qo'ymang (60 cap rAF bilan 30 FPS beradi) — `Settings.frame_limit()` webda 0. `--perf` da menyu ham cap qo'ymaydi; URL `?args=--perf` argument uzatadi.
+- Qurilma darajasi: `Settings._detect_web_quality()` (WebGL UNMASKED_RENDERER, deviceMemory, cores) → zaif telefon `lite_scenery` (City/ParkedCar/props yashirin, daraxt 1/4).
+- Lokal Worker: `export/web-cf` da `npx wrangler@4 dev --port 8787`. TaskStop npx bolalarini o'ldirmaydi — `wrangler` node jarayonlari + `taskkill /F /IM workerd.exe`.
 - Headless sinov: Playwright (scratchpad/webtest/run.js, `channel:'chrome'`, `--use-angle=d3d11`, persistent profile). `--use-angle=gl` NVIDIA drayver keshi tufayli sovuq kompilyatsiyani yashiradi.
 
 ## Mashina vizual tuzoqlari
