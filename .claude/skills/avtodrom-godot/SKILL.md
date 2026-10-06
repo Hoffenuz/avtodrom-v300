@@ -33,6 +33,7 @@ python pipeline/i18n_source.py               # matnlar (3 til) -> game/data/i18n
 python scripts/build.py --installer          # bake + Windows EXE + Inno Setup o'rnatuvchi
 python scripts/build.py --android            # APK + debug APK + AAB (imzolangan)
 py scripts/build.py --web [--no-native]      # wasm (emsdk C:/emsdk, 4.0.11) + export/web (threadsiz, dlink)
+py scripts/build.py --publish-web            # github.com/avtodrom/avtodrom-web ga bitta commit (force); Cloudflare Workers Builds joylaydi
 py -m http.server 8060 --directory export/web   # lokal sinov (eksportdan OLDIN serverni to'xtating — papka band bo'ladi)
 (cd native && python -m SCons -j12 target=template_release)  # C++ o'zgarsa; Android: platform=android arch=arm64 ndk_version=28.2.13676358
 ```

@@ -14,7 +14,8 @@ Builds everything that ships:
     python scripts/build.py --windows     # only the Windows export (no C++ build)
     python scripts/build.py --installer   # the Windows export and its Setup .exe (Inno Setup 6)
     python scripts/build.py --web         # the wasm module and the browser export (export/web)
-    python scripts/build.py --deploy-web  # export/web to Cloudflare (avtodrom.avtotestu.uz)
+    python scripts/build.py --publish-web # export/web to github.com/avtodrom/avtodrom-web (Cloudflare deploys it)
+    python scripts/build.py --deploy-web  # export/web straight to Cloudflare (wrangler login)
 
 Web: Emscripten from emsdk (EMSDK, else C:/emsdk), the version Godot's web
 templates were built with (4.0.11 for 4.7.2), and the 4.7.2 web templates
@@ -116,10 +117,13 @@ def export_web():
     sh([str(GODOT), "--headless", "--path", str(GAME), "--export-release", "Web", str(out / "index.html")], GAME)
 
 
-def deploy_web():
-    """export/web -> Cloudflare (deploy/cloudflare): every file gzipped, the
-    ones over the 25 MiB static-asset limit split into parts that the Worker
-    joins again. Needs `npx wrangler login` once."""
+WEB_REPO = "https://github.com/avtodrom/avtodrom-web.git"
+
+
+def package_web(out):
+    """export/web -> a Cloudflare Worker project in `out` (worker.js,
+    wrangler.toml, public/): every file gzipped, the ones over the 25 MiB
+    static-asset limit split into parts that the Worker joins again."""
     import gzip
     import json
     import shutil
@@ -127,9 +131,9 @@ def deploy_web():
     src = ROOT / "export" / "web"
     if not (src / "index.html").exists():
         sys.exit("no export/web: run with --web first")
-    out = ROOT / "export" / "web-cf"
-    shutil.rmtree(out, ignore_errors=True)
-    out.mkdir(parents=True)
+    pub = out / "public"
+    shutil.rmtree(pub, ignore_errors=True)
+    pub.mkdir(parents=True)
     part_max = 24 * 1024 * 1024
     build = "%s-%s" % (version(), time.strftime("%Y%m%d%H%M%S"))
     files = {}
@@ -140,14 +144,41 @@ def deploy_web():
         parts = []
         for i in range(0, len(data), part_max):
             name = "%s.gz.%d" % (f.name, len(parts))
-            (out / name).write_bytes(data[i:i + part_max])
+            (pub / name).write_bytes(data[i:i + part_max])
             parts.append(name)
         files[f.name] = {"size": len(data), "parts": parts}
-    (out / "_manifest.json").write_text(json.dumps({"build": build, "files": files}, indent=1), encoding="utf-8")
+    (pub / "_manifest.json").write_text(json.dumps({"build": build, "files": files}, indent=1), encoding="utf-8")
+    cf = ROOT / "deploy" / "cloudflare"
+    for name in ("worker.js", "wrangler.toml", "README.md"):
+        shutil.copy(cf / name, out / name)
     print("web build %s: %d files, %.1f MB gzipped" % (build, len(files),
           sum(e["size"] for e in files.values()) / 1e6))
-    npx = shutil.which("npx") or "npx"
-    sh([npx, "-y", "wrangler@4", "deploy"], ROOT / "deploy" / "cloudflare")
+    return build
+
+
+def deploy_web():
+    """Straight to Cloudflare from this machine (needs `npx wrangler login`)."""
+    import shutil
+    out = ROOT / "export" / "web-cf"
+    package_web(out)
+    sh([shutil.which("npx") or "npx", "-y", "wrangler@4", "deploy"], out)
+
+
+def publish_web():
+    """To the avtodrom-web repository; Cloudflare (Workers Builds) deploys
+    each push. One commit only: the repository holds the current build, not a
+    history of 40 MB builds."""
+    out = ROOT / "export" / "web-repo"
+    if not (out / ".git").exists():
+        out.mkdir(parents=True, exist_ok=True)
+        sh(["git", "init", "-q", "-b", "main"], out)
+        sh(["git", "remote", "add", "origin", WEB_REPO], out)
+    build = package_web(out)
+    sh(["git", "checkout", "-q", "--orphan", "build"], out)
+    sh(["git", "add", "-A"], out)
+    sh(["git", "commit", "-q", "-m", "Web build " + build], out)
+    sh(["git", "branch", "-q", "-M", "main"], out)
+    sh(["git", "push", "-q", "-f", "origin", "main"], out)
 
 
 def bake():
@@ -219,7 +250,7 @@ def build_installer():
 def main():
     args = sys.argv[1:]
     only_android = "--android" in args
-    if "--web" in args or "--deploy-web" in args:
+    if "--web" in args or "--deploy-web" in args or "--publish-web" in args:
         if "--web" in args:
             if "--no-native" not in args:
                 native_web()
@@ -228,6 +259,8 @@ def main():
             print("done ->", ROOT / "export" / "web")
         if "--deploy-web" in args:
             deploy_web()
+        if "--publish-web" in args:
+            publish_web()
         return
     if "--windows" in args or "--installer" in args:
         bake()

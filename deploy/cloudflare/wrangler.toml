@@ -1,5 +1,6 @@
 # The browser build at https://avtodrom.avtotestu.uz (Cloudflare Worker with
-# static assets). Deploy with: py scripts/build.py --deploy-web
+# static assets). Published to github.com/avtodrom/avtodrom-web by
+# `py scripts/build.py --publish-web`; Cloudflare Workers Builds deploys it.
 name = "avtodrom-web"
 main = "worker.js"
 compatibility_date = "2026-10-01"
@@ -8,6 +9,6 @@ workers_dev = true
 routes = [{ pattern = "avtodrom.avtotestu.uz", custom_domain = true }]
 
 [assets]
-directory = "../../export/web-cf"
+directory = "public"
 binding = "ASSETS"
 run_worker_first = true
