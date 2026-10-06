@@ -813,6 +813,9 @@ func _setup_audio() -> void:
 	_engine_sound = EngineSound.new()
 	_engine_sound.name = "EngineSound"
 	_engine_sound.bus = "Master"
+	if OS.has_feature("web"):
+		# Mixed on the game's thread there: enough sound ready for a slow frame.
+		_engine_sound.buffer_length = 0.25
 	add_child(_engine_sound)
 	_click = AudioStreamPlayer.new()
 	_click.volume_db = -6.0

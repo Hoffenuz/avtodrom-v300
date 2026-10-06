@@ -40,12 +40,13 @@ var _rng := RandomNumberGenerator.new()
 
 ## Loads the pre-built course (tests/bake_course.gd) or, if it is missing,
 ## builds it on the spot. Returns the course root, already configured.
-static func load_or_build(p_data: CourseData, p_quality: int) -> CourseBuilder:
+## `lite`: the lighter scenery of weak phones (see attach).
+static func load_or_build(p_data: CourseData, p_quality: int, lite := false) -> CourseBuilder:
 	if ResourceLoader.exists(BAKED_PATH):
 		var scene: PackedScene = load(BAKED_PATH)
 		var baked := scene.instantiate() as CourseBuilder
 		if baked:
-			baked.attach(p_data, p_quality)
+			baked.attach(p_data, p_quality, lite)
 			return baked
 	var fresh := CourseBuilder.new()
 	fresh.name = "Course"
@@ -54,7 +55,7 @@ static func load_or_build(p_data: CourseData, p_quality: int) -> CourseBuilder:
 
 
 ## Re-links runtime state after the baked scene is instantiated.
-func attach(p_data: CourseData, p_quality: int) -> void:
+func attach(p_data: CourseData, p_quality: int, lite := false) -> void:
 	data = p_data
 	quality = p_quality
 	_est = data.raw["estakada"]
@@ -81,6 +82,15 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 		# Half the parked cars are gone: their contact shadows would be left behind.
 		for gi in _children_named(around, ["ParkedCarShadows"]):
 			gi.visible = false
+	if lite:
+		# Weak phones: the city ring, the parked cars and the small props go,
+		# and three trees in four; the avtodrom itself stays as it is.
+		for gi in _children_named(around, ["City", "ParkedCar", "ForecourtProps", "Bush", "Hedge", "Flag", "Monolith"]):
+			gi.visible = false
+		for gi in _children_named(around, ["ParkTree", "Poplar"]):
+			var mmi := gi as MultiMeshInstance3D
+			if mmi:
+				mmi.multimesh.visible_instance_count = mmi.multimesh.instance_count / 4
 
 
 ## Geometry children of `node` whose names start with one of `prefixes`

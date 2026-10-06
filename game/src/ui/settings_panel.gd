@@ -340,6 +340,7 @@ func _build_quality_rows() -> void:
 			[1.0, "100%"]]))
 	_row("set.fps", _segmented("fps_limit", [[30, "30"], [60, "60"]]))
 	_row("set.shadows", _toggle("shadows"))
+	_row("set.lite", _toggle("lite_scenery"), "set.lite_desc")
 	_row("set.mirrors", _toggle("mirrors"))
 
 

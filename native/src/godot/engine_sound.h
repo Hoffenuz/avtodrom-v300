@@ -37,6 +37,10 @@ public:
 	float get_interior() const { return interior_; }
 	void set_mix_rate(float v) { mix_rate_ = v; }
 	float get_mix_rate() const { return mix_rate_; }
+	// Seconds of sound kept ready (set before the node enters the tree). A
+	// browser mixes on the game's own thread: a slow frame needs more.
+	void set_buffer_length(float v) { buffer_length_ = v; }
+	float get_buffer_length() const { return buffer_length_; }
 
 protected:
 	static void _bind_methods();
@@ -63,6 +67,7 @@ private:
 	bool cranking_ = false;
 	float interior_ = 1.0f; // 1 = heard from the driver's seat (muffled), 0 = outside
 	float mix_rate_ = 32000.0f;
+	float buffer_length_ = 0.12f;
 
 	Ref<AudioStreamGeneratorPlayback> playback_;
 	double rate_ = 32000.0;

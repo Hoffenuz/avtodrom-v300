@@ -1,8 +1,8 @@
 class_name Pedal
 extends Control
-## Analog on-screen pedal worked like a real one: touching it presses it by
-## `base`, sliding the finger down presses it further and sliding up lets it
-## back, so any opening can be held (half throttle, the clutch's biting point).
+## Analog on-screen pedal: touching it presses it by `base`, sliding the
+## finger up presses it further and sliding down lets it back, so any opening
+## can be held (half throttle, the clutch's biting point).
 ## Where on the pedal the finger lands does not matter.
 
 signal changed(value: float)
@@ -38,7 +38,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed and _touch < 0:
 			_touch = event.index
-			_zero_y = event.position.y - pow(base, 1.0 / curve) * _travel_px()
+			_zero_y = event.position.y + pow(base, 1.0 / curve) * _travel_px()
 			_set_from(event.position)
 		elif not event.pressed and event.index == _touch:
 			_touch = -1
@@ -57,11 +57,11 @@ func _travel_px() -> float:
 
 func _set_from(p: Vector2) -> void:
 	var span := _travel_px()
-	var u := (p.y - _zero_y) / span
+	var u := (_zero_y - p.y) / span
 	if u > 1.0:
-		_zero_y += (u - 1.0) * span
+		_zero_y -= (u - 1.0) * span
 	elif u < 0.0:
-		_zero_y += u * span
+		_zero_y -= u * span
 	_set_value(pow(clampf(u, 0.0, 1.0), curve))
 
 

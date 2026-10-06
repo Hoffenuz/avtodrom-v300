@@ -85,7 +85,8 @@ func _build_world() -> void:
 	EnvironmentSetup.apply_viewport(get_viewport(), q)
 	# The menu background is a slow orbit: 30 fps is plenty and keeps the phone
 	# cool (the drive scene sets its own limit from the settings).
-	Engine.max_fps = 30
+	if not DebugShots.perf:
+		Engine.max_fps = 30
 
 
 ## The showroom floor: one big quad, fading into the sky at the horizon.
@@ -277,7 +278,13 @@ func _show_home() -> void:
 	left.add_child(row)
 	var items := [["menu.history", "list", _show_history], ["menu.rules", "warn", _show_rules],
 			["menu.settings", "gear", _show_settings]]
-	if not OS.has_feature("mobile") and not OS.has_feature("web"):
+	if OS.has_feature("web"):
+		# A browser tab cannot close itself: back to the site instead, and
+		# the app for this device (smoother than the browser).
+		items.append(["menu.site", "home", WebLinks.open_site])
+		if WebLinks.app_url() != "":
+			items.append(["menu.app", "download", _app_dialog])
+	elif not OS.has_feature("mobile"):
 		items.append(["menu.quit", "exit", func() -> void: get_tree().quit()])
 	for it in items:
 		var b := MenuCard.RoundAction.new(Loc.t(it[0]), it[1])
@@ -449,6 +456,47 @@ func _safe_mode_dialog(text: String) -> void:
 			get_tree().quit()
 		p.queue_free())
 	row.add_child(ok)
+	_ui.add_child(p)
+	p.reset_size()
+	p.position = (_ui.size - p.size) * 0.5
+
+
+## Web: why the app is better, with its download for this device.
+func _app_dialog() -> void:
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.55)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ui.add_child(shade)
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.08, 0.07, 0.97), 18, 2, UITheme.GO, 24))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	p.add_child(v)
+	var android := OS.has_feature("web_android")
+	v.add_child(UITheme.label(Loc.t("app.android_title" if android else "app.windows_title"), 26, UITheme.GO, true))
+	var d := UITheme.label(Loc.t("app.why"), 18, UITheme.TEXT)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.custom_minimum_size = Vector2(minf(560.0, _vw() * 0.8), 0)
+	v.add_child(d)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	v.add_child(row)
+	var close := func() -> void:
+		shade.queue_free()
+		p.queue_free()
+	var later := UITheme.button(Loc.t("app.later"), 19, 56)
+	later.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	later.pressed.connect(close)
+	row.add_child(later)
+	var get_it := UITheme.button(Loc.t("app.download"), 19, 56)
+	get_it.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	get_it.pressed.connect(func() -> void:
+		OS.shell_open(WebLinks.app_url())
+		close.call())
+	row.add_child(get_it)
+	shade.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed:
+			close.call())
 	_ui.add_child(p)
 	p.reset_size()
 	p.position = (_ui.size - p.size) * 0.5

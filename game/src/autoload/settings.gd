@@ -54,7 +54,8 @@ const DEFAULTS := {
 	# automatically.
 	"quality_user": false,
 	"renderer_checked": false,
-	"web_warm": false, # browser: the shaders have been compiled once (the browser keeps them)
+	"web_warm": false,
+	"lite_scenery": false, # no city blocks, parked cars or small props, a quarter of the trees # browser: the shaders have been compiled once (the browser keeps them)
 }
 
 var _values: Dictionary = {}
@@ -85,6 +86,10 @@ func _ready() -> void:
 	changed.connect(func(k: String) -> void:
 		if k == "fullscreen":
 			_apply_window_mode())
+	if OS.has_feature("web_android") or OS.has_feature("web_ios"):
+		# Phone browsers can follow a touch with mouse events of their own;
+		# turned back into touch #0 they would fight the first real finger.
+		Input.emulate_touch_from_mouse = false
 	if OS.has_feature("mobile") or OS.has_feature("web"):
 		# Phones and browsers: 60 physics ticks (the C++ car model keeps its own 960 Hz
 		# substeps) and never more than 3 catch-up ticks in a slow frame.
@@ -157,6 +162,8 @@ func reset_to_defaults() -> void:
 ## The drive also steps it down by itself if the frame rate is too low (see
 ## Drive._watch_frame_rate), as long as the player has not chosen a level.
 func detect_quality() -> int:
+	if OS.has_feature("web"):
+		return _detect_web_quality()
 	var gpu := RenderingServer.get_video_adapter_name().to_lower()
 	var kind := RenderingServer.get_video_adapter_type()
 	if kind == RenderingDevice.DEVICE_TYPE_CPU or kind == RenderingDevice.DEVICE_TYPE_VIRTUAL_GPU \
@@ -182,6 +189,45 @@ func detect_quality() -> int:
 	return 1 if strong and OS.get_processor_count() >= 8 else 0
 
 
+## Browsers hide the GPU from the engine ("WebKit WebGL"): the page asks
+## WebGL for it, with the memory and core count. A browser costs more than
+## the app, so one level less than the app would pick: computers with a
+## discrete GPU Medium, others Low; phones Low, Medium only with a strong GPU,
+## and weak ones (4 GB, 4 cores, an older GPU) also the lighter scenery.
+func _detect_web_quality() -> int:
+	var info := str(JavaScriptBridge.eval("""(function () { try {
+		var g = document.createElement('canvas').getContext('webgl2');
+		var e = g.getExtension('WEBGL_debug_renderer_info');
+		var r = e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER);
+		return r + '|' + (navigator.deviceMemory || 0) + '|' + (navigator.hardwareConcurrency || 0);
+	} catch (x) { return '||'; } })()""", true))
+	var parts := (info + "||").split("|")
+	var gpu := parts[0].to_lower()
+	var mem := parts[1].to_float()
+	var cores := parts[2].to_int()
+	print("WEB GPU '%s', %.0f GB, %d cores" % [parts[0], mem, cores])
+	_values["lite_scenery"] = false
+	if not is_mobile():
+		var discrete := gpu.contains("geforce") or gpu.contains("rtx") or gpu.contains("gtx") \
+				or gpu.contains("radeon rx") or gpu.contains("radeon pro") or gpu.contains("arc(tm) a") \
+				or gpu.contains("arc a")
+		return 1 if discrete else 0
+	var adreno := -1
+	var mali := -1
+	var m := RegEx.create_from_string("adreno[^0-9]*([0-9]{3})").search(gpu)
+	if m:
+		adreno = int(m.get_string(1))
+	m = RegEx.create_from_string("mali-g([0-9]{2,3})").search(gpu)
+	if m:
+		mali = int(m.get_string(1))
+	var strong := adreno >= 730 or (mali >= 710 and mali < 1000) or gpu.contains("immortalis") \
+			or gpu.contains("apple")
+	var weak := (mem > 0.0 and mem <= 4.0) or (cores > 0 and cores <= 4) or (adreno >= 0 and adreno < 610) \
+			or (mali >= 0 and mali < 68) or gpu.contains("mali-t") or gpu.contains("powervr")
+	_values["lite_scenery"] = weak
+	return 1 if strong and not weak and (mem == 0.0 or mem >= 8.0) else 0
+
+
 ## 3D render resolution as a share of the screen: the setting, or by quality
 ## (phone screens have far more pixels than their GPUs can shade at 60 fps).
 func render_scale() -> float:
@@ -190,6 +236,14 @@ func render_scale() -> float:
 		return clampf(v, 0.5, 1.0)
 	if not is_mobile():
 		return 1.0
+	if OS.has_feature("web"):
+		# The page holds phone canvases at 1.5x the CSS pixels (shell.html), not
+		# the screen's 2.5-3x: a larger share of it still means fewer pixels.
+		if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
+			return 0.65
+		return [0.8, 0.9, 1.0][clampi(int(get_value("quality")), 0, 2)]
+	if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
+		return 0.5
 	return [0.6, 0.72, 0.85][clampi(int(get_value("quality")), 0, 2)]
 
 
@@ -201,6 +255,11 @@ func frame_limit() -> int:
 	var lim := int(get_value("fps_limit"))
 	if lim <= 0:
 		return 0
+	if OS.has_feature("web") and lim >= 60:
+		# The browser already draws at most once per screen refresh; a cap
+		# of its own drops every other frame (frames come a hair under
+		# 1/60 s apart), so the game ran at 30.
+		return 0
 	var hz := DisplayServer.screen_get_refresh_rate()
 	if hz < 20.0:
 		return lim # unknown refresh rate
@@ -211,7 +270,9 @@ func frame_limit() -> int:
 ## Whether the on-screen driving controls are shown.
 func screen_controls_on() -> bool:
 	var v := int(get_value("screen_controls"))
-	return is_mobile() if v < 0 else v == 1
+	# Browsers show them by default too (a phone may report itself as a
+	# desktop); a keyboard player turns them off in the settings.
+	return (is_mobile() or OS.has_feature("web")) if v < 0 else v == 1
 
 
 func is_mobile() -> bool:

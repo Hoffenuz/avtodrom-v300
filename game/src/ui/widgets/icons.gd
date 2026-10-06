@@ -149,6 +149,18 @@ static func draw(ci: CanvasItem, icon: String, c: Vector2, s: float, color: Colo
 					c + Vector2(-s * 0.85, s * 0.28)]), color)
 			ci.draw_arc(c + Vector2(s * 0.05, 0), s * 0.42, -PI * 0.3, PI * 0.3, 10, color, s * 0.12, true)
 			ci.draw_arc(c + Vector2(s * 0.05, 0), s * 0.75, -PI * 0.3, PI * 0.3, 12, color, s * 0.12, true)
+		"home":
+			ci.draw_polyline(PackedVector2Array([c + Vector2(-s * 0.95, -s * 0.05), c + Vector2(0, -s * 0.9),
+					c + Vector2(s * 0.95, -s * 0.05)]), color, s * 0.14, true)
+			ci.draw_polyline(PackedVector2Array([c + Vector2(-s * 0.62, -s * 0.3), c + Vector2(-s * 0.62, s * 0.85),
+					c + Vector2(s * 0.62, s * 0.85), c + Vector2(s * 0.62, -s * 0.3)]), color, s * 0.13, true)
+			ci.draw_line(c + Vector2(0, s * 0.85), c + Vector2(0, s * 0.3), color, s * 0.3, true)
+		"download":
+			ci.draw_line(c + Vector2(0, -s * 0.9), c + Vector2(0, s * 0.25), color, s * 0.15, true)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, s * 0.5), c + Vector2(-s * 0.48, s * 0.02),
+					c + Vector2(s * 0.48, s * 0.02)]), color)
+			ci.draw_polyline(PackedVector2Array([c + Vector2(-s * 0.9, s * 0.35), c + Vector2(-s * 0.9, s * 0.88),
+					c + Vector2(s * 0.9, s * 0.88), c + Vector2(s * 0.9, s * 0.35)]), color, s * 0.13, true)
 		"info":
 			ci.draw_arc(c, s * 0.88, 0, TAU, 36, color, s * 0.13, true)
 			ci.draw_circle(c + Vector2(0, -s * 0.42), s * 0.12, color)

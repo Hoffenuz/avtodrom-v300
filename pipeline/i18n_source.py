@@ -33,6 +33,22 @@ S = {
     "load.first_web": ("Birinchi kirish: grafika tayyorlanmoqda, bu bir oz vaqt oladi (faqat bir marta)",
                        "Биринчи кириш: графика тайёрланмоқда, бу бир оз вақт олади (фақат бир марта)",
                        "Первый запуск: подготовка графики займёт немного времени (только один раз)"),
+    "set.lite": ("Yengil manzara", "Енгил манзара", "Облегчённое окружение"),
+    "set.lite_desc": ("Binolar, mashinalar va bezaklarsiz — kuchsiz telefonlar uchun (keyingi haydashdan)",
+                      "Бинолар, машиналар ва безакларсиз — кучсиз телефонлар учун (кейинги ҳайдашдан)",
+                      "Без зданий, машин и декора — для слабых телефонов (со следующей поездки)"),
+    "menu.site": ("Saytga", "Сайтга", "На сайт"),
+    "menu.app": ("Ilova", "Илова", "Приложение"),
+    "app.windows_title": ("Kompyuter uchun ilova", "Компьютер учун илова", "Приложение для компьютера"),
+    "app.android_title": ("Android ilova", "Android илова", "Приложение для Android"),
+    "app.why": ("Ilovani yuklab olsangiz har safar yuklanishni kutmaysiz: grafika yuqoriroq, qotishlar va ovoz "
+                "uzilishlari bo‘lmaydi, internetsiz ham ishlaydi.",
+                "Иловани юклаб олсангиз ҳар сафар юкланишни кутмайсиз: графика юқорироқ, қотишлар ва овоз "
+                "узилишлари бўлмайди, интернетсиз ҳам ишлайди.",
+                "Скачайте приложение — не нужно ждать загрузки: графика выше, без подвисаний и прерывания звука, "
+                "работает без интернета."),
+    "app.download": ("Yuklab olish", "Юклаб олиш", "Скачать"),
+    "app.later": ("Keyinroq", "Кейинроқ", "Позже"),
     "load.shaders": ("Grafika tayyorlanmoqda…", "Графика тайёрланмоқда…", "Подготовка графики…"),
     "load.menu": ("Menyuga qaytilmoqda…", "Менюга қайтилмоқда…", "Возврат в меню…"),
     "load.tip1": ("Maslahat: yurishdan oldin xavfsizlik kamarini taqing", "Маслаҳат: юришдан олдин хавфсизлик камарини тақинг",

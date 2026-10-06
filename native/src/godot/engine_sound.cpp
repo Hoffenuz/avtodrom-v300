@@ -48,13 +48,16 @@ void EngineSound::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cranking"), "set_cranking", "get_cranking");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "interior"), "set_interior", "get_interior");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "mix_rate"), "set_mix_rate", "get_mix_rate");
+	ClassDB::bind_method(D_METHOD("set_buffer_length", "seconds"), &EngineSound::set_buffer_length);
+	ClassDB::bind_method(D_METHOD("get_buffer_length"), &EngineSound::get_buffer_length);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "buffer_length"), "set_buffer_length", "get_buffer_length");
 }
 
 void EngineSound::_ready() {
 	Ref<AudioStreamGenerator> gen;
 	gen.instantiate();
 	gen->set_mix_rate(mix_rate_);
-	gen->set_buffer_length(0.12f);
+	gen->set_buffer_length(buffer_length_);
 	set_stream(gen);
 	rate_ = mix_rate_;
 	play();

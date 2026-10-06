@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1f17">
+<title>$GODOT_PROJECT_NAME</title>
+<style>
+html, body, #canvas { margin: 0; padding: 0; border: 0; }
+html, body { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body { color: #e8f5ee; background: #0b1f17; overflow: hidden; touch-action: none;
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+#canvas { display: block; }
+#canvas:focus { outline: none; }
+
+#status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+	justify-content: center; gap: 18px; padding: 24px; box-sizing: border-box; visibility: hidden;
+	background: radial-gradient(ellipse at 50% 35%, #1b5a3c 0%, #0f3324 45%, #071811 100%); }
+#status-splash { width: min(72vmin, 560px); max-height: 44vh; object-fit: contain; }
+#status-splash.show-image--false { display: none; }
+#load-box { width: min(560px, 88vw); text-align: center; }
+#load-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.12); overflow: hidden; }
+#load-fill { height: 100%; width: 0; border-radius: 4px; background: #a3e635; transition: width .2s; }
+#load-text { margin-top: 10px; font-size: 16px; font-variant-numeric: tabular-nums; }
+#load-note { margin-top: 4px; font-size: 13px; color: rgba(232,245,238,.6); }
+#app-card { display: none; width: min(560px, 88vw); box-sizing: border-box; padding: 14px 16px; border-radius: 14px;
+	background: rgba(255,255,255,.07); border: 1px solid rgba(163,230,53,.35); text-align: left; font-size: 14px;
+	line-height: 1.4; align-items: center; gap: 14px; }
+#app-card b { color: #a3e635; }
+#app-card a { flex: none; padding: 10px 16px; border-radius: 10px; background: #22c55e; color: #052e16;
+	font-weight: 700; text-decoration: none; white-space: nowrap; }
+#status-notice { display: none; max-width: 88vw; padding: 1rem; border-radius: .5rem; background: #5b3943;
+	border: 1px solid #9b3943; color: #e0e0e0; text-align: center; }
+@media (max-height: 480px) {
+	#status { gap: 10px; padding: 12px; }
+	#status-splash { max-height: 34vh; }
+	#app-card { padding: 10px 12px; font-size: 13px; }
+}
+
+#rotate-hint { display: none; position: fixed; inset: 0; z-index: 10; background: #0b1f17; color: #e8f5ee;
+	font: 600 20px/1.5 system-ui, sans-serif; align-items: center; justify-content: center; flex-direction: column;
+	text-align: center; padding: 24px; }
+#rotate-hint b { font-size: 56px; line-height: 1.2; }
+@media (orientation: portrait) and (pointer: coarse) { #rotate-hint { display: flex; } }
+</style>
+$GODOT_HEAD_INCLUDE
+</head>
+<body>
+<canvas id="canvas">Brauzeringiz canvas'ni qo'llamaydi.</canvas>
+<noscript>JavaScript yoqilmagan.</noscript>
+
+<div id="status">
+	<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="">
+	<div id="load-box">
+		<div id="load-bar"><div id="load-fill"></div></div>
+		<div id="load-text">Yuklanmoqda…</div>
+		<div id="load-note">Birinchi kirishda biroz kutasiz — keyingi safar ancha tez ochiladi.</div>
+	</div>
+	<div id="app-card"></div>
+	<div id="status-notice"></div>
+</div>
+<div id="rotate-hint"><b>&#8635;</b>Telefonni gorizontal holatga o&#8216;giring<br><small>Поверните телефон горизонтально</small></div>
+
+<script>
+// Where the apps are, and what this device is (the game reads both too).
+window.AVTODROM = {
+	site: 'https://www.avtotestu.uz/',
+	windows: 'https://pub-ada2d6b89d42476e891d0e3b45ca4777.r2.dev/AvtoSmart-Avtodrom-Setup-1.0.7.exe',
+	android: 'https://pub-ada2d6b89d42476e891d0e3b45ca4777.r2.dev/AvtoSmart-Avtodrom-1.0.7.apk',
+	platform: /android/i.test(navigator.userAgent) ? 'android'
+		: /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ? 'ios'
+		: /windows/i.test(navigator.userAgent) ? 'windows' : 'other',
+};
+
+// The canvas follows devicePixelRatio, and every frame the engine copies it
+// to the screen with GPU-stalling state queries: on a 2.6x phone that copy of
+// a 2400x1100 canvas took two thirds of the frame. Phones get at most 1.5x
+// (the game raises its 3D resolution to match), computers 2x.
+(function () {
+	const real = window.devicePixelRatio || 1;
+	const cap = matchMedia('(pointer:coarse)').matches ? 1.5 : 2;
+	window.AVTODROM.pixelRatio = Math.min(real, cap);
+	try {
+		Object.defineProperty(window, 'devicePixelRatio', { get: function () { return window.AVTODROM.pixelRatio; } });
+	} catch (e) { /* read-only here: the full ratio stays */ }
+})();
+
+// Download progress in megabytes. Each file arrives gzipped; the build step
+// writes every file's size (unpacked, packed) here so the page can show the
+// real traffic. Bytes are counted as the engine reads them.
+(function () {
+	let sizes = null;
+	try { sizes = JSON.parse('__AVTODROM_SIZES__'); } catch (e) { /* local run: no sizes */ }
+	const fill = document.getElementById('load-fill');
+	const text = document.getElementById('load-text');
+	const got = {};
+	let rawTotal = 0, packedTotal = 0;
+	if (sizes) {
+		for (const k in sizes) { rawTotal += sizes[k][0]; packedTotal += sizes[k][1]; }
+	}
+	function show() {
+		let raw = 0;
+		for (const k in got) raw += got[k];
+		if (!sizes) {
+			text.textContent = 'Yuklanmoqda… ' + (raw / 1048576).toFixed(1) + ' MB';
+			return;
+		}
+		const f = Math.min(1, raw / rawTotal);
+		fill.style.width = (f * 100).toFixed(1) + '%';
+		text.textContent = f >= 1 ? 'Ishga tushirilmoqda…'
+			: 'Yuklanmoqda… ' + (f * packedTotal / 1048576).toFixed(1) + ' / ' + (packedTotal / 1048576).toFixed(1)
+				+ ' MB · ' + Math.floor(f * 100) + '%';
+	}
+	window.AVTODROM.progressShow = show;
+	const realFetch = window.fetch.bind(window);
+	window.fetch = function (input, init) {
+		const url = typeof input === 'string' ? input : input.url;
+		const name = new URL(url, location.href).pathname.split('/').pop();
+		const counted = sizes ? name in sizes : /\.(pck|wasm)$/.test(name);
+		return realFetch(input, init).then(function (r) {
+			if (!counted || !r.ok || !r.body) return r;
+			got[name] = 0;
+			const reader = r.body.getReader();
+			const body = new ReadableStream({
+				pull(c) {
+					return reader.read().then(function (res) {
+						if (res.done) { c.close(); return; }
+						got[name] += res.value.byteLength;
+						show();
+						c.enqueue(res.value);
+					});
+				},
+				cancel(why) { return reader.cancel(why); },
+			});
+			return new Response(body, { status: r.status, statusText: r.statusText, headers: r.headers });
+		});
+	};
+})();
+
+// The app is smoother: say so, with the download for this device.
+(function () {
+	const A = window.AVTODROM, card = document.getElementById('app-card');
+	const url = A.platform === 'windows' ? A.windows : A.platform === 'android' ? A.android : '';
+	if (!url) return;
+	const what = A.platform === 'windows' ? 'Windows uchun ilova' : 'Android ilova';
+	card.innerHTML = '<div><b>' + what + '</b> — yuklab olinsa yuklanishni kutmaysiz, grafika yuqori'
+		+ ' va qotishlar bo&#8216;lmaydi.</div><a target="_blank" rel="noopener"></a>';
+	card.querySelector('a').href = url;
+	card.querySelector('a').textContent = 'Yuklab olish';
+	card.style.display = 'flex';
+})();
+
+// Full screen at the first tap or key (browsers allow it only then); on
+// phones again at every tap after the player leaves it, and turned sideways.
+(function () {
+	const phone = matchMedia('(pointer:coarse)').matches;
+	let asked = false;
+	function full(e) {
+		if (e && e.target && e.target.closest && e.target.closest('a')) return; // the download link
+		if (document.fullscreenElement || document.webkitFullscreenElement || (asked && !phone)) return;
+		asked = true;
+		const d = document.documentElement, req = d.requestFullscreen || d.webkitRequestFullscreen;
+		if (!req) return;
+		const after = function () {
+			if (phone && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+			// Esc pauses the game: the browser leaves full screen on a long press instead.
+			if (!phone && navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock(['Escape']).catch(function () {});
+		};
+		const r = req.call(d, { navigationUI: 'hide' });
+		if (r && r.then) r.then(after).catch(function () {}); else after();
+	}
+	addEventListener('pointerup', full, true);
+	addEventListener('keydown', full, true);
+	addEventListener('contextmenu', function (e) { e.preventDefault(); });
+})();
+</script>
+
+<script src="$GODOT_URL"></script>
+<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const status = document.getElementById('status');
+	const notice = document.getElementById('status-notice');
+	status.style.visibility = 'visible';
+
+	function fail(err) {
+		console.error(err);
+		const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Noma’lum xato.';
+		document.getElementById('load-box').style.display = 'none';
+		notice.textContent = 'O‘yinni ishga tushirib bo‘lmadi: ' + msg;
+		notice.style.display = 'block';
+	}
+
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length !== 0) {
+		fail('brauzerda kerakli imkoniyatlar yo‘q (' + missing.join(', ') + '). Chrome yoki Edge’ning yangi versiyasida oching.');
+		return;
+	}
+	// ?args=--perf (debugging): extra command-line arguments for the game.
+	const extra = new URLSearchParams(location.search).get('args');
+	engine.startGame({
+		args: extra ? ['--'].concat(extra.split(' ')) : [],
+		onProgress: function () { window.AVTODROM.progressShow(); },
+	}).then(function () { status.remove(); }, fail);
+}());
+</script>
+</body>
+</html>

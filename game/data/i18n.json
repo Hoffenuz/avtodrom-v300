@@ -79,6 +79,51 @@
   "uz_cyrl": "Биринчи кириш: графика тайёрланмоқда, бу бир оз вақт олади (фақат бир марта)",
   "ru": "Первый запуск: подготовка графики займёт немного времени (только один раз)"
  },
+ "set.lite": {
+  "uz_latn": "Yengil manzara",
+  "uz_cyrl": "Енгил манзара",
+  "ru": "Облегчённое окружение"
+ },
+ "set.lite_desc": {
+  "uz_latn": "Binolar, mashinalar va bezaklarsiz — kuchsiz telefonlar uchun (keyingi haydashdan)",
+  "uz_cyrl": "Бинолар, машиналар ва безакларсиз — кучсиз телефонлар учун (кейинги ҳайдашдан)",
+  "ru": "Без зданий, машин и декора — для слабых телефонов (со следующей поездки)"
+ },
+ "menu.site": {
+  "uz_latn": "Saytga",
+  "uz_cyrl": "Сайтга",
+  "ru": "На сайт"
+ },
+ "menu.app": {
+  "uz_latn": "Ilova",
+  "uz_cyrl": "Илова",
+  "ru": "Приложение"
+ },
+ "app.windows_title": {
+  "uz_latn": "Kompyuter uchun ilova",
+  "uz_cyrl": "Компьютер учун илова",
+  "ru": "Приложение для компьютера"
+ },
+ "app.android_title": {
+  "uz_latn": "Android ilova",
+  "uz_cyrl": "Android илова",
+  "ru": "Приложение для Android"
+ },
+ "app.why": {
+  "uz_latn": "Ilovani yuklab olsangiz har safar yuklanishni kutmaysiz: grafika yuqoriroq, qotishlar va ovoz uzilishlari bo‘lmaydi, internetsiz ham ishlaydi.",
+  "uz_cyrl": "Иловани юклаб олсангиз ҳар сафар юкланишни кутмайсиз: графика юқорироқ, қотишлар ва овоз узилишлари бўлмайди, интернетсиз ҳам ишлайди.",
+  "ru": "Скачайте приложение — не нужно ждать загрузки: графика выше, без подвисаний и прерывания звука, работает без интернета."
+ },
+ "app.download": {
+  "uz_latn": "Yuklab olish",
+  "uz_cyrl": "Юклаб олиш",
+  "ru": "Скачать"
+ },
+ "app.later": {
+  "uz_latn": "Keyinroq",
+  "uz_cyrl": "Кейинроқ",
+  "ru": "Позже"
+ },
  "load.shaders": {
   "uz_latn": "Grafika tayyorlanmoqda…",
   "uz_cyrl": "Графика тайёрланмоқда…",

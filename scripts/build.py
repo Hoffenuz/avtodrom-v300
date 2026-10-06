@@ -133,19 +133,29 @@ def package_web(out):
         sys.exit("no export/web: run with --web first")
     pub = out / "public"
     shutil.rmtree(pub, ignore_errors=True)
-    pub.mkdir(parents=True)
+    pub.mkdir(parents=True, exist_ok=True) # a running `wrangler dev` may keep the folder
+    for old in pub.iterdir():
+        old.unlink()
     part_max = 24 * 1024 * 1024
     build = "%s-%s" % (version(), time.strftime("%Y%m%d%H%M%S"))
     files = {}
+    packed = {}
     for f in sorted(src.iterdir()):
-        if not f.is_file() or f.suffix == ".gz":
-            continue
-        data = gzip.compress(f.read_bytes(), compresslevel=9, mtime=0)
+        if f.is_file() and f.suffix != ".gz" and f.name != "index.html":
+            packed[f.name] = gzip.compress(f.read_bytes(), compresslevel=9, mtime=0)
+    # The page shows the download in real (gzipped) megabytes: it gets every
+    # file the engine fetches with its unpacked and packed size.
+    sizes = {n: [(src / n).stat().st_size, len(d)] for n, d in packed.items() if n.endswith((".pck", ".wasm"))}
+    html = (src / "index.html").read_text(encoding="utf-8").replace("__AVTODROM_SIZES__", json.dumps(sizes))
+    packed["index.html"] = gzip.compress(html.encode("utf-8"), compresslevel=9, mtime=0)
+    for name in sorted(packed):
+        f = src / name
+        data = packed[name]
         parts = []
         for i in range(0, len(data), part_max):
-            name = "%s.gz.%d" % (f.name, len(parts))
-            (pub / name).write_bytes(data[i:i + part_max])
-            parts.append(name)
+            part = "%s.gz.%d" % (f.name, len(parts))
+            (pub / part).write_bytes(data[i:i + part_max])
+            parts.append(part)
         files[f.name] = {"size": len(data), "parts": parts}
     (pub / "_manifest.json").write_text(json.dumps({"build": build, "files": files}, indent=1), encoding="utf-8")
     cf = ROOT / "deploy" / "cloudflare"

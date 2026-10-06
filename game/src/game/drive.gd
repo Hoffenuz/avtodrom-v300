@@ -34,7 +34,7 @@ func _ready() -> void:
 	Loading.stage("environment")
 	var sun := EnvironmentSetup.create(self, quality)
 	Loading.stage("course")
-	course = CourseBuilder.load_or_build(data, quality)
+	course = CourseBuilder.load_or_build(data, quality, bool(Settings.get_value("lite_scenery")))
 	add_child(course)
 	var rng := RandomNumberGenerator.new()
 	var seed_arg := -1
@@ -323,7 +323,8 @@ func _process(delta: float) -> void:
 func _watch_frame_rate(delta: float) -> void:
 	if Loading.is_covering() or get_tree().paused or bool(Settings.get_value("quality_user")):
 		return
-	if int(Settings.get_value("quality")) <= 0 and Settings.render_scale() <= 0.6:
+	if int(Settings.get_value("quality")) <= 0 and Settings.render_scale() <= 0.6 \
+			and (bool(Settings.get_value("lite_scenery")) or not Settings.is_mobile()):
 		set_process(false)
 		return
 	_fps_t += delta
@@ -344,8 +345,10 @@ func _watch_frame_rate(delta: float) -> void:
 	print("frame rate %.1f fps at quality %d: stepping down" % [fps, q])
 	if q > 0:
 		Settings.set_value("quality", q - 1)
-	elif OS.has_feature("mobile") and Settings.render_scale() > 0.6:
+	elif Settings.is_mobile() and Settings.render_scale() > 0.6:
 		Settings.set_value("render_scale", 0.6)
+	elif Settings.is_mobile() and not bool(Settings.get_value("lite_scenery")):
+		Settings.set_value("lite_scenery", true) # lighter scenery from the next drive
 	else:
 		set_process(false) # nothing left to lower
 		return
