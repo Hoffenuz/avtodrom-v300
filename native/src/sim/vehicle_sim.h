@@ -141,6 +141,7 @@ private:
 	static constexpr int kEngine = 0;
 	static constexpr int kTurbine = 1;
 	static constexpr int kWheel0 = 2;
+	int drive0_ = 0; // first driven wheel: 0 (front-wheel drive) or 2 (rear-wheel drive)
 	std::array<double, 6> omega_{};
 	std::array<double, 6> inv_inertia_{};
 	std::array<double, 6> ext_torque_{};

@@ -17,6 +17,12 @@ var lit := false:
 			lit = v
 			queue_redraw()
 var lit_color := UITheme.GO
+## Its key held on the keyboard (desktop): drawn pressed, fires nothing.
+var key_held := false:
+	set(v):
+		if v != key_held:
+			key_held = v
+			queue_redraw()
 var icon_color := UITheme.TEXT
 var flash := 0.0
 ## The size it was made for; a layout may scale it from there.
@@ -82,9 +88,10 @@ func _draw() -> void:
 	var d := minf(size.x, size.y - (22.0 if caption != "" else 0.0))
 	var c := Vector2(size.x * 0.5, d * 0.5)
 	# Pressed: a little smaller and lighter; a penalty flash tints it red.
-	var k := 0.94 if _down else 1.0
+	var down := _down or key_held
+	var k := 0.94 if down else 1.0
 	var tint := Color.WHITE
-	if _down:
+	if down:
 		tint = Color(1.18, 1.18, 1.18)
 	if flash > 0.0:
 		tint = tint.lerp(UITheme.STOP, flash)

@@ -148,8 +148,12 @@ func _place_chase(xf: Transform3D, delta: float) -> void:
 	_reverse = move_toward(_reverse, 1.0 if reversing else 0.0, delta * 0.9)
 	var base_yaw := _heading + orbit_yaw + PI * smoothstep(0.0, 1.0, _reverse)
 	var pitch := clampf(CHASE_PITCH + orbit_pitch, -0.1, 1.35)
-	var dist := CHASE_DIST * zoom
-	var pivot := xf.origin + Vector3.UP * PIVOT_HEIGHT
+	# A longer, taller vehicle (the van): the view rises over its roof and
+	# backs off by its extra length, so the road ahead stays in sight.
+	var extra_h := maxf(car.body_height - 1.45, 0.0)
+	var extra_l := maxf(car.body_rear - 2.3, 0.0)
+	var dist := (CHASE_DIST + extra_l + extra_h * 1.6) * zoom
+	var pivot := xf.origin + Vector3.UP * (PIVOT_HEIGHT + extra_h * 0.95)
 	# A sign post, lamp post or the fence between the car and the camera:
 	# first step round it (a little to the side), and only if every side is
 	# blocked, come closer.

@@ -70,6 +70,16 @@ SPEC = {
         "seats": None,
         "headlight": None,
     },
+    "gazelle": {
+        # A van: a high cabin floor, a wide dash under a steep windscreen.
+        "half_width": 0.9, "y_back": 1.78, "z_top": 1.34, "z_knee": 1.0, "z_floor": 0.78,
+        "cut_z": 0.92, "cut_keep_x": 0.92, "hood_w": 0.42, "gauge_r": 0.066, "gauge_z": 1.285,
+        "body_tris": 48000,
+        "spin_tris": 2600,
+        "tunnel": False,  # the lever sits in the dash, beside the driver
+        "seats": None,
+        "headlight": None,
+    },
 }[CAR]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -251,7 +261,7 @@ glass = obj["Glass"]
 win = [glass.matrix_world @ glass.data.vertices[i].co
        for p in glass.data.polygons if glass.data.materials[p.material_index].name == "window"
        for i in p.vertices]
-screen = [v for v in win if v.y > 0.2 and abs(v.x) < 0.66]  # windscreen, not the door glass
+screen = [v for v in win if v.y > 0.2 and abs(v.x) < min(0.66, SPEC["half_width"] - 0.1)]  # windscreen, not the door glass
 screen_base_z = min(v.z for v in screen if abs(v.x) < 0.4)
 screen_base_y = max(v.y for v in screen if abs(v.x) < 0.4 and v.z < screen_base_z + 0.02)
 # The windscreen's lower edge curves back towards the A-pillars: fit it as

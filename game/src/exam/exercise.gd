@@ -22,6 +22,14 @@ var highlight: Array = []
 var performed := false # the manoeuvre itself was carried out
 var penalties_here := 0
 var _milestones := {}
+## A different hint must be asked for this long before it replaces the shown
+## one: the exercises pick the hint from live thresholds every tick (a car
+## coming to rest flips "reversing" on and off), and without the hold the
+## HUD card flickered between two texts.
+const HINT_HOLD := 0.4
+var _pending_key := ""
+var _pending_args: Array = []
+var _pending_t := 0.0
 
 
 func _init(p_def: Dictionary, p_director: ExamDirector) -> void:
@@ -45,6 +53,8 @@ func begin() -> void:
 
 func tick(dt: float, p: CarProbe) -> void:
 	elapsed += dt
+	if _pending_key != "":
+		_pending_t += dt
 	_tick(dt, p)
 
 
@@ -79,8 +89,27 @@ func penalize(no: int, detail := "") -> void:
 
 
 func set_hint(key: String, args: Array = []) -> void:
-	if key == hint_key and args == hint_args:
+	if key == hint_key:
+		_pending_key = ""
+		if args != hint_args: # a countdown ticking: show at once
+			_show_hint(key, args)
 		return
+	# The first hint, anything once the exercise is over, and the traffic
+	# light's (it changes cleanly, and late would be wrong) show at once.
+	if hint_key == "" or state != State.ACTIVE or key.begins_with("hint.light_"):
+		_pending_key = ""
+		_show_hint(key, args)
+		return
+	if key != _pending_key:
+		_pending_key = key
+		_pending_t = 0.0
+	_pending_args = args
+	if _pending_t >= HINT_HOLD:
+		_pending_key = ""
+		_show_hint(key, args)
+
+
+func _show_hint(key: String, args: Array) -> void:
 	hint_key = key
 	hint_args = args
 	director.hint_changed.emit()

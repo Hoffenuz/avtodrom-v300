@@ -54,6 +54,7 @@ func setup(p_car: Car, hud_root: Control, p_quality: int, sun: DirectionalLight3
 		cam.near = 0.12
 		cam.far = FAR
 		cam.cull_mask = cam.cull_mask & ~LAYER_SUN if _mirror_sun else cam.cull_mask
+		cam.cull_mask &= ~Car.LAYER_INTERIOR
 		cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		vp.add_child(cam)
 		_vps.append(vp)

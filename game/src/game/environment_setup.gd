@@ -3,20 +3,36 @@ extends RefCounted
 ## Sky, sun and post-processing, scaled to the quality level.
 ##   0 = low (phones from ~2018, OpenGL fallback), 1 = medium, 2 = high.
 
+## Late-morning sun from the south-east, as in the scheme's shading.
+const SUN_ROTATION := Vector3(deg_to_rad(-52.0), deg_to_rad(150.0), 0.0)
+
+
+## One sky for the whole session: its lighting (radiance) is filtered once,
+## not again for the menu and every drive (seconds on a phone's GPU).
+static var _sky: Sky
+static var _sky_q := -1
+
+
 static func create(parent: Node, quality: int) -> DirectionalLight3D:
 	var env := Environment.new()
-	var sky := Sky.new()
-	var sky_mat := PanoramaSkyMaterial.new()
-	sky_mat.panorama = load("res://assets/sky/sky_1k.hdr")
-	sky_mat.energy_multiplier = 1.0
-	sky.sky_material = sky_mat
-	sky.radiance_size = [Sky.RADIANCE_SIZE_64, Sky.RADIANCE_SIZE_128, Sky.RADIANCE_SIZE_256][clampi(quality, 0, 2)]
-	# The sky never changes: its lighting is computed once, fully, before the
-	# first frame (incremental mode spreads it over frames, and the ground and
-	# the background visibly change brightness while it converges).
-	sky.process_mode = Sky.PROCESS_MODE_QUALITY
+	var q := clampi(quality, 0, 2)
+	if _sky == null or _sky_q != q:
+		var new_sky := Sky.new()
+		var sky_mat := PanoramaSkyMaterial.new()
+		sky_mat.panorama = load("res://assets/sky/sky_1k.hdr")
+		sky_mat.energy_multiplier = 1.0
+		new_sky.sky_material = sky_mat
+		new_sky.radiance_size = [Sky.RADIANCE_SIZE_64, Sky.RADIANCE_SIZE_128, Sky.RADIANCE_SIZE_256][q]
+		if q == 0 and OS.has_feature("mobile"):
+			new_sky.radiance_size = Sky.RADIANCE_SIZE_32 # a quarter of the filtering
+		# The sky never changes: its lighting is computed once, fully, before the
+		# first frame (incremental mode spreads it over frames, and the ground and
+		# the background visibly change brightness while it converges).
+		new_sky.process_mode = Sky.PROCESS_MODE_QUALITY
+		_sky = new_sky
+		_sky_q = q
 	env.background_mode = Environment.BG_SKY
-	env.sky = sky
+	env.sky = _sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 1.0
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
@@ -43,8 +59,7 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	# Late-morning sun from the south-east, as in the scheme's shading.
-	sun.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(150.0), 0.0)
+	sun.rotation = SUN_ROTATION
 	sun.light_energy = 1.25
 	sun.light_color = Color(1.0, 0.97, 0.92)
 	# Low: no shadows. Medium: one cascade to 35 m on phones. High: more.

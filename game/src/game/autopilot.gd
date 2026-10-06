@@ -517,35 +517,53 @@ func _box(dt: float, ex: Exercise) -> bool:
 
 
 # ------------------------------------------------------------------ parallel
+## The manoeuvre is worked out facing west with the pocket on the north (the
+## cars' pocket); a pocket parked facing east (the trucks' one before the
+## finish) is the same turned round: `_pk` = -1 maps world points to that frame
+## and back (p * _pk). The arcs, the pass distance and the rear axle's offset
+## from the band come with the exercise (sized for the vehicle).
+var _pk := 1.0
+
+
+func _pl(p: Vector2) -> Vector2:
+	return p * _pk
+
+
+func _pl_path(path: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in path:
+		out.append(p * _pk)
+	return out
+
+
 func _parallel(dt: float, ex: Exercise) -> bool:
 	var d := ex.def
-	var pocket := CourseData.poly(d["pocket"])
+	_pk = 1.0 if float(d["park_heading"]) > 0.0 else -1.0
+	var pocket := _pl_path(CourseData.poly(d["pocket"]))
 	var fix: Dictionary = d["fixation_line"]
 	var px0 := INF
 	var px1 := -INF
 	for p in pocket:
 		px0 = minf(px0, p.x)
 		px1 = maxf(px1, p.x)
-	var fix_z := Geo.line_a(fix).y
+	var fix_z := _pl(Geo.line_a(fix)).y
 	var edge_z := -INF # the pocket's open (road) side
 	for p in pocket:
 		edge_z = maxf(edge_z, p.y)
-	var z_target := fix_z + 0.71 # right wheels (north side) on the line
+	var z_target := fix_z + float(d.get("axle_half", 0.71)) # right wheels on the line
 	if faults.has("parkoff"):
 		z_target += 0.45 # right wheels short of the band
-	var z_drive := edge_z + 1.1 # pass the pocket about a metre off its edge
-	var arc_r := 4.3
-	var shift := z_drive - z_target
-	var theta := acos(clampf(1.0 - shift / (2.0 * arc_r), -1.0, 1.0))
+	var z_drive := edge_z + float(d.get("drive_off", 1.1)) # pass the pocket clear of its edge
+	var arc_r := float(d.get("arc_r", 4.3))
 	var x_stop := px0 + 1.2 # rear axle just past the pocket's near end
-	var x_rear_target := x_stop + 2.0 * arc_r * sin(theta) + 1.5
+	var park_dir := Vector2(-_pk, 0.0) # the way the car faces parked (world)
 	match _parallel_state:
 		0:
-			var ra := _rear_axle()
-			if ra.x < px1 + 6.0 and _fwd().x < -0.8:
+			var ra := _pl(_rear_axle())
+			if ra.x < px1 + 6.0 and _pl(_fwd()).x < -0.8:
 				var ds := ra.x - x_stop
 				var target := Vector2(ra.x - 5.0, z_drive)
-				var steer := _pursue(target, false)
+				var steer := _pursue(_pl(target), false)
 				var tb := _speed_control(minf(CORRIDOR, sqrt(maxf(2.0 * DECEL * maxf(ds, 0.0), 0.0))) if ds > 0.1 else 0.0, dt)
 				_set_controls(tb.x, tb.y, steer)
 				if ds <= 0.1 and absf(car.get_forward_speed()) < 0.08:
@@ -561,11 +579,12 @@ func _parallel(dt: float, ex: Exercise) -> bool:
 				car.request_gear(-1 if not car.is_automatic() else AvtoGear.AUTO_REVERSE)
 				# Classic two-arc parallel park (rear-axle path), then a short
 				# straight so the car settles square to the kerb.
-				var ra := _rear_axle()
+				var ra := _pl(_rear_axle())
 				var sh := ra.y - z_target
 				var th := acos(clampf(1.0 - sh / (2.0 * arc_r), -1.0, 1.0))
-				_path = _two_arc(ra, -sh, arc_r)
-				_path.append(Vector2(ra.x + 2.0 * arc_r * sin(th) + 2.8, z_target))
+				var path := _two_arc(ra, -sh, arc_r)
+				path.append(Vector2(ra.x + 2.0 * arc_r * sin(th) + 2.8, z_target))
+				_path = _pl_path(path)
 				_path_reverse = true
 				_path_speed = MANOEUVRE
 				_parallel_state = 2
@@ -574,21 +593,21 @@ func _parallel(dt: float, ex: Exercise) -> bool:
 			if _follow_path(dt):
 				_parallel_state = 3
 				_hold_t = 0.0
-				var ra := _rear_axle()
+				var ra := _pl(_rear_axle())
 				_log("parallel: parked, rear axle z err %.2f m, heading err %.1f°" % [ra.y - z_target,
-						rad_to_deg(_fwd().angle_to(Vector2(-1, 0)))])
+						rad_to_deg(_fwd().angle_to(park_dir))])
 			return true
 		3:
 			_hold_t += dt
 			_set_controls(0.0, 0.6, car.steering_wheel)
-			var ra0 := _rear_axle()
-			var heading_err := absf(rad_to_deg(_fwd().angle_to(Vector2(-1, 0))))
+			var ra0 := _pl(_rear_axle())
+			var heading_err := absf(rad_to_deg(_fwd().angle_to(park_dir)))
 			if _hold_t > 1.0 and _park_tries < 2 and (heading_err > 1.8 or absf(ra0.y - z_target) > 0.08):
 				# Like a driver: pull forward a little, then back in straight.
 				_park_tries += 1
 				car.request_gear(1 if not car.is_automatic() else AvtoGear.DRIVE)
 				_park_x = ra0.x
-				_path = PackedVector2Array([ra0, Vector2(ra0.x - 2.4, z_target), Vector2(ra0.x - 4.0, z_target)])
+				_path = _pl_path(PackedVector2Array([ra0, Vector2(ra0.x - 2.4, z_target), Vector2(ra0.x - 4.0, z_target)]))
 				_path_reverse = false
 				_path_speed = 0.7
 				_parallel_state = 6
@@ -596,26 +615,28 @@ func _parallel(dt: float, ex: Exercise) -> bool:
 				return true
 			if _hold_t > 1.6:
 				car.request_gear(1 if not car.is_automatic() else AvtoGear.DRIVE)
-				var ra := _rear_axle()
-				var lane := data.route_point(director.tracker.s).y
-				_path = PackedVector2Array([ra, Vector2(ra.x - 0.6, ra.y)])
-				_path.append_array(_s_curve(Vector2(ra.x - 0.6, ra.y), Vector2(ra.x - 10.0, lane)))
-				_path.append(Vector2(ra.x - 17.0, lane))
+				var ra := _pl(_rear_axle())
+				var lane := _pl(data.route_point(director.tracker.s)).y
+				var path := PackedVector2Array([ra, Vector2(ra.x - 0.6, ra.y)])
+				path.append_array(_s_curve(Vector2(ra.x - 0.6, ra.y), Vector2(ra.x - 10.0, lane)))
+				# On well past the pocket (a long vehicle parks deeper in it).
+				path.append(Vector2(minf(ra.x - 17.0, x_stop - 10.0), lane))
+				_path = _pl_path(path)
 				_path_reverse = false
 				_path_speed = 1.8
 				_parallel_state = 4
 			return true
 		4:
 			_follow_path(dt)
-			if _rear_axle().x < x_stop - 8.0:
+			if _pl(_rear_axle()).x < x_stop - 8.0:
 				_parallel_state = 5
 				_log("parallel: back on the road")
 			return true
 		6:
-			if _follow_path(dt) or _rear_axle().x < _park_x - 2.0:
+			if _follow_path(dt) or _pl(_rear_axle()).x < _park_x - 2.0:
 				car.request_gear(-1 if not car.is_automatic() else AvtoGear.AUTO_REVERSE)
-				var ra := _rear_axle()
-				_path = PackedVector2Array([ra, Vector2(_park_x + 0.1, z_target)])
+				var ra := _pl(_rear_axle())
+				_path = _pl_path(PackedVector2Array([ra, Vector2(_park_x + 0.1, z_target)]))
 				_path_reverse = true
 				_path_speed = 0.6
 				_parallel_state = 7
@@ -624,9 +645,9 @@ func _parallel(dt: float, ex: Exercise) -> bool:
 			if _follow_path(dt):
 				_parallel_state = 3
 				_hold_t = 0.0
-				var ra := _rear_axle()
+				var ra := _pl(_rear_axle())
 				_log("parallel: re-parked, lateral %.2f m, heading %.1f°" % [ra.y - z_target,
-						rad_to_deg(_fwd().angle_to(Vector2(-1, 0)))])
+						rad_to_deg(_fwd().angle_to(park_dir))])
 			return true
 	return false
 

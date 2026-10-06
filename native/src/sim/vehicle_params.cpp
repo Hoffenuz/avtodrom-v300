@@ -19,7 +19,7 @@ void layout_wheels(VehicleParams &p, double wheelbase, double track_f, double tr
 		w.y = radius + mount_above_center; // mount point height at static ride
 		w.static_length = mount_above_center;
 		w.steered = i < 2;
-		w.driven = i < 2; // both presets are front-wheel drive
+		w.driven = i < 2; // front-wheel drive; make_gazelle() drives the rear
 		w.handbrake = i >= 2;
 	}
 }
@@ -207,9 +207,85 @@ VehicleParams make_gentra() {
 	return p;
 }
 
+VehicleParams make_gazelle() {
+	VehicleParams p;
+	p.id = "gazelle";
+	p.mass = 2150.0 + 75.0;
+	// A tall van: estimates from the mass and the body (6.1 x 2.07 x 2.7 m),
+	// 55/45 front/rear unladen.
+	p.inertia = { 1650.0, 6400.0, 6100.0 };
+	p.center_of_mass = { 0.0, 0.80, -0.19 };
+	p.drag_area = 0.40 * 4.7;
+	// Measured on the game model (pipeline/blender/build_gazelle.py, scaled to
+	// the maker's 3745 mm wheelbase).
+	p.wheelbase = 3.745;
+	p.track = 1.70;
+	p.abs = true;
+
+	EngineParams &e = p.engine;
+	// Cummins ISF 2.8: a flat 297 N·m from 1400 to 2600 rpm, 120 hp at 3400.
+	e.torque_full = Curve{ { 0.0, 110.0 }, { 600.0, 150.0 }, { 900.0, 205.0 }, { 1200.0, 265.0 }, { 1400.0, 297.0 },
+		{ 2600.0, 297.0 }, { 3000.0, 283.0 }, { 3400.0, 252.0 }, { 3700.0, 212.0 }, { 4000.0, 140.0 } };
+	e.inertia = 0.38; // dual-mass flywheel
+	e.friction_const = 16.0;
+	e.friction_per_krpm = 9.0;
+	e.compression_hold = 70.0;
+	e.idle_rpm = 750.0;
+	e.stall_rpm = 380.0;
+	e.catch_rpm = 330.0;
+	e.limiter_rpm = 3900.0;
+	e.redline_rpm = 3700.0;
+	e.starter_torque = 190.0;
+	e.starter_max_rpm = 420.0;
+	e.idle_max_throttle = 0.14;
+	e.progression_low = 3.0;
+
+	p.clutch.max_torque = 480.0;
+
+	GearboxParams &g = p.gearbox;
+	g.type = TransmissionType::Manual;
+	g.forward = { 4.05, 2.34, 1.395, 1.0, 0.849 };
+	g.reverse = 3.51;
+	g.final_drive = 4.3;
+	g.efficiency = 0.92;
+	g.inertia = 0.05;
+
+	TireParams &t = p.tire;
+	t.radius = 0.342; // 185/75 R16C: 406/2 + 185*0.75 = 341.75 mm
+	t.width = 0.185;
+	t.load_nominal = (p.mass * kGravity) / 4.0;
+	t.relax_long = 0.28;
+	t.relax_lat = 0.55;
+	t.rolling_resistance = 0.011;
+
+	p.steering.wheel_lock_deg = 630.0; // 3.5 turns lock to lock
+	p.steering.max_road_angle_deg = 40.0; // ~11.8 m turning circle
+
+	layout_wheels(p, p.wheelbase, p.track, 1.58, t.radius, 0.30);
+	for (int i = 0; i < 4; ++i) {
+		WheelParams &w = p.wheels[static_cast<size_t>(i)];
+		const bool front = i < 2;
+		w.driven = !front;
+		w.inertia = front ? 2.0 : 2.4;
+		w.brake_torque = front ? 2700.0 : 1800.0;
+		w.handbrake_torque = front ? 0.0 : 1800.0;
+		w.spring_rate = front ? 52000.0 : 70000.0;
+		w.damper_bump = front ? 3600.0 : 4200.0;
+		w.damper_rebound = front ? 5800.0 : 6800.0;
+		w.travel_up = 0.10;
+		w.travel_down = 0.10;
+	}
+	p.anti_roll_front = 24000.0;
+	p.anti_roll_rear = 10000.0;
+	return p;
+}
+
 VehicleParams make_preset(const std::string &id) {
 	if (id == "cobalt_at") {
 		return make_cobalt_at();
+	}
+	if (id == "gazelle") {
+		return make_gazelle();
 	}
 	if (id == "gentra") {
 		return make_gentra();

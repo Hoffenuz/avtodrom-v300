@@ -45,6 +45,16 @@ const DEFAULTS := {
 	# control id -> {"x", "y": centre as a share of the safe area, "s": scale}.
 	"hud_layout": {},
 	"exam_time_limit_min": 25,
+	# Other participants: learner cars driving the route with the player.
+	"traffic": false,
+	"traffic_count": 2,
+	# Computers: full screen without a window frame (F11 / Alt+Enter toggle it).
+	"fullscreen": true,
+	# The player picked the quality in Settings: it is then never lowered
+	# automatically.
+	"quality_user": false,
+	"renderer_checked": false,
+	"web_warm": false, # browser: the shaders have been compiled once (the browser keeps them)
 }
 
 var _values: Dictionary = {}
@@ -62,14 +72,47 @@ func _ready() -> void:
 	if int(_values["quality"]) < 0:
 		_values["quality"] = detect_quality()
 	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--quality="): # checks: a quality level for this run only
+			_values["quality"] = clampi(int(arg.substr(10)), 0, 2)
+		if arg.begins_with("--set="): # checks: "--set=key:value" for this run only
+			var kv := arg.substr(6).split(":", true, 1)
+			if kv.size() == 2 and DEFAULTS.has(kv[0]):
+				_values[kv[0]] = str_to_var(kv[1])
 		if arg.begins_with("--physics-hz="): # tests: the phones' tick rate on a PC
 			Engine.physics_ticks_per_second = int(arg.substr(13))
 			Engine.max_physics_steps_per_frame = 3
-	if OS.has_feature("mobile"):
-		# Phones: 60 physics ticks (the C++ car model keeps its own 960 Hz
+	_apply_window_mode()
+	changed.connect(func(k: String) -> void:
+		if k == "fullscreen":
+			_apply_window_mode())
+	if OS.has_feature("mobile") or OS.has_feature("web"):
+		# Phones and browsers: 60 physics ticks (the C++ car model keeps its own 960 Hz
 		# substeps) and never more than 3 catch-up ticks in a slow frame.
 		Engine.physics_ticks_per_second = 60
 		Engine.max_physics_steps_per_frame = 3
+
+
+## Full screen or a maximised window (computers only; "--windowed" on the
+## command line, used by the automated checks, keeps a window).
+func _apply_window_mode() -> void:
+	if OS.has_feature("mobile") or OS.has_feature("web") or DisplayServer.get_name() == "headless":
+		return
+	var args := OS.get_cmdline_args()
+	if "--windowed" in args or "-w" in args:
+		return
+	var full := bool(_values.get("fullscreen", true))
+	var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if full else DisplayServer.WINDOW_MODE_MAXIMIZED
+	if DisplayServer.window_get_mode() != mode:
+		DisplayServer.window_set_mode(mode)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if k == null or not k.pressed or k.echo or OS.has_feature("mobile"):
+		return
+	if k.keycode == KEY_F11 or (k.keycode == KEY_ENTER and k.alt_pressed):
+		set_value("fullscreen", not bool(get_value("fullscreen")))
+		get_viewport().set_input_as_handled()
 
 
 func get_value(key: String) -> Variant:
@@ -105,18 +148,38 @@ func reset_to_defaults() -> void:
 		changed.emit(key)
 
 
-## Picks a starting quality level from the hardware: phones with few cores or
-## the OpenGL fallback start on Low; desktops on High.
+## Picks a starting quality level from the hardware. The OpenGL fallback
+## (no usable Vulkan) and software GPUs start on Low. Computers: a discrete
+## GPU High, an integrated one (most laptops) Medium. Phones start on Low,
+## Medium only with a strong GPU (Adreno 640 and up, Mali-G7xx / G610+,
+## Immortalis) and 8 cores: a mid-range Mali on High-like settings drew the
+## first frames of the avtodrom so slowly that the loading page seemed stuck.
+## The drive also steps it down by itself if the frame rate is too low (see
+## Drive._watch_frame_rate), as long as the player has not chosen a level.
 func detect_quality() -> int:
-	if not OS.has_feature("mobile"):
-		return 2
-	var cores := OS.get_processor_count()
-	var method := str(ProjectSettings.get_setting("rendering/renderer/rendering_method"))
-	if RenderingServer.get_current_rendering_method() == "gl_compatibility" or method == "gl_compatibility":
+	var gpu := RenderingServer.get_video_adapter_name().to_lower()
+	var kind := RenderingServer.get_video_adapter_type()
+	if kind == RenderingDevice.DEVICE_TYPE_CPU or kind == RenderingDevice.DEVICE_TYPE_VIRTUAL_GPU \
+			or gpu.contains("llvmpipe") or gpu.contains("swiftshader") or gpu.contains("basic render"):
 		return 0
-	if cores >= 8:
-		return 1
-	return 0
+	if not OS.has_feature("mobile"):
+		if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+			# OpenGL does not say the GPU type: tell a discrete card by its name.
+			var discrete := gpu.contains("geforce") or gpu.contains("rtx") or gpu.contains("gtx") \
+					or gpu.contains("quadro") or gpu.contains("radeon rx") or gpu.contains("radeon pro") \
+					or gpu.contains("arc a") or gpu.contains("arc(tm) a")
+			return 1 if discrete else 0
+		return 2 if kind == RenderingDevice.DEVICE_TYPE_DISCRETE_GPU else 1
+	var strong := false
+	var m := RegEx.create_from_string("adreno[^0-9]*([0-9]{3})").search(gpu)
+	if m and int(m.get_string(1)) >= 640:
+		strong = true
+	m = RegEx.create_from_string("mali-g([0-9]{2,3})").search(gpu)
+	if m and (int(m.get_string(1)) >= 610 or (int(m.get_string(1)) >= 71 and int(m.get_string(1)) < 100)):
+		strong = true
+	if gpu.contains("immortalis"):
+		strong = true
+	return 1 if strong and OS.get_processor_count() >= 8 else 0
 
 
 ## 3D render resolution as a share of the screen: the setting, or by quality
@@ -125,7 +188,7 @@ func render_scale() -> float:
 	var v := float(get_value("render_scale"))
 	if v > 0.0:
 		return clampf(v, 0.5, 1.0)
-	if not OS.has_feature("mobile"):
+	if not is_mobile():
 		return 1.0
 	return [0.6, 0.72, 0.85][clampi(int(get_value("quality")), 0, 2)]
 

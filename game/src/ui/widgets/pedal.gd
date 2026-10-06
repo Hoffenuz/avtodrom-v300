@@ -17,6 +17,9 @@ const TRAVEL := 0.5
 ## value = travel ^ curve (curve > 1 gives finer control at small openings).
 @export var curve := 1.0
 var value := 0.0
+## The pedal as the car has it (keyboard, pad, the autopilot): drawn when
+## no finger is on it, so the on-screen pedal always shows the opening.
+var mirror := 0.0
 var _touch := -1
 ## Finger y at which the pedal is released; follows the finger past either end
 ## of the travel, so reversing direction always acts at once.
@@ -80,25 +83,33 @@ func is_held() -> bool:
 	return _touch >= 0
 
 
+func show_level(v: float) -> void:
+	v = clampf(v, 0.0, 1.0)
+	if absf(v - mirror) > 0.004 or (v == 0.0 and mirror != 0.0):
+		mirror = v
+		queue_redraw()
+
+
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
+	var shown := value if _touch >= 0 else mirror
 	# Perspective: the pressed pedal leans away (shorter, darker).
-	var squash := value * 0.08
+	var squash := shown * 0.08
 	var body := Rect2(r.position + Vector2(size.x * squash, size.y * squash * 0.5),
 			r.size - Vector2(size.x * squash * 2.0, size.y * squash))
-	var held := _touch >= 0
-	draw_style_box(UITheme.box(Color(0.14, 0.15, 0.17, 0.92).darkened(value * 0.3), 22, 2,
+	var held := _touch >= 0 or shown > 0.01
+	draw_style_box(UITheme.box(Color(0.14, 0.15, 0.17, 0.92).darkened(shown * 0.3), 22, 2,
 			accent.lerp(Color.WHITE, 0.1) if held else Color(1, 1, 1, 0.18), 0), body)
 	# Rubber ridges.
-	var ridge_col := Color(1, 1, 1, 0.08 + value * 0.05)
+	var ridge_col := Color(1, 1, 1, 0.08 + shown * 0.05)
 	var n := 7
 	for i in n:
 		var y := body.position.y + body.size.y * (0.2 + 0.1 * i)
 		draw_line(Vector2(body.position.x + body.size.x * 0.18, y),
 				Vector2(body.end.x - body.size.x * 0.18, y), ridge_col, 4.0, true)
 	# Pressure level, with the percentage so a steady part-throttle is easy to hold.
-	if value > 0.0:
-		var fill_h := (body.size.y - 12) * value
+	if shown > 0.0:
+		var fill_h := (body.size.y - 12) * shown
 		var fill := Rect2(body.position.x + 6, body.end.y - 6 - fill_h, body.size.x - 12, fill_h)
 		draw_style_box(UITheme.box(Color(accent, 0.35), 16, 0, UITheme.LINE, 0), fill)
 	var f := UITheme.bold()
@@ -107,7 +118,7 @@ func _draw() -> void:
 	draw_string(f, Vector2(size.x * 0.5 - w * 0.5, body.position.y + 30), caption, HORIZONTAL_ALIGNMENT_LEFT, -1,
 			fs, UITheme.TEXT if held else UITheme.TEXT_DIM)
 	if held:
-		var pct := "%d%%" % roundi(value * 100.0)
+		var pct := "%d%%" % roundi(shown * 100.0)
 		var pw := f.get_string_size(pct, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
 		draw_string(f, Vector2(size.x * 0.5 - pw * 0.5, body.end.y - 16), pct, HORIZONTAL_ALIGNMENT_LEFT, -1,
 				20, UITheme.TEXT)

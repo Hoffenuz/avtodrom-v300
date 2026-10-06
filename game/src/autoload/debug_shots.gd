@@ -35,6 +35,8 @@ func _ready() -> void:
 			quit_after = float(arg.substr(15))
 		elif arg.begins_with("--menu-page="):
 			menu_page = arg.substr(12)
+		elif arg == "--print-diagnostics":
+			print.call_deferred(Loading.diagnostics(6))
 		elif arg == "--perf":
 			perf = true
 			# Uncapped: the frame rate then shows how much work a frame is.

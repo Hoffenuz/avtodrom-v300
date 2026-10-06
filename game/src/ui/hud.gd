@@ -78,6 +78,13 @@ func _init() -> void:
 
 
 func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_data: CourseData) -> void:
+	# Synthesised now, behind the loading page (made at the first milestone it
+	# cost a 50 ms frame).
+	_success_sound = AudioStreamPlayer.new()
+	_success_sound.stream = AudioSynth.success()
+	_success_sound.volume_db = -5.0
+	add_child(_success_sound)
+	_prewarm_toasts.call_deferred()
 	car = p_car
 	controls = p_controls
 	director = p_director
@@ -105,6 +112,82 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 			_layout())
 	_relabel()
 	_layout()
+	if "--keys-sheet" in OS.get_cmdline_user_args():
+		toggle_keys_sheet.call_deferred() # checks: the sheet's screenshot
+	elif not Settings.is_mobile() and not _keys_hint_shown:
+		_keys_hint_shown = true
+		_keys_hint.call_deferred()
+
+
+# ------------------------------------------------------------------ keyboard sheet (F1)
+static var _keys_hint_shown := false
+var _keys_sheet: Control
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if k == null or not k.pressed or k.echo or Settings.is_mobile():
+		return
+	if k.keycode == KEY_F1:
+		toggle_keys_sheet()
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_ESCAPE and _keys_sheet:
+		toggle_keys_sheet()
+		get_viewport().set_input_as_handled()
+
+
+## Every key and what it does, over the road (F1 again, Esc or a click closes it).
+func toggle_keys_sheet() -> void:
+	if _keys_sheet:
+		_keys_sheet.queue_free()
+		_keys_sheet = null
+		return
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.45)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed:
+			toggle_keys_sheet())
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.add_child(center)
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.06, 0.08, 0.1, 0.96), 20, 2, Color(1, 1, 1, 0.14), 28))
+	center.add_child(p)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 16)
+	p.add_child(v)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 14)
+	var title := UITheme.label(Loc.t("keys.title"), 28, UITheme.TEXT, true)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	head.add_child(KeysHelp.keycap("F1", 17))
+	head.add_child(UITheme.label(Loc.t("keys.close"), 17, UITheme.TEXT_DIM))
+	v.add_child(head)
+	var scale := clampf(root.size.y / 1080.0, 0.75, 1.2)
+	v.add_child(KeysHelp.build(2, int(round(17 * scale)), 360.0 * scale))
+	root.add_child(dim)
+	_keys_sheet = dim
+
+
+## Desktop, the first drive of a session: where the key list is.
+func _keys_hint() -> void:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.06, 0.08, 0.1, 0.9), 14, 2, UITheme.INFO, 10))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	p.add_child(h)
+	h.add_child(KeysHelp.keycap("F1", 18))
+	var txt := UITheme.label(Loc.t("keys.hint"), 18, UITheme.TEXT, true)
+	txt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	txt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(txt)
+	p.set_meta("life", 7.0)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toasts.add_child(p)
 
 
 # ------------------------------------------------------------------ construction
@@ -498,6 +581,20 @@ func _process(delta: float) -> void:
 	# (keyboard, pad, autopilot in the demonstrations).
 	if not wheel.driving or not wheel.visible:
 		wheel.set_angle(car.steering_wheel)
+	# Whatever drives the car (keys, pad, the autopilot) moves the on-screen
+	# controls too: the pedals show their opening, the buttons their keys.
+	gas.show_level(car.throttle)
+	brake_pedal.show_level(car.brake)
+	clutch_pedal.show_level(car.clutch)
+	if not Settings.is_mobile():
+		btn_steer_left.key_held = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT)
+		btn_steer_right.key_held = Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT)
+		b_ind_left.key_held = Input.is_key_pressed(KEY_Q)
+		b_ind_right.key_held = Input.is_key_pressed(KEY_E)
+		b_hazard.key_held = Input.is_key_pressed(KEY_H)
+		b_key.key_held = Input.is_key_pressed(KEY_I)
+		b_belt.key_held = Input.is_key_pressed(KEY_B)
+		b_handbrake.key_held = Input.is_key_pressed(KEY_SPACE)
 	b_ind_left.lit = car.left_lit()
 	b_ind_right.lit = car.right_lit()
 	b_hazard.lit = car.hazard
@@ -642,8 +739,19 @@ func _on_penalty(entry: Dictionary) -> void:
 		last.queue_free()
 
 
+## One penalty and one milestone notice, drawn once almost transparent and
+## gone at once: their fonts and panel styles are prepared behind the loading
+## page instead of costing a 50 ms frame at the first real one.
+func _prewarm_toasts() -> void:
+	_on_penalty({"no": 1, "points": 5})
+	_on_milestone("…", true)
+	for t in toasts.get_children():
+		t.set_meta("life", 0.02)
+		t.modulate.a = 0.02
+
+
 ## A step done right: a green banner at the top and a bright chime.
-func _on_milestone(text: String) -> void:
+func _on_milestone(text: String, silent := false) -> void:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.04, 0.12, 0.07, 0.9), 14, 2, UITheme.GO, 12))
 	var h := HBoxContainer.new()
@@ -662,12 +770,8 @@ func _on_milestone(text: String) -> void:
 		var last := toasts.get_child(toasts.get_child_count() - 1)
 		toasts.remove_child(last)
 		last.queue_free()
-	if _success_sound == null:
-		_success_sound = AudioStreamPlayer.new()
-		_success_sound.stream = AudioSynth.success()
-		_success_sound.volume_db = -5.0
-		add_child(_success_sound)
-	_success_sound.play()
+	if not silent:
+		_success_sound.play()
 
 
 var _success_sound: AudioStreamPlayer

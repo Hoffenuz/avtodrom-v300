@@ -13,6 +13,8 @@ World frame (metres): X = scheme right, Z = scheme down, Y up; origin at the
 centre of the fence rectangle. A heading/yaw of 0 faces -Z (scheme "up").
 
     python pipeline/course_def.py [--debug]
+    python pipeline/course_def.py --truck   # -> course_truck.json: the route of the
+                                            # truck categories (first 90° corridor)
 """
 import json
 import math
@@ -28,7 +30,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from extract_layout import CX, CY, FENCE_PX, PX_PER_M, ROOT  # noqa: E402
 
 LAYOUT = ROOT / "game" / "data" / "layout_auto.json"
-OUT = ROOT / "game" / "data" / "course.json"
+# --truck: the same avtodrom, with the exam route of the truck categories (BC),
+# which takes the trucks' 90° corridor; only the route, the exercises and the
+# turn checks differ, written to course_truck.json (no grids, no overlay).
+TRUCK = "--truck" in sys.argv
+OUT = ROOT / "game" / "data" / ("course_truck.json" if TRUCK else "course.json")
 GRID_DIR = ROOT / "game" / "data"
 SCHEME = ROOT / "reference" / "scheme_landscape.jpg"
 
@@ -87,12 +93,14 @@ KERB_STEP_BOX_PX = [(1480, 495, 1550, 531), (1725, 495, 1800, 528), (1975, 495, 
 # Straight kerb faces where the tracer followed sign icons past the kerb.
 ISLAND_CUT_PX = [(1781.8, 995, 1853.3, 1012.5), (2025, 488, 2045, 530), (1110, 470, 1129, 520), (1229, 533, 1262, 580),
                  [(1150, 680), (1137, 700), (1132, 720), (1131, 800), (1110, 800), (1110, 680)]]
-# The 90° corridor for cars (upper pad, the exam route): the scheme draws its
-# middle leg 7 m wide, which a car turns through without any skill. At the
-# centre it is a car-sized 4.5 m (west kerb kept, the east island grows over
-# the rest); the lower corridor is the trucks' one and stays as drawn.
-T90_CAR_LEG_X = (1073 - 58 * 12, 1073 - 53.5 * 12)  # px: west kerb, new east kerb
-T90_CAR_STRIP_PX = (T90_CAR_LEG_X[1], 282.4, 485, 470)  # the leg's east strip, exit-lane kerb to the entry lane's
+# The two 90° corridors off the left road. The first (upper pad, middle leg
+# 7.3 m as drawn) is the trucks' one (plate 7.4.1); the second (lower pad) is
+# the cars' (7.4.3) and the exam route's: the scheme draws its leg 4.9 m, at
+# the centre it is 4.7 m, a little narrower (west kerb kept, the east island grows
+# over the rest).
+T90_CAR_LEG_X = (538.0, 538.0 + 4.7 * 12)  # px: west kerb, new east kerb
+T90_CAR_STRIP_PX = (T90_CAR_LEG_X[1], 425.0, 612.0, 503.0)  # the leg's east strip, below the exit corner's curve
+T90_TRUCK_LEG_X = (377.6, 465.2)  # the trucks' leg (upper pad), as drawn
 # The car box (pad 5): the scheme's bay is 4.46 m wide and 7.0 m deep, roomy
 # enough to reverse in without aiming. It is 3.6 m x 6.0 m now: the grass
 # grows in from both sides and from the back (as traced: back kerb x 1590.1,
@@ -116,6 +124,10 @@ ISLAND_FILL_PX = [T90_CAR_STRIP_PX, *BOX_NARROW_PX,
 # Parallel-parking pockets (outer box). The concrete inside is authored as
 # pocket_px(); the island around it is squared into a kerb U with an open mouth.
 POCKETS_PX = [(1335, 497, 1480, 530), (1590, 497, 1725, 530), (1840, 497, 1975, 530)]
+# The trucks' parking pocket: the long recess in the finish-road island (south
+# side of the eastbound finish road), signed 5.15 + 7.6.1 + 7.4.1 on the
+# scheme. (x0, road edge y, x1, kerb y): its kerb is on the south.
+TRUCK_POCKET_PX = (1216, 411, 1477, 457.7)
 POCKET_ROW_PX = (1229.4, 2024.6, 530)  # x from the intersection corner to the hatched end, kerb y
 
 
@@ -281,7 +293,7 @@ def clean_island(P, pads_px):
 
 
 _pads_px_reg = [regularize(Polygon([px_of(q) for q in p]).buffer(0), True) for p in layout["pads"]]
-_pads_px_reg[9] = max(_parts(_pads_px_reg[9].difference(box(*T90_CAR_STRIP_PX))), key=lambda g: g.area)
+_pads_px_reg[8] = max(_parts(_pads_px_reg[8].difference(box(*T90_CAR_STRIP_PX))), key=lambda g: g.area)
 _box_pad = next(i for i, p in enumerate(_pads_px_reg) if p.contains(Point(1630, 771)))
 _pads_px_reg[_box_pad] = max(_parts(_pads_px_reg[_box_pad].difference(unary_union([box(*r) for r in BOX_NARROW_PX]))),
                              key=lambda g: g.area)
@@ -468,18 +480,32 @@ def pad_centerline(pad_index, start_hint, end_hint):
 
 
 # Pad indices (layout_auto order): 3 = zmeyka A (west), 4 = zmeyka B (east),
-# 8 = 90° corridor (lower), 9 = 90° corridor (upper, used by the exam route).
+# 8 = 90° corridor (lower, cars: the exam route), 9 = 90° corridor (upper, trucks).
 ZMEYKA_PADS = (3, 4)
 ZMEYKA_B = pad_centerline(4, (885, 900), (650, 695))
 ZMEYKA_A = pad_centerline(3, (600, 950), (240, 715))
+# The skeleton starts with a stub into the pad's south-west corner: the zmeyka
+# proper begins where it turns north, in the middle of the south mouth.
+ZMEYKA_A = [p for i, p in enumerate(ZMEYKA_A) if i >= 15]
+ZA_ENTRY_X = 636  # middle of zmeyka A's south mouth (between x 595 and 677)
+# The zmeyka the route takes: cars the first (B, east), trucks the second, wider
+# one (A, west: ~4.4 m against 3.7 m), as the signs at B's mouth direct.
+ZMEYKA = ZMEYKA_A if TRUCK else ZMEYKA_B
 
 # The car box (pad 5): its stem, entered from the south. The route runs up it
 # as far as the autopilot's stop past the bay (see the box exercise).
 BOX_ROUTE_X = 1702
 BOX_ROUTE_TOP = 736
+# The trucks' box P1 (pad 1): its 8 m stem opens north onto the box road; the
+# route goes down it past the bay (east side) as far as the manoeuvre's stop.
+TRUCK_BOX_X = 1440
+TRUCK_BOX_BOTTOM = 960
 
 route_parts = []
-T90_ROUTE_X = (408, 392)  # leg: east half after the left turn, west half before the right one
+T90_ROUTE_X = (572, 549)  # cars' leg: east half after the left turn, west half before the right one
+T90_ENTRY_Y = 533  # the cars' corridor entry lane (lower pad), south of its middle
+T90_EXIT_Y = 387  # and its exit lane (a car swings wide leaving the leg)
+T90_TRUCK_ROUTE_X = (436, 408)  # the trucks' 7.3 m leg (upper pad)
 
 
 def add(points):
@@ -487,42 +513,74 @@ def add(points):
 
 
 # 1. Start, pedestrian crossing, estakada, top-left corner, down the left road.
-# 2. Left road -> left turn -> 90° corridor (upper pad): east, left (north), right (east).
-add(fillet_path([
-    (1454, 156, 0), (128, 156, 150), (128, 433, 60), (T90_ROUTE_X[0], 433, 46), (T90_ROUTE_X[1], 242, 40), (1049, 242, 75),
-    (1049, 520, 0),
-]))
+# 2. Left road -> past the trucks' corridor -> left turn into the cars' 90°
+#    corridor (lower pad): east, left (north), right (east) along its exit lane.
+if TRUCK:
+    # The trucks' corridor (upper pad): its 7.3 m leg, entered at y 433 and
+    # left along the lane at y 242.
+    add(fillet_path([
+        (1454, 156, 0), (128, 156, 150), (128, 433, 60), (T90_TRUCK_ROUTE_X[0], 433, 52),
+        (T90_TRUCK_ROUTE_X[1], 250, 46), (1049, 250, 75), (1049, 520, 0),
+    ]))
+else:
+    add(fillet_path([
+        (1454, 156, 0), (128, 156, 150), (128, T90_ENTRY_Y, 60), (T90_ROUTE_X[0], T90_ENTRY_Y, 44),
+        (T90_ROUTE_X[1], T90_EXIT_Y, 40), (1049, T90_EXIT_Y, 75), (1049, 520, 0),
+    ]))
 # The four passes through the intersection follow the scheme's lane arrows, one
 # approach each: north STRAIGHT, west STRAIGHT, south LEFT, east RIGHT. Nowhere
 # does the route cross a hatched gore or leave a lane against its arrow.
 # 3. Intersection pass 1: from the north, STRAIGHT (south) down the south leg; at
 #    the bottom road right (west), as its arrow and gore channel it, then right
 #    into zmeyka B.
-add(fillet_path([
-    (1049, 520, 0), (1049, 1068, 45), (860, 1068, 45), (860, 955, 0),
-]))
-# 4. Zmeyka B from its south entrance (through the middle of the funnel) to the
-#    north exit, then right (east).
-zb = ZMEYKA_B
-add(fillet_path([(860, 955, 0), (zb[0][0], zb[0][1] + 12, 0)]))
-add([p for p in zb])
-add(fillet_path([
-    (zb[-1][0], zb[-1][1], 0), (650, 640, 45), (938, 640, 0),
-]))
+if TRUCK:
+    # Trucks go on west past zmeyka B (cars only) and turn right into A.
+    za = ZMEYKA_A
+    add(fillet_path([
+        (1049, 520, 0), (1049, 1068, 45), (ZA_ENTRY_X, 1068, 45), (ZA_ENTRY_X, 940, 0),
+    ]))
+    # 4. Zmeyka A from its south mouth to the north exit, then right (east).
+    add(fillet_path([(ZA_ENTRY_X, 940, 0), (za[0][0], za[0][1], 0)]))
+    add([p for p in za])
+    add(fillet_path([
+        (za[-1][0], za[-1][1], 0), (274, 640, 45), (938, 640, 0),
+    ]))
+else:
+    add(fillet_path([
+        (1049, 520, 0), (1049, 1068, 45), (860, 1068, 45), (860, 955, 0),
+    ]))
+    # 4. Zmeyka B from its south entrance (through the middle of the funnel) to the
+    #    north exit, then right (east).
+    zb = ZMEYKA_B
+    add(fillet_path([(860, 955, 0), (zb[0][0], zb[0][1] + 12, 0)]))
+    add([p for p in zb])
+    add(fillet_path([
+        (zb[-1][0], zb[-1][1], 0), (650, 640, 45), (938, 640, 0),
+    ]))
 # 5. Intersection pass 2: from the west, STRAIGHT (east), on past the truck box
 #    P1, right down the right road (emergency stop), right along the bottom road
 #    and right into the car box (pad 5, open to the south; the scheme's signs send
 #    cars there and trucks into the wide P1).
-add(fillet_path([
-    (938, 640, 0), (2015, 640, 55), (2015, 1068, 55), (BOX_ROUTE_X, 1068, 45), (BOX_ROUTE_X, BOX_ROUTE_TOP, 0),
-]))
+if TRUCK:
+    # Trucks: right into their own wide box P1 (pad 1) straight from the box
+    # road, down its stem past the bay; after the box back up and on east.
+    add(fillet_path([(938, 640, 0), (TRUCK_BOX_X, 640, 45), (TRUCK_BOX_X, TRUCK_BOX_BOTTOM, 0)]))
+    add(fillet_path([
+        (TRUCK_BOX_X, TRUCK_BOX_BOTTOM, 0), (TRUCK_BOX_X, 640, 45), (2015, 640, 55), (2015, 1068, 55),
+        (1101, 1068, 45), (1101, 598, 60), (80, 606, 120), (80, 760, 0),
+    ]))
+else:
+    add(fillet_path([
+        (938, 640, 0), (2015, 640, 55), (2015, 1068, 55), (BOX_ROUTE_X, 1068, 45), (BOX_ROUTE_X, BOX_ROUTE_TOP, 0),
+    ]))
 # 6. The box manoeuvre happens inside pad 5; out of it south and right (west),
 #    right up the south leg; intersection pass 3: from the south, LEFT (west) ->
 #    left between the gore and the lane line -> railway.
-add(fillet_path([
-    (BOX_ROUTE_X, BOX_ROUTE_TOP, 0), (BOX_ROUTE_X, 1068, 45), (1101, 1068, 45), (1101, 598, 60),
-    (80, 606, 120), (80, 760, 0),
-]))
+if not TRUCK:
+    add(fillet_path([
+        (BOX_ROUTE_X, BOX_ROUTE_TOP, 0), (BOX_ROUTE_X, 1068, 45), (1101, 1068, 45), (1101, 598, 60),
+        (80, 606, 120), (80, 760, 0),
+    ]))
 # 7. Railway, then left along the outer bottom lane (acceleration section), left up
 #    the right road and left onto the parking road.
 add(fillet_path([
@@ -643,7 +701,9 @@ exercise(
 )
 # 3. Estakada: ramp rising westwards from x=946 to the crest at x=695.
 HILL_STOP_X = 772
-HILL_FIX_X = HILL_STOP_X + round((4.48 + 1.6) * S)
+# The whole vehicle stands between the STOP line and the fixation line: a
+# car's length plus 1.6 m; the trucks' zone is a van's length plus 1.6 m.
+HILL_FIX_X = HILL_STOP_X + round(((6.1 if TRUCK else 4.48) + 1.6) * S)
 exercise(
     id="hill", type="hill", name=NAMES["hill"],
     stop_line=line((HILL_STOP_X, 92), (HILL_STOP_X, 180)),
@@ -651,14 +711,23 @@ exercise(
     heading=HEAD["W"], max_rollback=0.3, min_wait=3.0, max_wait=30.0,
     s0=s_at(960, 156), s1=s_at(640, 156),
 )
-# 4. 90-degree turns through the upper corridor pad (left then right).
-exercise(
-    id="turn90", type="corridor", name=NAMES["turn90"],
-    start_line=line((326, 404), (326, 463)), end_line=line((530, 214), (530, 285)),
-    time_limit=120.0,
-    zone=zone((300, 200, 545, 470)),
-    s0=s_at(326, 433), s1=s_at(530, 250),
-)
+# 4. 90-degree turns through the cars' corridor, the lower pad (left then right).
+if TRUCK:
+    exercise(
+        id="turn90", type="corridor", name=NAMES["turn90"],
+        start_line=line((326, 404), (326, 463)), end_line=line((530, 214), (530, 285)),
+        time_limit=120.0,
+        zone=zone((300, 200, 545, 470)),
+        s0=s_at(326, 433), s1=s_at(530, 250),
+    )
+else:
+    exercise(
+        id="turn90", type="corridor", name=NAMES["turn90"],
+        start_line=line((495, 503), (495, 552)), end_line=line((647, 362), (647, 408)),
+        time_limit=120.0,
+        zone=zone((470, 350, 665, 565)),
+        s0=s_at(495, T90_ENTRY_Y), s1=s_at(647, T90_EXIT_Y),
+    )
 # 5. Intersection, four passes (N straight, W straight, S left, E right).
 INTERSECTION = {
     "stop_lines": {
@@ -712,9 +781,26 @@ _BY1 = BOX_Y1 - (EDGE_OFFSET + EDGE_WIDTH / 2) * S
 _STEM_Y = BOX_Y0 - 1.0 * S
 _STEM_X0 = BOX_ROUTE_X - kerb_dist_px((BOX_ROUTE_X, _STEM_Y), (-1, 0))
 _STEM_X1 = BOX_ROUTE_X + kerb_dist_px((BOX_ROUTE_X, _STEM_Y), (1, 0))
+# The trucks' box P1 (pad 1): the bay opens east off the stem; its fixation
+# band sits 1.9 m off the back kerb (a van's rear overhang is 1.5 m).
+_TBAY_C = (1560, 868)
+TBOX_KERB_X = _TBAY_C[0] + kerb_dist_px(_TBAY_C, (1, 0))
+TBOX_Y0 = _TBAY_C[1] - kerb_dist_px(_TBAY_C, (0, -1))
+TBOX_Y1 = _TBAY_C[1] + kerb_dist_px(_TBAY_C, (0, 1))
+TBOX_FIX_X = TBOX_KERB_X - 1.9 * S
+TBOX_LIMIT_X = TBOX_KERB_X - EDGE_OFFSET * S
+_TBY0 = TBOX_Y0 + (EDGE_OFFSET + EDGE_WIDTH / 2) * S
+_TBY1 = TBOX_Y1 - (EDGE_OFFSET + EDGE_WIDTH / 2) * S
+_TSTEM_Y = TBOX_Y0 - 1.0 * S
+_TSTEM_X0 = TRUCK_BOX_X - kerb_dist_px((TRUCK_BOX_X, _TSTEM_Y), (-1, 0))
+_TSTEM_X1 = TRUCK_BOX_X + kerb_dist_px((TRUCK_BOX_X, _TSTEM_Y), (1, 0))
+print(f"truck box: stem x {_TSTEM_X0:.1f}..{_TSTEM_X1:.1f} ({(_TSTEM_X1 - _TSTEM_X0) / S:.2f} m), bay y "
+      f"{TBOX_Y0:.1f}..{TBOX_Y1:.1f} ({(TBOX_Y1 - TBOX_Y0) / S:.2f} m), back kerb x {TBOX_KERB_X:.1f} "
+      f"({(TBOX_KERB_X - _TSTEM_X1) / S:.2f} m deep)")
 
 
-def box_manoeuvre():
+def box_manoeuvre(stem_x0=None, stem_x1=None, bay_y=None, fix_x=None, along=(0.0, -1.0), across=(-1.0, 0.0),
+                  r_rev=5.4, phi_deg=65, r_app=5.0, r_out=4.5, b_extra=2.1):
     """Rear-axle paths (world m) of the box manoeuvre, sized for the car box
     (stem ~5.9 m, bay ~4.4 m x 6.9 m, ~5 m of stem beyond the bay). Local frame:
     a runs up the stem (the way the car enters), b across it towards the bay.
@@ -723,22 +809,26 @@ def box_manoeuvre():
     straight back onto the fixation band; out forwards on a 4.5 m arc, turning
     back down the stem. Checked against the kerbs with both cars' bodies:
     >= 0.34 m clearance while moving."""
-    xc = (_STEM_X0 + _STEM_X1) / 2 / S - CX / S
-    zb = (BOX_Y0 + BOX_Y1) / 2 / S - CY / S
-    x_fix = BOX_FIX_X / S - CX / S
-    half = (_STEM_X1 - _STEM_X0) / 2 / S
-    A, B = np.array([0.0, -1.0]), np.array([-1.0, 0.0])
+    stem_x0 = _STEM_X0 if stem_x0 is None else stem_x0
+    stem_x1 = _STEM_X1 if stem_x1 is None else stem_x1
+    bay_y = (BOX_Y0 + BOX_Y1) / 2 if bay_y is None else bay_y
+    fix_x = BOX_FIX_X if fix_x is None else fix_x
+    xc = (stem_x0 + stem_x1) / 2 / S - CX / S
+    zb = bay_y / S - CY / S
+    x_fix = fix_x / S - CX / S
+    half = (stem_x1 - stem_x0) / 2 / S
+    A, B = np.array(along), np.array(across)
     P0 = np.array([xc, zb])
 
     def pt(a, b):
         return [round(float(v), 3) for v in P0 + A * a + B * b]
-    r_rev, phi, r_app, r_out = 5.4, math.radians(65), 5.0, 4.5
-    b_arc = half + 2.1
+    phi = math.radians(phi_deg)
+    b_arc = half + b_extra
     beta = math.pi / 2 - phi
     a_stop, b_stop = r_rev * (1 - math.cos(phi)), b_arc - r_rev * math.sin(phi)
     b_app = b_stop + r_app * (1 - math.cos(beta))
     a_app = a_stop - r_app * math.sin(beta)
-    b_fix = xc - x_fix
+    b_fix = (x_fix - xc) * B[0]
     approach = [pt(-9.0, b_app)] + [pt(a_app + r_app * math.sin(t), b_app - r_app + r_app * math.cos(t))
                                     for t in np.linspace(0, beta, 8)]
     reverse = [pt(r_rev - r_rev * math.cos(t), b_arc - r_rev * math.sin(t)) for t in np.linspace(phi, 0, 14)]
@@ -748,28 +838,43 @@ def box_manoeuvre():
     return {"approach": approach, "reverse": reverse, "leave": leave}
 
 
-exercise(
-    id="box", type="box", name=NAMES["box"],
-    entry_line=line((_STEM_X0, 955), (_STEM_X1, 955)), leave_dir=[0.0, 1.0],
-    fixation_line=line((BOX_FIX_X, _BY0), (BOX_FIX_X, _BY1)), fixation_width=FIX_WIDTH,
-    limit_line=line((BOX_LIMIT_X, _BY0), (BOX_LIMIT_X, _BY1)), limit_width=BOX_LIMIT_WIDTH,
-    fixation_side="rear", bay_heading=HEAD["E"],
-    # Past the kerb: backed in too far, the rear overhang hangs over the grass,
-    # and that is a badly placed car (№17), not a skipped exercise.
-    bay=wl([(BOX_KERB_X - 1.5 * S, BOX_Y0 + 2), (_STEM_X0 + 6, BOX_Y0 + 2), (_STEM_X0 + 6, BOX_Y1 - 2),
-            (BOX_KERB_X - 1.5 * S, BOX_Y1 - 2)]),
-    manoeuvre=box_manoeuvre(),
-    zone=zone((BOX_KERB_X - 2.0 * S, 680, _STEM_X1 + 12, 1000)),
-    s0=s_at(BOX_ROUTE_X, 1000), s1=s_after(BOX_ROUTE_X, 1000, s_at(BOX_ROUTE_X, BOX_ROUTE_TOP)),
-)
-# 7. Zmeyka (east pad).
+if TRUCK:
+    exercise(
+        id="box", type="box", name=NAMES["box"],
+        entry_line=line((_TSTEM_X0, 790), (_TSTEM_X1, 790)), leave_dir=[0.0, -1.0],
+        fixation_line=line((TBOX_FIX_X, _TBY0), (TBOX_FIX_X, _TBY1)), fixation_width=FIX_WIDTH,
+        limit_line=line((TBOX_LIMIT_X, _TBY0), (TBOX_LIMIT_X, _TBY1)), limit_width=BOX_LIMIT_WIDTH,
+        fixation_side="rear", bay_heading=HEAD["W"],
+        bay=wl([(TBOX_KERB_X + 1.5 * S, TBOX_Y0 + 2), (_TSTEM_X1 - 6, TBOX_Y0 + 2), (_TSTEM_X1 - 6, TBOX_Y1 - 2),
+                (TBOX_KERB_X + 1.5 * S, TBOX_Y1 - 2)]),
+        manoeuvre=box_manoeuvre(_TSTEM_X0, _TSTEM_X1, (TBOX_Y0 + TBOX_Y1) / 2, TBOX_FIX_X, along=(0.0, 1.0),
+                                across=(1.0, 0.0), r_rev=6.6, phi_deg=65, r_app=6.2, r_out=5.8, b_extra=2.4),
+        zone=zone((_TSTEM_X0 - 12, 700, TBOX_KERB_X + 2.0 * S, 1010)),
+        s0=s_at(TRUCK_BOX_X, 700), s1=s_after(TRUCK_BOX_X, 700, s_at(TRUCK_BOX_X, TRUCK_BOX_BOTTOM)),
+    )
+else:
+    exercise(
+        id="box", type="box", name=NAMES["box"],
+        entry_line=line((_STEM_X0, 955), (_STEM_X1, 955)), leave_dir=[0.0, 1.0],
+        fixation_line=line((BOX_FIX_X, _BY0), (BOX_FIX_X, _BY1)), fixation_width=FIX_WIDTH,
+        limit_line=line((BOX_LIMIT_X, _BY0), (BOX_LIMIT_X, _BY1)), limit_width=BOX_LIMIT_WIDTH,
+        fixation_side="rear", bay_heading=HEAD["E"],
+        # Past the kerb: backed in too far, the rear overhang hangs over the grass,
+        # and that is a badly placed car (№17), not a skipped exercise.
+        bay=wl([(BOX_KERB_X - 1.5 * S, BOX_Y0 + 2), (_STEM_X0 + 6, BOX_Y0 + 2), (_STEM_X0 + 6, BOX_Y1 - 2),
+                (BOX_KERB_X - 1.5 * S, BOX_Y1 - 2)]),
+        manoeuvre=box_manoeuvre(),
+        zone=zone((BOX_KERB_X - 2.0 * S, 680, _STEM_X1 + 12, 1000)),
+        s0=s_at(BOX_ROUTE_X, 1000), s1=s_after(BOX_ROUTE_X, 1000, s_at(BOX_ROUTE_X, BOX_ROUTE_TOP)),
+    )
+# 7. Zmeyka (cars the east pad B, trucks the west pad A).
 exercise(
     id="zigzag", type="corridor", name=NAMES["zigzag"],
-    start_line=line((ZMEYKA_B[0][0] - 45, ZMEYKA_B[0][1]), (ZMEYKA_B[0][0] + 45, ZMEYKA_B[0][1])),
-    end_line=line((ZMEYKA_B[-1][0] - 45, ZMEYKA_B[-1][1]), (ZMEYKA_B[-1][0] + 45, ZMEYKA_B[-1][1])),
+    start_line=line((ZMEYKA[0][0] - 45, ZMEYKA[0][1]), (ZMEYKA[0][0] + 45, ZMEYKA[0][1])),
+    end_line=line((ZMEYKA[-1][0] - 45, ZMEYKA[-1][1]), (ZMEYKA[-1][0] + 45, ZMEYKA[-1][1])),
     time_limit=120.0,
-    zone=zone((600, 680, 925, 1000)),
-    s0=s_at(*ZMEYKA_B[0]), s1=s_at(*ZMEYKA_B[-1]),
+    zone=zone((200, 660, 700, 1000) if TRUCK else (600, 680, 925, 1000)),
+    s0=s_at(*ZMEYKA[0]), s1=s_at(*ZMEYKA[-1]),
 )
 # 8. Emergency stop somewhere on the right road (southbound, after the box).
 exercise(
@@ -778,17 +883,35 @@ exercise(
     trigger_s0=s_after(2015, 710, s_int2), trigger_s1=s_after(2015, 850, s_int2),
     s0=s_after(2015, 690, s_int2), s1=s_after(2015, 1040, s_int2),
 )
-# 9. Parallel parking into the east pocket (north side of the westbound road).
-PK = POCKETS_PX[2]
-PK_FIX_Y = PK[1] + round(0.80 * S)
-exercise(
-    id="parallel", type="parallel", name=NAMES["parallel"],
-    pocket=wl([(PK[0], PK[1]), (PK[2], PK[1]), (PK[2], PK[3]), (PK[0], PK[3])]),
-    fixation_line=line((PK[0] + 6, PK_FIX_Y), (PK[2] - 6, PK_FIX_Y)), fixation_width=FIX_WIDTH,
-    fixation_side="right", park_heading=HEAD["W"],
-    zone=zone((1690, 490, 2035, 622)),
-    s0=s_after(2040, 553, s_int2), s1=s_after(1690, 553, s_int2),
-)
+# 9. Parallel parking. Cars: the east pocket (north side of the westbound
+#    parking road). Trucks: their long pocket in the finish-road island, before
+#    the finish (south side of the eastbound finish road). The autopilot's two
+#    arcs (radius arc_r), how far off the pocket it passes (drive_off) and its
+#    rear axle's offset from the band (axle_half) are sized for the vehicle.
+if TRUCK:
+    PK = TRUCK_POCKET_PX
+    PK_FIX_Y = PK[3] - round(0.80 * S)
+    exercise(
+        id="parallel", type="parallel", name=NAMES["parallel"],
+        pocket=wl([(PK[0], PK[1]), (PK[2], PK[1]), (PK[2], PK[3]), (PK[0], PK[3])]),
+        fixation_line=line((PK[0] + 6, PK_FIX_Y), (PK[2] - 6, PK_FIX_Y)), fixation_width=FIX_WIDTH,
+        fixation_side="right", park_heading=HEAD["E"],
+        arc_r=6.2, drive_off=1.55, axle_half=0.87,
+        zone=zone((1180, 330, 1560, 470)),
+        s0=s_after(1150, 385, s_int4), s1=s_after(1640, 385, s_int4),
+    )
+else:
+    PK = POCKETS_PX[2]
+    PK_FIX_Y = PK[1] + round(0.80 * S)
+    exercise(
+        id="parallel", type="parallel", name=NAMES["parallel"],
+        pocket=wl([(PK[0], PK[1]), (PK[2], PK[1]), (PK[2], PK[3]), (PK[0], PK[3])]),
+        fixation_line=line((PK[0] + 6, PK_FIX_Y), (PK[2] - 6, PK_FIX_Y)), fixation_width=FIX_WIDTH,
+        fixation_side="right", park_heading=HEAD["W"],
+        arc_r=4.3, drive_off=1.1, axle_half=0.71,
+        zone=zone((1690, 490, 2035, 622)),
+        s0=s_after(2040, 553, s_int2), s1=s_after(1690, 553, s_int2),
+    )
 
 
 def footprint(ra, heading, front=3.42, rear=1.07, half=0.83):
@@ -801,11 +924,14 @@ def footprint(ra, heading, front=3.42, rear=1.07, half=0.83):
 
 def parallel_guide(ex):
     """The rear-axle path the parallel manoeuvre takes (as the autopilot drives it):
-    stop just past the pocket, then back in on two arcs, and the spot to park in."""
-    pocket = np.array(ex["pocket"])
+    stop just past the pocket, then back in on two arcs, and the spot to park in.
+    Worked out facing west with the pocket on the north (the cars' pocket);
+    a pocket parked facing east is the same turned round (k = -1)."""
+    k = 1.0 if ex["park_heading"] > 0 else -1.0
+    pocket = np.array(ex["pocket"]) * k
     px0, edge_z = pocket[:, 0].min(), pocket[:, 1].max()
-    z_target = ex["fixation_line"]["a"][1] + 0.71
-    z_drive, r = edge_z + 1.1, 4.3
+    z_target = ex["fixation_line"]["a"][1] * k + ex["axle_half"]
+    z_drive, r = edge_z + ex["drive_off"], ex["arc_r"]
     x_stop = px0 + 1.2
     sh = z_drive - z_target
     th = math.acos(max(-1.0, min(1.0, 1.0 - sh / (2 * r))))
@@ -813,9 +939,13 @@ def parallel_guide(ex):
     c2 = np.array([x_stop + 2 * r * math.sin(th), z_target + r])
     pts = [c1 + np.array([r * math.sin(t), r * math.cos(t)]) for t in np.linspace(0, th, 8)]
     pts += [c2 + np.array([-r * math.sin(t), -r * math.cos(t)]) for t in np.linspace(th, 0, 8)[1:]]
-    end = (x_stop + 2 * r * math.sin(th) + 1.5, z_target)
-    pts.append(np.array(end))
-    return {"paths": [[[round(float(v), 3) for v in q] for q in pts]], "spot": footprint(end, (-1, 0))}
+    end = np.array((x_stop + 2 * r * math.sin(th) + 1.5, z_target))
+    pts.append(end)
+    if ex["axle_half"] > 0.8:  # a truck: its own size
+        spot = footprint(end * k, (-k, 0), front=4.59, rear=1.48, half=1.03)
+    else:
+        spot = footprint(end * k, (-k, 0))
+    return {"paths": [[[round(float(v) * k, 3) for v in q] for q in pts]], "spot": spot}
 
 
 def box_guide(ex):
@@ -861,14 +991,22 @@ def turn(x, y, direction, s_min=0.0):
     TURNS.append({"s": s_after(x, y, s_min) if s_min else s_at(x, y), "dir": direction})
 
 
-turn(128, 380, "left")                # left road -> 90° corridor
+turn(128, 380 if TRUCK else 475, "left")  # left road -> the 90° corridor
 turn(1049, 1060, "right", s_int1)     # south leg -> bottom road
-turn(860, 1068, "right", s_int1)      # into the zmeyka
-turn(700, 640, "right", s_int1 + 100)  # zmeyka exit
+if TRUCK:
+    turn(ZA_ENTRY_X, 1068, "right", s_int1)  # into zmeyka A
+    turn(330, 640, "right", s_int1 + 100)     # zmeyka exit
+else:
+    turn(860, 1068, "right", s_int1)      # into the zmeyka
+    turn(700, 640, "right", s_int1 + 100)  # zmeyka exit
 turn(2015, 700, "right", s_int2)      # onto the right road
 turn(2015, 1060, "right", s_int2)     # onto the bottom road
-turn(BOX_ROUTE_X, 1060, "right", s_int2)  # into the box pad
-turn(BOX_ROUTE_X + 12, 1060, "right", s_after(BOX_ROUTE_X, BOX_ROUTE_TOP, s_int2))  # out of it, west
+if TRUCK:
+    turn(TRUCK_BOX_X - 12, 648, "right", s_int2)  # into the trucks' box P1
+    turn(TRUCK_BOX_X + 12, 648, "right", s_after(TRUCK_BOX_X, TRUCK_BOX_BOTTOM, s_int2))  # out of it, east
+else:
+    turn(BOX_ROUTE_X, 1060, "right", s_int2)  # into the box pad
+    turn(BOX_ROUTE_X + 12, 1060, "right", s_after(BOX_ROUTE_X, BOX_ROUTE_TOP, s_int2))  # out of it, west
 turn(1101, 1060, "right", s_int2)     # up the south leg
 turn(1101, 640, "left", s_int3 - 5)   # intersection 3
 turn(160, 610, "left", s_int3)        # the gore -> left road
@@ -931,15 +1069,21 @@ for e in EX:
             add_stop_line(e[key])
     if e["type"] == "start":
         add_stop_line(e["start_line"], 0.5)
-    if e["id"] == "hill":
-        add_stop_line(e["fixation_line"], 0.30)
+    # The estakada has only its STOP line painted; the fixation line (how far
+    # back the whole vehicle must stand) is the examiner's rule, not a marking.
     if e["type"] == "box":
         add_stop_line(e["fixation_line"], e["fixation_width"])
         add_line([px_of(e["limit_line"]["a"]), px_of(e["limit_line"]["b"])], e["limit_width"], color="yellow")
+# The trucks' box P1 is painted like the cars' one.
+add_stop_line(line((TBOX_FIX_X, _TBY0), (TBOX_FIX_X, _TBY1)), FIX_WIDTH)
+add_line([px_of(line((TBOX_LIMIT_X, _TBY0), (TBOX_LIMIT_X, _TBY1))["a"]),
+          px_of(line((TBOX_LIMIT_X, _TBY0), (TBOX_LIMIT_X, _TBY1))["b"])], BOX_LIMIT_WIDTH, color="yellow")
 # Every parking pocket has its fixation band, the same distance from its kerb.
 for _k in POCKETS_PX:
     _fy = _k[1] + round(0.80 * S)
     add_stop_line(line((_k[0] + 6, _fy), (_k[2] - 6, _fy)), FIX_WIDTH)
+_fy = TRUCK_POCKET_PX[3] - round(0.80 * S)
+add_stop_line(line((TRUCK_POCKET_PX[0] + 6, _fy), (TRUCK_POCKET_PX[2] - 6, _fy)), FIX_WIDTH)
 for l in INTERSECTION["stop_lines"].values():
     add_stop_line(l)
 
@@ -1114,10 +1258,10 @@ sign("2.5", HILL_STOP_X - 2, 91.5, "W")
 sign("1.13", 616, 91.5, "W")                      # steep descent
 # Scheme icons are drawn rotated so that the top of the sign points the way its
 # traffic drives; a map arrow is read in that frame (down for southbound = straight).
-# Left road, southbound: cars (plate 7.4.3) turn left into the first 90°
-# corridor, trucks (7.4.1) go on and turn left into the second one.
-sign("4.1.3", 38, 358, "S", plates=("7.4.3",))
-sign("4.1.3", 38, 432, "S", plates=("7.4.1",))
+# Left road, southbound: trucks (plate 7.4.1) turn left into the first 90°
+# corridor, cars (7.4.3) go on and turn left into the second one.
+sign("4.1.3", 38, 358, "S", plates=("7.4.1",))
+sign("4.1.3", 38, 432, "S", plates=("7.4.3",))
 sign("1.12.2", 224, 482, "E")                     # 90° corridor (upper): first turn left
 sign("1.12.2", 523, 564, "E")                     # 90° corridor (lower): first turn left
 sign("4.1.3", 266, 566, "W")                      # the gore: left onto the left road
@@ -1126,7 +1270,9 @@ sign("3.19", 936, 317, "E")
 sign("4.1.2", 934, 414, "E")                      # onto the north leg: right, yield
 sign("2.4", 934, 430, "E")
 sign("4.1.1", 1000, 440, "S")                     # north approach: straight (pass 1)
-sign("5.15", 1202, 436, "E", plates=("7.6.4",))    # parking strip on the finish island
+# The trucks' pocket in the finish-road island: parking on the carriageway
+# along the kerb (7.6.1), trucks only (7.4.1), as on the scheme.
+sign("5.15", 1202, 436, "E", plates=("7.6.1", "7.4.1"))
 # Before the boxes: trucks (plate 7.4.1) and cars (7.4.3) have their own
 # boxes, as on the scheme. Eastbound on the box road: trucks right into the
 # wide P1, cars straight on; at the next island cars may turn right into their
@@ -1138,7 +1284,11 @@ sign("4.1.4", 1350, 1030, "W", plates=("7.4.3", "4.1.1", "7.4.1"), height=2.9)
 sign("4.1.4", 1797, 1030, "W", plates=("7.4.3", "4.1.1", "7.4.1"), height=2.9)
 sign("1.12.2", 910, 955, "N")                     # zmeyka B entrance (as on the scheme)
 sign("1.12.2", 690, 955, "N")                     # zmeyka A entrance
-sign("4.1.1", 696, 993, "N")
+# Westbound on the bottom road, at zmeyka B's mouth (the scheme's pair): cars
+# (7.4.3) turn right into B, trucks (7.4.1) go straight on to A; at A's mouth
+# trucks turn right into it.
+sign("4.1.2", 945, 1000, "W", plates=("7.4.3", "4.1.1", "7.4.1"), height=2.9)
+sign("4.1.2", 696, 997, "W", plates=("7.4.1",))
 sign("2.4", 720, 695, "N")                        # zmeyka B exit: yield, turn right
 sign("4.1.2", 703, 712, "N")
 sign("2.4", 380, 700, "N")                        # zmeyka A exit: yield, turn right
@@ -1243,12 +1393,14 @@ surface[island_mask == 1] = SURF["curb"]
 surface[inner == 1] = SURF["grass"]
 import zlib  # noqa: E402
 
-(GRID_DIR / "surface.bin").write_bytes(zlib.compress(surface.tobytes(), 9))
+if not TRUCK:
+    (GRID_DIR / "surface.bin").write_bytes(zlib.compress(surface.tobytes(), 9))
 
 # Distance (cm, clamped 255) from every cell to the nearest island (kerb face):
 # the control lines are painted 0.35 m off the kerbs.
 dist = cv2.distanceTransform((1 - island_mask).astype(np.uint8), cv2.DIST_L2, 5) * GRID_CELL * 100.0
-(GRID_DIR / "edge_distance.bin").write_bytes(zlib.compress(np.clip(dist, 0, 255).astype(np.uint8).tobytes(), 9))
+if not TRUCK:
+    (GRID_DIR / "edge_distance.bin").write_bytes(zlib.compress(np.clip(dist, 0, 255).astype(np.uint8).tobytes(), 9))
 
 # ----------------------------------------------------------------------------- output
 route_w = [w(x, y) for x, y in ROUTE_PX]
@@ -1271,7 +1423,9 @@ data = {
                  "edge_skip": [wl([(x0, y0), (x1 + 1, y0), (x1 + 1, y1 + 5), (x0, y1 + 5)])
                                for x0, y0, x1, y1 in POCKETS_PX] +
                               [wl([(BOX_KERB_X - 0.3 * S, _BY0), (BOX_LIMIT_X + 0.3 * S, _BY0),
-                                   (BOX_LIMIT_X + 0.3 * S, _BY1), (BOX_KERB_X - 0.3 * S, _BY1)])]},
+                                   (BOX_LIMIT_X + 0.3 * S, _BY1), (BOX_KERB_X - 0.3 * S, _BY1)]),
+                               wl([(TBOX_LIMIT_X - 0.3 * S, _TBY0), (TBOX_KERB_X + 0.3 * S, _TBY0),
+                                   (TBOX_KERB_X + 0.3 * S, _TBY1), (TBOX_LIMIT_X - 0.3 * S, _TBY1)])]},
     "railway": railway,
     "signs": SIGNS,
     "lights": LIGHTS,
@@ -1332,5 +1486,6 @@ if "--debug" in sys.argv:
     for s_ in SIGNS:
         p = px_of(s_["pos"])
         cv2.rectangle(img, (int(p[0]) - 3, int(p[1]) - 3), (int(p[0]) + 3, int(p[1]) + 3), (255, 0, 0), -1)
-    cv2.imwrite(str(ROOT / "reference" / "debug_course.png"), img)
-    print("debug -> reference/debug_course.png")
+    _dbg = "debug_course_truck.png" if TRUCK else "debug_course.png"
+    cv2.imwrite(str(ROOT / "reference" / _dbg), img)
+    print("debug -> reference/" + _dbg)

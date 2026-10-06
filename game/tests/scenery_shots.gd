@@ -15,6 +15,7 @@ var cam: Camera3D
 var shots: Array = []
 var idx := 0
 var wait := 0
+var npc_node: Node3D
 
 
 func _ready() -> void:
@@ -56,7 +57,20 @@ func _ready() -> void:
 		["overview", Vector2(-20.0, 20.0), 180.0, [Vector3(0, 140, 95), Vector3(0, 0, 0)]],
 		["aerial_wide", Vector2(-20.0, 20.0), 180.0, [Vector3(-60, 90, 230), Vector3(0, 0, 0)]],
 	]
-	if args.size() > 2:
+	if args.size() > 2 and args[2] == "npc":
+		# One "other participant" parked ahead of the frozen car, seen close up.
+		var tc := TrafficCars.new()
+		world.add_child(tc)
+		car.global_position = Vector3(31.75, 0.0, -38.08)
+		tc.setup(CourseData.get_default(), course.traffic, car, cam, 1, 3)
+		tc.set_physics_process(false)
+		tc._place(tc.cars[0], tc._nearest_s(Vector2(31.75, -38.08), 0.0, 200.0) + 30.0)
+		var n: Node3D = tc.cars[0]["node"]
+		npc_node = n
+		shots = [["npc_front34", "npc", Vector3(-3.2, 1.3, -4.4), Vector3(0, 0.5, 0)],
+				["npc_rear34", "npc", Vector3(3.0, 1.4, 4.6), Vector3(0, 0.5, 0)],
+				["npc_side", "npc", Vector3(-5.5, 0.8, 0.0), Vector3(0, 0.5, 0)]]
+	elif args.size() > 2:
 		var custom: Variant = JSON.parse_string(FileAccess.get_file_as_string(args[2]))
 		if custom is Array:
 			shots = []
@@ -80,6 +94,14 @@ func _process(_delta: float) -> void:
 		get_tree().quit(0)
 		return
 	var s: Array = shots[idx]
+	if s[1] is String:
+		var nx := npc_node.global_transform
+		cam.fov = 45.0
+		cam.global_position = nx * (s[2] as Vector3)
+		cam.look_at(nx * (s[3] as Vector3), Vector3.UP)
+		idx += 1
+		wait = 0
+		return
 	var p: Vector2 = s[1]
 	car.teleport(course.spawn_transform(p, float(s[2])), true)
 	car.freeze = true

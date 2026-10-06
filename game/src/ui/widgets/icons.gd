@@ -143,6 +143,26 @@ static func draw(ci: CanvasItem, icon: String, c: Vector2, s: float, color: Colo
 		"chev_right":
 			ci.draw_polyline(PackedVector2Array([c + Vector2(-s * 0.3, -s * 0.7), c + Vector2(s * 0.35, 0),
 					c + Vector2(-s * 0.3, s * 0.7)]), color, s * 0.2, true)
+		"sound":
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-s * 0.85, -s * 0.28), c + Vector2(-s * 0.45, -s * 0.28),
+					c + Vector2(s * 0.05, -s * 0.72), c + Vector2(s * 0.05, s * 0.72), c + Vector2(-s * 0.45, s * 0.28),
+					c + Vector2(-s * 0.85, s * 0.28)]), color)
+			ci.draw_arc(c + Vector2(s * 0.05, 0), s * 0.42, -PI * 0.3, PI * 0.3, 10, color, s * 0.12, true)
+			ci.draw_arc(c + Vector2(s * 0.05, 0), s * 0.75, -PI * 0.3, PI * 0.3, 12, color, s * 0.12, true)
+		"info":
+			ci.draw_arc(c, s * 0.88, 0, TAU, 36, color, s * 0.13, true)
+			ci.draw_circle(c + Vector2(0, -s * 0.42), s * 0.12, color)
+			ci.draw_line(c + Vector2(0, -s * 0.15), c + Vector2(0, s * 0.52), color, s * 0.18, true)
+		"cars":
+			# Two cars, one behind the other: the other participants.
+			for k in 2:
+				var o := c + Vector2(-s * 0.32 + k * s * 0.5, -s * 0.28 + k * s * 0.5)
+				var col := color if k == 1 else color.darkened(0.3)
+				ci.draw_colored_polygon(PackedVector2Array([o + Vector2(-s * 0.55, s * 0.1), o + Vector2(-s * 0.3, -s * 0.25),
+						o + Vector2(s * 0.3, -s * 0.25), o + Vector2(s * 0.55, s * 0.1), o + Vector2(s * 0.55, s * 0.35),
+						o + Vector2(-s * 0.55, s * 0.35)]), col)
+				ci.draw_circle(o + Vector2(-s * 0.3, s * 0.38), s * 0.13, col)
+				ci.draw_circle(o + Vector2(s * 0.3, s * 0.38), s * 0.13, col)
 		_:
 			_letter(ci, icon, c, s, color)
 

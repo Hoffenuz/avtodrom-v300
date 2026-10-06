@@ -3,7 +3,8 @@ Runs every automated check of the project:
 
   1. C++ vehicle-simulation unit tests          (native/bin/sim_tests)
   2. Godot/Jolt vehicle integration test        (game/tests/vehicle_test.gd)
-  3. End-to-end exam driven by the autopilot    (must pass with 0 points)
+  3. End-to-end exam driven by the autopilot    (must pass with 0 points; the
+     cars on the cars' route, the Gazelle van on the trucks' route)
   4. Rule-detection tests with deliberate faults (the right penalties must appear)
   5. Practice "Namuna" demonstrations of every exercise (must pass with 0 points)
 
@@ -67,7 +68,7 @@ def main() -> int:
 
     if not quick:
         print("== 3. End-to-end exam (autopilot, expect 0 points), every car")
-        for car in ("nexia2", "gentra", "cobalt_at"):
+        for car in ("nexia2", "gentra", "cobalt_at", "gazelle"):
             code, out = godot_drive(["--car=" + car])
             res = [l for l in out.splitlines() if l.startswith("RESULT")]
             print(f"   {car:10s}", res[-1] if res else out[-3000:])
@@ -107,7 +108,7 @@ def main() -> int:
 
         print("== 5. Practice demonstrations (each exercise alone, expect 0 points), every car")
         course = json.loads((GAME / "data" / "course.json").read_text(encoding="utf-8"))
-        for car in ("nexia2", "gentra", "cobalt_at"):
+        for car in ("nexia2", "gentra", "cobalt_at", "gazelle"):
             for ex in [e["id"] for e in course["exercises"]]:
                 code, out = godot_drive(["--car=" + car, "--mode=practice", "--exercise=" + ex, "--demo"], timeout=600)
                 res = [l for l in out.splitlines() if l.startswith("RESULT")]

@@ -18,6 +18,7 @@ var _layout_editor: HudLayoutEditor
 var results: ResultsPanel
 var quality := 1
 var autopilot: Autopilot
+var traffic_cars: TrafficCars
 var _indicator_peak := 0.0
 var _last_indicator := Car.Indicator.OFF
 ## Seconds the starter has turned after a key tap (-1: not cranking).
@@ -26,11 +27,13 @@ const CRANK_MAX_S := 2.5
 
 
 func _ready() -> void:
-	data = CourseData.get_default()
+	data = CourseData.for_vehicle(Session.car_id())
 	quality = int(Settings.get_value("quality"))
 	_apply_graphics()
 	Settings.changed.connect(func(_k: String) -> void: _apply_graphics())
+	Loading.stage("environment")
 	var sun := EnvironmentSetup.create(self, quality)
+	Loading.stage("course")
 	course = CourseBuilder.load_or_build(data, quality)
 	add_child(course)
 	var rng := RandomNumberGenerator.new()
@@ -41,6 +44,12 @@ func _ready() -> void:
 			rng.seed = seed_arg
 	course.traffic.randomize_phase(rng)
 
+	Loading.stage("car")
+	if not ClassDB.class_exists("AvtoVehicle"):
+		# The physics module (game/bin/libavtodrom.*) did not load on this
+		# device: there is no car to drive. Said plainly on the loading page.
+		push_error("native module not loaded: AvtoVehicle missing")
+		return
 	car = Car.new()
 	car.name = "Car"
 	add_child(car)
@@ -53,6 +62,7 @@ func _ready() -> void:
 	controls.automatic = car.is_automatic()
 	_connect_controls()
 
+	Loading.stage("exam")
 	var spawn := {}
 	if Session.mode != Session.Mode.FREE:
 		director = ExamDirector.new()
@@ -91,6 +101,11 @@ func _ready() -> void:
 	add_child(guide)
 	guide.setup(data, director, course)
 
+	if "--stall-test" in OS.get_cmdline_user_args():
+		return # checks: the load stops here, the stall message must appear
+	if "--hang-test" in OS.get_cmdline_user_args() and not Loading.opengl_mode():
+		OS.delay_msec(120000) # checks: a frozen driver; the watchdog must restart on OpenGL
+	Loading.stage("hud")
 	hud = Hud.new()
 	add_child(hud)
 	hud.setup(car, controls, director, data)
@@ -100,6 +115,7 @@ func _ready() -> void:
 	hud.look_end.connect(func() -> void: rig.drag_end())
 	hud.look_zoom.connect(func(f: float) -> void: rig.zoom_by(f))
 
+	Loading.stage("mirrors")
 	mirrors = MirrorViews.new()
 	add_child(mirrors)
 	mirrors.setup(car, hud.root, quality, sun, rig.camera)
@@ -123,6 +139,9 @@ func _ready() -> void:
 		hud.set_demo(true)
 		rig.set_mode(CameraRig.Mode.CHASE)
 	_debug_options()
+	Loading.stage("traffic")
+	_setup_traffic(seed_arg)
+	Loading.stage("first frame")
 	# Lamp materials compile behind the loading page, not at the first brake.
 	car.lamp_prewarm = true
 	Loading.finish(func() -> void: car.lamp_prewarm = false)
@@ -143,6 +162,12 @@ func _debug_options() -> void:
 			rig.set_mode(m.get(arg.substr(9), CameraRig.Mode.CHASE))
 		elif arg == "--autopilot":
 			start_autopilot()
+		elif arg.begins_with("--no-process="):
+			# Frame-time checks: stop the named nodes' per-frame work.
+			for n in arg.substr(13).split(","):
+				var node := find_child(n, true, false)
+				if node:
+					node.process_mode = Node.PROCESS_MODE_DISABLED
 		elif arg == "--open-pause":
 			_pause.call_deferred()
 		elif arg.begins_with("--faults="):
@@ -164,6 +189,24 @@ func _debug_options() -> void:
 
 
 var _test_mode := false
+
+
+## Other participants (Settings → traffic, or "--traffic=<n>" for checks).
+## Not with the autopilot: the demonstrations and the automated exam drive
+## an empty avtodrom.
+func _setup_traffic(seed_arg: int) -> void:
+	var count := int(Settings.get_value("traffic_count")) if bool(Settings.get_value("traffic")) else 0
+	var forced := false
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--traffic="): # checks (also with the autopilot: frame-time runs)
+			count = int(arg.substr(10))
+			forced = true
+	if count <= 0 or ((autopilot != null or Session.demo) and not forced):
+		return
+	traffic_cars = TrafficCars.new()
+	add_child(traffic_cars)
+	# The participants drive the cars' route, whatever the player drives.
+	traffic_cars.setup(CourseData.get_default(), course.traffic, car, rig.camera, clampi(count, 1, 5), seed_arg)
 
 
 func _apply_graphics() -> void:
@@ -258,6 +301,56 @@ func start_autopilot() -> void:
 	add_child(autopilot)
 	autopilot.setup(car, director, data)
 	autopilot.active = true
+
+
+## The first seconds of the drive (after the loading page): if the frame rate
+## stays under FPS_FLOOR and the player has not picked a quality, one level
+## lower is saved and applied at once (resolution, shadows, anti-aliasing;
+## the scenery itself follows on the next load). Checked again afterwards, so
+## a weak device can step down twice.
+const FPS_FLOOR := 22.0
+const FPS_SETTLE := 1.5 # s ignored after the loading page (pipelines compiling)
+const FPS_WINDOW := 6.0
+var _fps_t := 0.0
+var _fps_frames := 0
+var _fps_time := 0.0
+
+
+func _process(delta: float) -> void:
+	_watch_frame_rate(delta)
+
+
+func _watch_frame_rate(delta: float) -> void:
+	if Loading.is_covering() or get_tree().paused or bool(Settings.get_value("quality_user")):
+		return
+	if int(Settings.get_value("quality")) <= 0 and Settings.render_scale() <= 0.6:
+		set_process(false)
+		return
+	_fps_t += delta
+	if _fps_t < FPS_SETTLE:
+		return
+	_fps_frames += 1
+	_fps_time += delta
+	if _fps_time < FPS_WINDOW:
+		return
+	var fps := _fps_frames / _fps_time
+	_fps_frames = 0
+	_fps_time = 0.0
+	_fps_t = 0.0
+	if fps >= FPS_FLOOR:
+		set_process(false) # fine on this device
+		return
+	var q := int(Settings.get_value("quality"))
+	print("frame rate %.1f fps at quality %d: stepping down" % [fps, q])
+	if q > 0:
+		Settings.set_value("quality", q - 1)
+	elif OS.has_feature("mobile") and Settings.render_scale() > 0.6:
+		Settings.set_value("render_scale", 0.6)
+	else:
+		set_process(false) # nothing left to lower
+		return
+	if hud:
+		hud.show_center(Loc.t("hud.quality_lowered"), UITheme.INFO, 3.0)
 
 
 func _physics_process(delta: float) -> void:

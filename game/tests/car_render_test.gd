@@ -8,10 +8,12 @@ var world: Node3D
 var car: Car
 var cam: Camera3D
 var shots: Array = []
+var detail_mode := false
 var idx := 0
 var wait := 0
 ## "spin" mode: close-ups of the left and right wheels at several spin angles.
 var spin_mode := false
+var turn_mode := false
 
 
 func _ready() -> void:
@@ -22,10 +24,16 @@ func _ready() -> void:
 	get_window().size = Vector2i(1280, 720)
 	world = Node3D.new()
 	add_child(world)
-	EnvironmentSetup.create(world, 2)
+	# Optional "q=N" anywhere in the arguments: the quality level (default 2).
+	var q := 2
+	for a in args:
+		if a.begins_with("q="):
+			q = int(a.substr(2))
+	EnvironmentSetup.create(world, q)
+	EnvironmentSetup.apply_viewport(get_viewport(), q)
 	var builder := CourseBuilder.new()
 	world.add_child(builder)
-	builder.build(CourseData.get_default(), 2)
+	builder.build(CourseData.get_default(), q)
 	car = Car.new()
 	world.add_child(car)
 	car.configure(args[1] if args.size() > 1 else "nexia2")
@@ -37,8 +45,16 @@ func _ready() -> void:
 		car.headlights = true
 	elif args.size() > 2 and args[2] == "lamps":
 		car.lamp_prewarm = true # every lamp lit
+	elif args.size() > 2 and args[2] == "turn":
+		turn_mode = true # the left indicators held lit (no blinking)
+		car.ignition = true
 	elif args.size() > 2 and args[2] == "spin":
 		spin_mode = true
+	elif args.size() > 2 and args[2] in ["detail", "detail_lit"]:
+		detail_mode = true
+		if args[2] == "detail_lit":
+			car.ignition = true
+			car.headlights = true
 	var data := CourseData.get_default()
 	var start: Dictionary = data.exercise("start")["spawn"]
 	car.teleport(builder.spawn_transform(CourseData.v2(start["pos"]), float(start["yaw"])), true)
@@ -65,6 +81,23 @@ func _ready() -> void:
 		["headlight", 30, Vector3(-1.6, 0.95, -3.4), Vector3(-0.62, 0.66, -1.9)],
 		["passenger", 70, Vector3(0.38, 1.12, 0.2), Vector3(-0.2, 0.85, -0.7)],
 	]
+	if detail_mode:
+		# Close-ups of the lamps and the number plates.
+		shots = [
+			["d_front", 32, Vector3(0, 0.85, -4.6), Vector3(0, 0.62, -2.0)],
+			["d_headlamp", 24, Vector3(-1.5, 0.9, -3.6), Vector3(-0.6, 0.72, -2.05)],
+			["d_headlamp_front", 20, Vector3(-0.35, 0.8, -4.2), Vector3(-0.62, 0.72, -2.1)],
+			["d_rear", 32, Vector3(0, 0.95, 4.8), Vector3(0, 0.7, 2.1)],
+			["d_front34", 30, Vector3(-2.6, 1.2, -4.4), Vector3(0, 0.55, -1.2)],
+		]
+	if turn_mode:
+		shots = [
+			["t_front34", 30, Vector3(-2.6, 1.2, -4.4), Vector3(0, 0.55, -1.2)],
+			["t_rear34", 30, Vector3(-2.6, 1.3, 4.6), Vector3(0, 0.6, 1.2)],
+			["t_side", 30, Vector3(-4.5, 1.0, -0.6), Vector3(0, 0.6, -0.6)],
+			["t_headlamp", 22, Vector3(-1.5, 0.9, -3.6), Vector3(-0.6, 0.72, -2.05)],
+			["t_rear", 26, Vector3(-0.8, 1.0, 4.4), Vector3(-0.55, 0.8, 2.1)],
+		]
 	if spin_mode:
 		shots = []
 		for k in 6:
@@ -74,6 +107,9 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if turn_mode:
+		car.indicator = Car.Indicator.LEFT
+		car._blink_t = 0.0 # always the lit half of the cycle
 	wait += 1
 	if wait < 25:
 		return
@@ -100,8 +136,10 @@ func _process(_delta: float) -> void:
 		cam.global_transform = Transform3D(xf.basis * head, xf * car.cockpit_eye)
 		cam.fov = 72 if fov == -1 else 95
 		cam.cull_mask &= ~Car.LAYER_EXTERIOR
+		car.set_interior_audio(true) # the cockpit-only parts
 	else:
 		cam.cull_mask |= Car.LAYER_EXTERIOR
+		car.set_interior_audio(false)
 		cam.fov = fov
 		cam.global_position = xf * (s[2] as Vector3)
 		cam.look_at(xf * (s[3] as Vector3), Vector3.UP)

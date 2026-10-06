@@ -58,7 +58,9 @@ func restart_drive() -> void:
 ## Instructions on the exercise card and the yellow lines: practice and the
 ## demonstrations only — the exam is taken without prompts, like the real one.
 func hints_enabled() -> bool:
-	return mode == Mode.PRACTICE or demo
+	if demo:
+		return true
+	return mode == Mode.PRACTICE and bool(Settings.get_value("show_hints"))
 
 
 ## The blue route line: always in practice and the demonstrations, optional

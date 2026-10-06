@@ -150,6 +150,12 @@ VehicleParams make_cobalt_at();
 // Lacetti/Gentra D-series 5-speed (estimate where UzAuto does not publish them).
 VehicleParams make_gentra();
 
+// GAZ GAZelle NEXT van (A31R32), Cummins ISF 2.8 turbodiesel, 5-speed manual,
+// rear-wheel drive. Maker data: 120 hp @ 3400 rpm, 297 N·m @ 1400-2600 rpm,
+// curb ~2150 kg, wheelbase 3745 mm, tyres 185/75 R16C. Categories B / C
+// (the exam's truck lanes).
+VehicleParams make_gazelle();
+
 VehicleParams make_preset(const std::string &id);
 
 } // namespace avto

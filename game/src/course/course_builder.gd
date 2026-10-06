@@ -59,7 +59,7 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 	quality = p_quality
 	_est = data.raw["estakada"]
 	traffic = get_node_or_null("TrafficController") as TrafficController
-	_rebuild_lost_surroundings()
+	var rebuilt := _rebuild_lost_surroundings()
 	var around := get_node_or_null("Surroundings")
 	if p_quality <= 1:
 		# Small casters are not worth a shadow pass on medium and low.
@@ -69,14 +69,18 @@ func attach(p_data: CourseData, p_quality: int) -> void:
 				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		for gi in _children_named(around, ["ParkTree", "Poplar"]):
 			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if p_quality == 0:
-		# Low-end phones: half the trees and city blocks, no tree shadows.
+	if p_quality == 0 and not rebuilt:
+		# Baked at another quality: half the trees and city blocks, no tree
+		# shadows (a rebuild has already made them for low quality).
 		for gi in _children_named(around, ["ParkTree", "City", "ParkedCars"]):
 			var mmi := gi as MultiMeshInstance3D
 			if mmi:
 				mmi.multimesh.visible_instance_count = mmi.multimesh.instance_count / 2
 		for gi in _children_named(around, ["ParkTree", "Poplar", "ParkedCars"]):
 			gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Half the parked cars are gone: their contact shadows would be left behind.
+		for gi in _children_named(around, ["ParkedCarShadows"]):
+			gi.visible = false
 
 
 ## Geometry children of `node` whose names start with one of `prefixes`
@@ -101,16 +105,23 @@ static func _children_named(node: Node, prefixes: Array) -> Array[GeometryInstan
 ## and parked cars load with every transform zeroed and never show. When
 ## that is the case, build the surroundings again here (deterministic, a
 ## few ms) instead of using the baked copy.
-func _rebuild_lost_surroundings() -> void:
+## True when the surroundings were rebuilt (for this quality).
+func _rebuild_lost_surroundings() -> bool:
 	var old := get_node_or_null("Surroundings")
 	if old == null or not _has_empty_multimesh(old):
-		return
+		return false
+	# Through the tree, not the autoload's name: the bake runs as a --script,
+	# where autoloads do not exist and the name would not even compile.
+	var loading := (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Loading")
+	if loading:
+		loading.stage("surroundings")
 	remove_child(old)
 	old.free()
 	_make_materials()
 	var around := Surroundings.new()
 	add_child(around)
 	around.build(_fence_rect(), quality, mat)
+	return true
 
 
 static func _has_empty_multimesh(node: Node) -> bool:
@@ -501,7 +512,11 @@ func _add_text(text: String, pos: Vector2, yaw_deg: float, size: float) -> void:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = tex
 	m.albedo_color = Color(0.93, 0.93, 0.9)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	# Cut out like the rest of the paint (opaque): blended letters were drawn
+	# after the car's ground shadow and showed through it.
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.roughness = 0.8
 	var mi := MeshInstance3D.new()

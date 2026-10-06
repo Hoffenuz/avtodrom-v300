@@ -42,6 +42,8 @@ VehicleSim::VehicleSim(const VehicleParams &params) : params_(params) {
 	for (int i = 0; i < 4; ++i) {
 		inv_inertia_[static_cast<size_t>(kWheel0 + i)] = 1.0 / params_.wheels[static_cast<size_t>(i)].inertia;
 	}
+	// Driven axle: the front one, unless only the rear wheels are driven.
+	drive0_ = (!params_.wheels[0].driven && params_.wheels[2].driven) ? 2 : 0;
 	constraints_.reserve(12);
 	reset(false);
 }
@@ -304,7 +306,7 @@ void VehicleSim::update_auto_clutch(double dt, const DriverInput &in, const std:
 	const double ratio = total_ratio();
 	double target = 0.0;
 	if (ratio != 0.0 && running_ && auto_shift_timer_ <= 0.0) {
-		const double wheel_w = 0.5 * (omega_[kWheel0] + omega_[kWheel0 + 1]);
+		const double wheel_w = 0.5 * (omega_[kWheel0 + drive0_] + omega_[kWheel0 + drive0_ + 1]);
 		const double input_rpm = rads_to_rpm(wheel_w * ratio);
 		const double slip = rpm - input_rpm;
 		const double speed = std::fabs(wheel_w * params_.tire.radius);
@@ -320,8 +322,9 @@ void VehicleSim::update_auto_clutch(double dt, const DriverInput &in, const std:
 		// tyres can take: while it slips, the clutch carries at most what the
 		// driven wheels can put down (or the engine's own torque, if more), so
 		// the revved-up flywheel is never dumped into the tyres.
-		const double grip = params_.tire.mu_long * 0.5 * (contacts[0].grip + contacts[1].grip);
-		const double traction = grip * (fz_[0] + fz_[1]) * params_.tire.radius / std::fabs(ratio);
+		const size_t d0 = static_cast<size_t>(drive0_);
+		const double grip = params_.tire.mu_long * 0.5 * (contacts[d0].grip + contacts[d0 + 1].grip);
+		const double traction = grip * (fz_[d0] + fz_[d0 + 1]) * params_.tire.radius / std::fabs(ratio);
 		if (speed < 8.0 && std::fabs(slip) >= 120.0) {
 			const double cap = std::max(traction, combustion_torque_);
 			target = std::min(target, cap / params_.clutch.max_torque);
@@ -330,7 +333,7 @@ void VehicleSim::update_auto_clutch(double dt, const DriverInput &in, const std:
 		// home (the load moves rearwards as the car squats): the driver feels
 		// the wheels flare and eases the clutch back to what they can put down.
 		if (speed < 8.0) {
-			const double ground = 0.5 * std::fabs(contacts[0].vx + contacts[1].vx);
+			const double ground = 0.5 * std::fabs(contacts[d0].vx + contacts[d0 + 1].vx);
 			if (speed - ground > std::max(0.6, 0.12 * ground)) {
 				target = std::min(target, 0.85 * traction / params_.clutch.max_torque);
 			}
@@ -474,20 +477,20 @@ void VehicleSim::substep(double h, const DriverInput &in, const std::array<Wheel
 		const double cap = cp.max_torque * engagement;
 		if (ratio != 0.0 && cap > 0.0) {
 			clutch_index = static_cast<int>(constraints_.size());
-			add_constraint(kEngine, 1.0, kWheel0 + 0, -ratio * 0.5, kWheel0 + 1, -ratio * 0.5, -cap, cap);
+			add_constraint(kEngine, 1.0, kWheel0 + drive0_, -ratio * 0.5, kWheel0 + drive0_ + 1, -ratio * 0.5, -cap, cap);
 		}
 	} else {
 		if (ratio != 0.0) {
 			const double cap = shift_timer_ > 0.0 ? kShiftMeshTorque : kGearMeshTorque;
 			clutch_index = static_cast<int>(constraints_.size());
-			add_constraint(kTurbine, 1.0, kWheel0 + 0, -ratio * 0.5, kWheel0 + 1, -ratio * 0.5, -cap, cap);
-			const double speed = std::fabs(0.5 * (omega_[kWheel0] + omega_[kWheel0 + 1]) * radius);
+			add_constraint(kTurbine, 1.0, kWheel0 + drive0_, -ratio * 0.5, kWheel0 + drive0_ + 1, -ratio * 0.5, -cap, cap);
+			const double speed = std::fabs(0.5 * (omega_[kWheel0 + drive0_] + omega_[kWheel0 + drive0_ + 1]) * radius);
 			if (sel == AutoSelector::Drive && gear_ >= 3 && speed > g.converter.lockup_speed && in.throttle < 0.7 &&
 					shift_timer_ <= 0.0) {
 				add_constraint(kEngine, 1.0, kTurbine, -1.0, -1, 0.0, -kLockupTorque, kLockupTorque);
 			}
 		} else if (sel == AutoSelector::Park) {
-			add_constraint(kWheel0 + 0, 0.5, kWheel0 + 1, 0.5, -1, 0.0, -kParkLockTorque, kParkLockTorque);
+			add_constraint(kWheel0 + drive0_, 0.5, kWheel0 + drive0_ + 1, 0.5, -1, 0.0, -kParkLockTorque, kParkLockTorque);
 		}
 	}
 
@@ -567,7 +570,7 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 	update_steering(dt, input.steering_wheel_deg);
 	update_suspension(contacts);
 	const double radius = params_.tire.radius;
-	const double driven_speed = 0.5 * (omega_[kWheel0] + omega_[kWheel0 + 1]) * radius;
+	const double driven_speed = 0.5 * (omega_[kWheel0 + drive0_] + omega_[kWheel0 + drive0_ + 1]) * radius;
 	if (params_.gearbox.type == TransmissionType::Automatic) {
 		update_automatic(dt, input.throttle, std::fabs(driven_speed) * 3.6);
 	} else {
@@ -603,7 +606,7 @@ void VehicleSim::step(double dt, const DriverInput &input, const std::array<Whee
 		o.brake_torque = brake_acc_[k] / n_sub;
 	}
 
-	const double speed = 0.5 * (omega_[kWheel0] + omega_[kWheel0 + 1]) * radius;
+	const double speed = 0.5 * (omega_[kWheel0 + drive0_] + omega_[kWheel0 + drive0_ + 1]) * radius;
 	tel_.rpm = rads_to_rpm(omega_[kEngine]);
 	tel_.speed = speed;
 	tel_.engine_torque = combustion_torque_;

@@ -1,22 +1,28 @@
-# Avtodrom
+# AvtoSmart Avtodrom
 
 Toshkent imtihon olish markazi (YIM) avtodromidagi amaliy haydovchilik
-imtihonining simulyatori. Android (asosiy) va Windows uchun.
+imtihonining simulyatori. Android (asosiy) va Windows uchun. AvtoSmart
+(avtotestu.uz) oilasining ilovasi — logotip va ranglar `brand/` da
+(`brand/README.md`).
 
 - Avtodrom rasmiy sxema bo'yicha qurilgan (12 px = 1 m; yo'l bo'laklari
   ~3.2–3.7 m). Marshrutdagi har bir burilishdan oldin buyuruvchi belgi
   (4.1.x) turadi.
-- 90° burilish: birinchi yo'lak yengil avtomobillar uchun (o'rta qismi
-  4.5 m — sxemadagi 7 m emas), ikkinchisi yuk avtomobillari uchun; kirishdan
-  oldingi 4.1.3 belgilari ostida 7.4.3 (yengil) va 7.4.1 (yuk) lavhalari.
+- 90° burilish: chap yo'ldan birinchi koridor yuk avtomobillari uchun (oyog'i
+  7.3 m, sxemadagidek), ikkinchisi yengil avtomobillar uchun (oyog'i 4.7 m —
+  sxemadagi 4.9 m dan biroz tor); kirishdan oldingi 4.1.3 belgilari ostida
+  7.4.1 (yuk) va 7.4.3 (yengil) lavhalari. Yuk toifasi (Gazelle) imtihonda
+  yuk koridori va keng yuk boksidan (P1) o'tadi —
+  `game/data/course_truck.json` (`python pipeline/course_def.py --truck`).
 - 12 ta mashq va imtihon rasmiy 32 bandli jarima jadvali bo'yicha baholanadi
   (100 balldan kam — "o'tdi"; 100 ga yetganda imtihon darhol to'xtaydi).
 - Haqiqiy fizika: dvigatel, ilashish (mufta), 5 pog'onali mexanika yoki
   avtomat, shinalar modeli, ABS, osma — hammasi C++ da.
-- Uch mashina: **Nexia 2** (mexanika, 5 pog'ona), **Cobalt** (avtomat,
-  6 pog'ona) va **Gentra** (qora, mexanika, 5 pog'ona) — har biri zavod
-  ma'lumotlari bo'yicha (massa, dvigatel momenti, uzatmalar, g'ildirak
-  bazasi, shinalar).
+- To'rt mashina: **Nexia 2** (mexanika, 5 pog'ona), **Cobalt** (avtomat,
+  6 pog'ona), **Gentra** (qora, mexanika, 5 pog'ona) — B toifa, va
+  **Gazelle NEXT** furgon (BC toifa, Cummins 2.8 dizel, mexanika, orqa
+  yuritma) — har biri zavod ma'lumotlari bo'yicha (massa, dvigatel momenti,
+  uzatmalar, g'ildirak bazasi, shinalar).
 - Uch rejim:
   - **Imtihon** — to'liq marshrut, ko'rsatmalarsiz, natija tarixga yoziladi;
     imtihon paytida "qaytadan boshlash" yo'q (chiqish = o'tmadi, №26).
@@ -24,8 +30,19 @@ imtihonining simulyatori. Android (asosiy) va Windows uchun.
   - **Mashqlar** — istalgan mashq alohida, qisqa ko'rsatmalar va marshrut
     chizig'i bilan; har birida "Namuna".
   - **Erkin haydash**.
-- Maydon atrofida: aylanma yo'l, imtihon markazi binosi va turargoh (turgan
-  mashinalar), teraklar va bog', uzoqda shahar siluetlari.
+- **Boshqa qatnashchilar** (Sozlamalar → Avtodrom, yoki bosh menyudagi
+  tugma): avtodromda 1–4 ta boshqa o'quv mashinasi (Nexia/Cobalt/Gentra,
+  yorqin ranglarda) marshrut bo'ylab yuradi — piyoda o'tish, estakada va
+  temir yo'lda to'xtaydi, svetoforga bo'ysunadi, o'yinchiga yo'l beradi
+  (`game/src/game/traffic_cars.gd`). Ular o'yinning o'z modellari (kabinasiz,
+  tonirovkali), tormozda stop-chiroq, burilishdan oldin burilish chirog'i
+  yonadi; past sifatda yengil modellar. "Namuna" va avtomatik testlarda o'chiq.
+- Maydon atrofida: aylanma yo'l, AvtoSmart imtihon markazi (shisha atrium,
+  brend paneli, bayroqlar, gulzorlar) va turargoh (turgan mashinalar), olti
+  xil daraxt (chinor, qayrag'och, terak, archa, bezak daraxti, buta) tabiiy
+  guruhlarda, uzoqda shahar (panel uylar, minoralar, gumbazlar, teleminora).
+- Barcha mashinalarda "01 AVTOSMART" raqam belgisi
+  (`pipeline/make_car_plate.py`).
 - Kamera: kabina, orqadan (yaqin), yuqoridan. Ekranning bo'sh joyini surib
   360° aylantirish, ikki barmoq / g'ildirak bilan yaqinlashtirish; ustun va
   belgilar orqasiga tushmaydi.
@@ -125,12 +142,36 @@ blender -b --python pipeline/blender/build_parked_car.py -- game/assets/cars/gen
 Ilova ochilishidagi rasm (Godot boot splash — skriptlardan oldin
 ko'rinadi, keyin uni loading sahifasi davom ettiradi):
 `python pipeline/make_splash.py` → `game/assets/ui/boot_splash.png`.
+Raqam belgisi va bayroqlar: `python pipeline/make_car_plate.py`,
+`python pipeline/make_flags.py`.
+
+Turargohdagi mashinalar va "boshqa qatnashchilar" uchun yengil modellar
+(bitta material, ko'rinish vertex rangida; `--npc` — g'ildiraksiz kuzov +
+aylanuvchi g'ildirak):
+
+```
+blender -b --python pipeline/blender/build_parked_car.py -- game/assets/cars/cobalt/cobalt.glb game/assets/cars/lod/cobalt_parked.glb 4200 0.026
+blender -b --python pipeline/blender/build_parked_car.py -- game/assets/cars/cobalt/cobalt.glb game/assets/cars/lod/cobalt_npc.glb 5200 0.024 --npc
+```
+
+Cobalt faralarining ichki qismi (korpus, reflektor kosalari, sariq burilish
+chirog'i) `game/assets/shaders/headlamp.gdshader` da chiziladi.
 
 G'ildiraklarni alohida tuzatish (kuzovga tegmasdan):
 `replace_wheels.py` — Nexia g'ildiraklarini manbadan qayta yig'adi (silliq
 shina, kolpak ~2200 uchburchak, support aylanmaydi); `fix_wheels.py --align
 --drop metal` — Cobalt'ning chap g'ildiraklari 3.4° qiyshiq edi (aylanganda
 tebranardi), o'qiga to'g'rilanadi va aylanuvchi plastinasi olib tashlanadi.
+
+Gazelle NEXT (Sketchfab, CC BY 4.0) — `build_gazelle.py` (joylashtirish
+3745 mm bazaga, g'ildiraklar, chiroqlar, modellashtirilgan rul, ko'zgular),
+keyin `refine_car.py ... gazelle` (torpedo, ko'rsatkichlar):
+
+```
+blender -b --python pipeline/blender/build_gazelle.py -- free_gazelle_next_-_pro.glb gazelle_build.glb
+blender -b --python pipeline/blender/refine_car.py -- gazelle_build.glb game/assets/cars/gazelle/gazelle.glb gazelle
+blender -b --python pipeline/blender/build_car_lod.py -- game/assets/cars/gazelle/gazelle.glb game/assets/cars/lod/gazelle_lod.glb
+```
 
 Kuzov rangi `car.gd` dagi `MODELS[...]["paint"]` da (Gentra — qora,
 qolganlari oq).
@@ -158,10 +199,32 @@ Yangi klondan keyin avval `git submodule update --init` (godot-cpp), keyin
 python scripts/build.py               # C++ modul (Windows + Android), bake, eksportlar
 python scripts/build.py --no-native   # faqat bake + eksport
 python scripts/build.py --android     # faqat Android APK
+python scripts/build.py --windows     # faqat bake + Windows EXE
+python scripts/build.py --installer   # EXE + Windows o'rnatuvchi (Inno Setup 6)
 ```
 
+O'rnatuvchi: `export/installer/AvtoSmart-Avtodrom-Setup-<versiya>.exe`
+(`scripts/installer.iss`; rasmlari `python pipeline/make_installer_art.py`).
+Kompyuterda o'yin to'liq ekranda ochiladi (F11 / Alt+Enter — oynali rejim;
+Sozlamalar → Grafika → To'liq ekran).
+
 Natija: `export/windows/Avtodrom.exe`, `export/android/avtodrom.apk`
-(release, imzolangan) va `avtodrom-debug.apk`.
+(release, imzolangan), `avtodrom-debug.apk` va Google Play uchun
+`avtodrom.aab` (release, imzolangan).
+
+AAB Gradle orqali yig'iladi ("Android AAB" preseti). Bir marta kerak:
+eksport shablonlaridagi `android_source.zip` ni `game/android/build/` ga
+ochish (`.gdignore` bilan) va `game/android/.build_version` ga
+`4.7.2.stable` yozish (Godot muharririda: Project → Install Android Build
+Template), SDK'da `build-tools;36.1.0` va platforma 36. Muharrir
+sozlamasidagi SDK yo'li probelsiz bo'lsin (`C:/android_sdk`).
+
+Logotiplar (`brand/`): Windows EXE, oyna va vazifalar paneli — dumaloq
+`windows/avtodrom.ico` (`game/assets/ui/icon_windows.ico`); Android
+launcher — kvadrat `icon_192` va adaptive (fg/bg/monochrome); Play Store
+sahifasi — `play-store/app-icon-512.png` va `feature-graphic-1024x500.png`;
+o'yin ichidagi belgi (menyu, yuklanish, bino) — `png/avtodrom-icon-512.png`
+(`game/assets/ui/brand_mark.png`).
 
 Release APK imzosi uchun `keys/avtodrom-release.keystore` va parollar
 `keys/release_credentials.txt` da. **Bu fayllarni hech qachon repozitoriyga
@@ -186,6 +249,8 @@ Qo'lda tekshirish uchun buyruq qatori (Godot `--` dan keyin):
 `--mode=practice --exercise=box --demo`, `--car=cobalt_at` (yoki `gentra`), `--camera=chase`, `--autopilot`,
 `--seed=<n>` (svetofor fazalari takrorlanadi), `--touch` (telefon ko'rinishi kompyuterda),
 `--shots=<papka>`, `--quit-after-s=<s>`, `--menu-page=exam|practice|rules|history|settings`,
+`--settings-tab=general|avtodrom|controls|graphics|sound|about`,
+`--traffic=<n>` (boshqa qatnashchilar), `--traffic-log`, `--traffic-near`,
 `--perf` (kadr vaqti, draw call va uchburchaklar soni).
 
 Avtodromni turli nuqtalardan suratga olish (GPU kerak):
@@ -228,7 +293,12 @@ joyini surish — kamerani aylantirish.
   burilgan va masshtablangan, uchburchaklar kamaytirilgan, shinalar,
   torpedo va raqam belgilari almashtirilgan, rangi qora. Muallif o'yinda
   ham ko'rsatilgan (Sozlamalar → Manbalar).
+- Gazelle NEXT 3D modeli: "[FREE] GAZelle Next - Pro"
+  (https://sketchfab.com/3d-models/free-gazelle-next-pro-6f5f115cb8fc4bb2933b317f505d5708),
+  muallif UralStrong_lybnineg (https://sketchfab.com/lybnineg), litsenziya
+  CC-BY-4.0. O'zgartirilgan: masshtablangan, shinalar almashtirilgan, rul va
+  torpedo qo'shilgan, uchburchaklar kamaytirilgan, rangi oq.
 - Teksturalar va osmon: Poly Haven (CC0).
-- Shrift: Inter (SIL Open Font License, `game/assets/fonts/OFL.txt`).
+- Shriftlar: Inter va Montserrat (SIL Open Font License, `game/assets/fonts/OFL.txt`).
 - Yo'l belgilari va jarima jadvali: AvtoSmart (variant-vision-quiz) ma'lumotlari.
 - Avtodrom sxemasi va mashqlar tavsifi: Toshkent YIM qo'llanmasi.

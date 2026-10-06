@@ -27,7 +27,7 @@ func _on_begin() -> void:
 	stop_line = def["stop_line"]
 	fix_line = def["fixation_line"]
 	travel = CourseData.forward2(float(def["heading"]))
-	highlight = [stop_line, fix_line]
+	highlight = [stop_line]
 	set_hint("hint.hill_stop")
 
 

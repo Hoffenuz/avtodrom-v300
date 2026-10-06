@@ -6,7 +6,8 @@ extends Node
 ##   keyboard  W/S or arrows (pedals ramp like a foot, so a tap is a light
 ##             press), A/D steer, C or Left-Shift clutch, Space handbrake,
 ##             Q/E indicators, H hazards, B seat belt, I ignition (hold for
-##             start), 1-5/R/N gears (P/R/N/G on the automatic), L lights,
+##             start), 1-5 gears, 0 or N neutral, 6 or R reverse (the number
+##             row holds them all; P/R/N/G on the automatic), L lights,
 ##             V camera, Esc pause;
 ##   gamepad   triggers pedals, left stick steers, LB clutch, D-pad gears;
 ##   touch     on-screen wheel, pedals and switches (src/ui/touch_*.gd);
@@ -208,7 +209,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_V: camera_pressed.emit()
 			KEY_ESCAPE: pause_pressed.emit()
 			KEY_N, KEY_0: gear_requested.emit(int(AvtoGear.selector_neutral(automatic)))
-			KEY_R: gear_requested.emit(AvtoGear.reverse(automatic))
+			KEY_R, KEY_6: gear_requested.emit(AvtoGear.reverse(automatic))
 			KEY_P:
 				if automatic:
 					gear_requested.emit(AvtoGear.PARK)

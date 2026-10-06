@@ -30,6 +30,10 @@ S = {
     "menu.loading": ("Yuklanmoqda…", "Юкланмоқда…", "Загрузка…"),
     "load.world": ("Avtodrom tayyorlanmoqda…", "Автодром тайёрланмоқда…", "Готовим автодром…"),
     "load.drive": ("Mashina maydonga chiqmoqda…", "Машина майдонга чиқмоқда…", "Машина выезжает на площадку…"),
+    "load.first_web": ("Birinchi kirish: grafika tayyorlanmoqda, bu bir oz vaqt oladi (faqat bir marta)",
+                       "Биринчи кириш: графика тайёрланмоқда, бу бир оз вақт олади (фақат бир марта)",
+                       "Первый запуск: подготовка графики займёт немного времени (только один раз)"),
+    "load.shaders": ("Grafika tayyorlanmoqda…", "Графика тайёрланмоқда…", "Подготовка графики…"),
     "load.menu": ("Menyuga qaytilmoqda…", "Менюга қайтилмоқда…", "Возврат в меню…"),
     "load.tip1": ("Maslahat: yurishdan oldin xavfsizlik kamarini taqing", "Маслаҳат: юришдан олдин хавфсизлик камарини тақинг",
                   "Совет: пристегнитесь до начала движения"),
@@ -49,9 +53,11 @@ S = {
     "car.nexia2": ("Nexia 2", "Nexia 2", "Nexia 2"),
     "car.cobalt_at": ("Cobalt", "Cobalt", "Cobalt"),
     "car.gentra": ("Gentra", "Gentra", "Gentra"),
-    "car.nexia2_desc": ("mexanika", "механика", "механика"),
-    "car.cobalt_at_desc": ("avtomat", "автомат", "автомат"),
-    "car.gentra_desc": ("mexanika", "механика", "механика"),
+    "car.gazelle": ("Gazelle NEXT", "Gazelle NEXT", "Газель NEXT"),
+    "car.nexia2_desc": ("B toifa · mexanika", "B тоифа · механика", "кат. B · механика"),
+    "car.cobalt_at_desc": ("B toifa · avtomat", "B тоифа · автомат", "кат. B · автомат"),
+    "car.gentra_desc": ("B toifa · mexanika", "B тоифа · механика", "кат. B · механика"),
+    "car.gazelle_desc": ("BC toifa · mexanika, furgon", "BC тоифа · механика, фургон", "кат. BC · механика, фургон"),
 
     # exam intro
     "exam.title": ("Imtihon", "Имтиҳон", "Экзамен"),
@@ -106,13 +112,67 @@ S = {
     "set.credits_text": (
         "Gentra 3D modeli: «Daewoo_ Gentra», muallif Doniyor 3D (sketchfab.com/doniyorgroup), "
         "CC BY 4.0 litsenziyasi (creativecommons.org/licenses/by/4.0); o‘yin uchun o‘zgartirilgan. "
-        "Teksturalar va osmon: Poly Haven (CC0). Shrift: Inter (SIL OFL).",
+        "Gazelle NEXT 3D modeli: «[FREE] GAZelle Next - Pro», muallif UralStrong_lybnineg "
+        "(sketchfab.com/lybnineg), CC BY 4.0; o‘yin uchun o‘zgartirilgan. "
+        "Teksturalar va osmon: Poly Haven (CC0). Shriftlar: Inter, Montserrat (SIL OFL).",
         "Gentra 3D модели: «Daewoo_ Gentra», муаллиф Doniyor 3D (sketchfab.com/doniyorgroup), "
         "CC BY 4.0 лицензияси (creativecommons.org/licenses/by/4.0); ўйин учун ўзгартирилган. "
-        "Текстуралар ва осмон: Poly Haven (CC0). Шрифт: Inter (SIL OFL).",
+        "Gazelle NEXT 3D модели: «[FREE] GAZelle Next - Pro», муаллиф UralStrong_lybnineg "
+        "(sketchfab.com/lybnineg), CC BY 4.0; ўйин учун ўзгартирилган. "
+        "Текстуралар ва осмон: Poly Haven (CC0). Шрифтлар: Inter, Montserrat (SIL OFL).",
         "3D-модель Gentra: «Daewoo_ Gentra», автор Doniyor 3D (sketchfab.com/doniyorgroup), "
         "лицензия CC BY 4.0 (creativecommons.org/licenses/by/4.0); изменена для игры. "
-        "Текстуры и небо: Poly Haven (CC0). Шрифт: Inter (SIL OFL)."),
+        "3D-модель Gazelle NEXT: «[FREE] GAZelle Next - Pro», автор UralStrong_lybnineg "
+        "(sketchfab.com/lybnineg), лицензия CC BY 4.0; изменена для игры. "
+        "Текстуры и небо: Poly Haven (CC0). Шрифты: Inter, Montserrat (SIL OFL)."),
+    "keys.title": ("Klaviatura tugmalari", "Клавиатура тугмалари", "Управление с клавиатуры"),
+    "keys.close": ("yoki Esc — yopish", "ёки Esc — ёпиш", "или Esc — закрыть"),
+    "keys.hint": ("Qaysi tugma nima qilishini ko‘rish", "Қайси тугма нима қилишини кўриш",
+                  "Посмотреть, что делает каждая клавиша"),
+    "keys.grp_drive": ("Harakat", "Ҳаракат", "Движение"),
+    "keys.grp_gears": ("Uzatmalar", "Узатмалар", "Передачи"),
+    "keys.grp_cabin": ("Kabina", "Кабина", "Салон"),
+    "keys.grp_view": ("Ko‘rinish va o‘yin", "Кўриниш ва ўйин", "Обзор и игра"),
+    "keys.gas": ("Gaz. Bosib tursangiz pedal asta-sekin oxirigacha bosiladi, qisqa bosish — yengil gaz",
+                 "Газ. Босиб турсангиз педаль аста-секин охиригача босилади, қисқа босиш — енгил газ",
+                 "Газ. Удерживайте — педаль плавно дожимается, короткое нажатие — лёгкий газ"),
+    "keys.brake": ("Tormoz. Qo‘yib yuborsangiz pedal qaytadi", "Тормоз. Қўйиб юборсангиз педаль қайтади",
+                   "Тормоз. Отпустите — педаль вернётся"),
+    "keys.steer": ("Rulni chapga / o‘ngga burish. Qo‘yib yuborsangiz rul o‘zi to‘g‘rilanadi",
+                   "Рулни чапга / ўнгга буриш. Қўйиб юборсангиз рул ўзи тўғриланади",
+                   "Руль влево / вправо. Отпустите — руль вернётся прямо"),
+    "keys.clutch": ("Mufta. Bosib turing, qo‘yib yuborganda sekin chiqadi (avtomat muftada kerak emas)",
+                    "Муфта. Босиб туринг, қўйиб юборганда секин чиқади (автомат муфтада керак эмас)",
+                    "Сцепление. Удерживайте, отпускается плавно (с автосцеплением не нужно)"),
+    "keys.handbrake": ("Qo‘l tormozini tortish / tushirish", "Қўл тормозини тортиш / тушириш",
+                       "Поднять / опустить ручник"),
+    "keys.gear_n": ("1–5-uzatma", "1–5-узатма", "1–5 передача"),
+    "keys.neutral": ("Neytral", "Нейтрал", "Нейтраль"),
+    "keys.reverse": ("Orqaga yurish (R)", "Орқага юриш (R)", "Задний ход (R)"),
+    "keys.gear_step": ("Uzatmani bittaga oshirish / tushirish", "Узатмани биттага ошириш / тушириш",
+                       "Передачу выше / ниже"),
+    "keys.auto": ("Avtomat qutida: P turish, R orqaga, N neytral, G yurish (D)",
+                  "Автомат қутида: P туриш, R орқага, N нейтрал, G юриш (D)",
+                  "На автомате: P паркинг, R назад, N нейтраль, G движение (D)"),
+    "keys.ignition": ("Kalit. Bir bosish — o‘tni yoqish / o‘chirish, bosib turish — dvigatelni o‘t oldirish",
+                      "Калит. Бир босиш — ўтни ёқиш / ўчириш, босиб туриш — двигателни ўт олдириш",
+                      "Ключ. Нажатие — зажигание вкл. / выкл., удержание — запуск двигателя"),
+    "keys.belt": ("Xavfsizlik kamari", "Хавфсизлик камари", "Ремень безопасности"),
+    "keys.indicators": ("Chap / o‘ng burilish chirog‘i (yana bosilsa o‘chadi)",
+                        "Чап / ўнг бурилиш чироғи (яна босилса ўчади)",
+                        "Левый / правый поворотник (повторное нажатие — выкл.)"),
+    "keys.hazard": ("Avariya chirog‘i", "Авария чироғи", "Аварийная сигнализация"),
+    "keys.lights": ("Faralar", "Фаралар", "Фары"),
+    "keys.camera": ("Kamera: kabinadan / orqadan / yuqoridan", "Камера: кабинадан / орқадан / юқоридан",
+                    "Камера: из салона / сзади / сверху"),
+    "keys.mouse": ("Sichqoncha", "Сичқонча", "Мышь"),
+    "keys.look": ("Surib atrofga qarash, g‘ildirak — yaqinlashtirish",
+                  "Суриб атрофга қараш, ғилдирак — яқинлаштириш",
+                  "Перетаскивание — осмотреться, колесо — зум"),
+    "keys.help": ("Shu ro‘yxat", "Шу рўйхат", "Этот список"),
+    "keys.fullscreen": ("To‘liq ekran / oyna (Alt+Enter ham)", "Тўлиқ экран / ойна (Alt+Enter ҳам)",
+                        "Полный экран / окно (также Alt+Enter)"),
+    "keys.pause": ("Pauza", "Пауза", "Пауза"),
     "key.drive": ("Gaz / tormoz / rul", "Газ / тормоз / рул", "Газ / тормоз / руль"),
     "key.clutch": ("Mufta", "Муфта", "Сцепление"),
     "key.gears": ("Uzatmalar", "Узатмалар", "Передачи"),
@@ -171,8 +231,8 @@ S = {
     "done.exercise": ("«{0}» bajarildi", "«{0}» бажарилди", "«{0}» выполнено"),
     "hint.wait3": ("Kuting: {0} s", "Кутинг: {0} с", "Ждите: {0} с"),
     "hint.go": ("Davom eting", "Давом этинг", "Продолжайте"),
-    "hint.hill_stop": ("Estakadada chiziqlar orasida to‘xtang", "Эстакадада чизиқлар орасида тўхтанг",
-                       "Остановитесь на эстакаде между линиями"),
+    "hint.hill_stop": ("Estakadada STOP chizig‘i oldida to‘xtang", "Эстакадада STOP чизиғи олдида тўхтанг",
+                       "Остановитесь на эстакаде перед линией STOP"),
     "hint.hold_3s": ("Ushlab turing: {0} s", "Ушлаб туринг: {0} с", "Держите: {0} с"),
     "hint.hill_go": ("Orqaga ketmasdan qo‘zg‘aling", "Орқага кетмасдан қўзғалинг", "Троньтесь без отката"),
     "hint.corridor": ("Chiziqlarga tegmang", "Чизиқларга тегманг", "Не касайтесь линий"),
@@ -270,6 +330,74 @@ S = {
     "pen.30": ("To‘siqqa urildi", "Тўсиққа урилди", "Наезд на препятствие"),
     "pen.31": ("Tezlik 40 km/soatdan oshdi", "Тезлик 40 км/соатдан ошди", "Скорость выше 40 км/ч"),
     "pen.32": ("Imtihon vaqti tugadi", "Имтиҳон вақти тугади", "Превышено время экзамена"),
+    # ------------------------------------------------------------------ settings (sections, participants)
+    "set.avtodrom": ("Avtodrom", "Автодром", "Автодром"),
+    "set.about": ("Ilova haqida", "Илова ҳақида", "О приложении"),
+    "set.traffic": ("Boshqa qatnashchilar", "Бошқа қатнашчилар", "Другие участники"),
+    "set.traffic_desc": ("Avtodromda boshqa o‘quv mashinalari ham yuradi: qoidaga amal qiladi va sizga yo‘l beradi",
+                         "Автодромда бошқа ўқув машиналари ҳам юради: қоидага амал қилади ва сизга йўл беради",
+                         "По автодрому ездят и другие учебные машины: соблюдают правила и уступают вам"),
+    "set.traffic_count": ("Mashinalar soni", "Машиналар сони", "Количество машин"),
+    "set.traffic_count_desc": ("Keyingi haydashdan boshlab", "Кейинги ҳайдашдан бошлаб", "Со следующей поездки"),
+    "set.route_desc": ("Imtihonda ko‘k yo‘nalish chizig‘i ko‘rinadi", "Имтиҳонда кўк йўналиш чизиғи кўринади",
+                       "На экзамене видна синяя линия маршрута"),
+    "set.hints": ("Mashqlarda ko‘rsatmalar", "Машқларда кўрсатмалар", "Подсказки в упражнениях"),
+    "set.car_desc": ("Imtihonni qaysi mashinada topshirasiz", "Имтиҳонни қайси машинада топширасиз",
+                     "На какой машине сдаёте экзамен"),
+    "set.reset_title": ("Sozlamalarni tiklash", "Созламаларни тиклаш", "Сброс настроек"),
+    "set.reset_desc": ("Barcha sozlamalar dastlabki holatiga qaytadi", "Барча созламалар дастлабки ҳолатига қайтади",
+                       "Все настройки вернутся к исходным"),
+    "set.auto_clutch_desc": ("Mexanikada muftani ilova o‘zi boshqaradi", "Механикада муфтани илова ўзи бошқаради",
+                             "На механике сцеплением управляет приложение"),
+    "set.wheel_group": ("Ekrandagi rul joylashuvi", "Экрандаги рул жойлашуви", "Положение экранного руля"),
+    "set.vol_effects": ("Effektlar", "Эффектлар", "Эффекты"),
+    "set.fullscreen": ("To‘liq ekran", "Тўлиқ экран", "Полный экран"),
+    "set.fullscreen_desc": ("F11 yoki Alt+Enter bilan ham almashadi", "F11 ёки Alt+Enter билан ҳам алмашади",
+                            "Переключается и клавишами F11 или Alt+Enter"),
+    "load.stalled": ("Yuklash to‘xtab qoldi", "Юклаш тўхтаб қолди", "Загрузка остановилась"),
+    "load.stalled_desc": ("«{0}» bosqichida yuklash davom etmayapti. Jurnalni nusxalab, ishlab chiquvchiga yuboring "
+                          "va menyuga qayting.",
+                          "«{0}» босқичида юклаш давом этмаяпти. Журнални нусхалаб, ишлаб чиқувчига юборинг "
+                          "ва менюга қайтинг.",
+                          "Загрузка не продолжается на шаге «{0}». Скопируйте журнал, отправьте разработчику "
+                          "и вернитесь в меню."),
+    "hud.quality_lowered": ("Qurilmangizga moslab grafika sifati pasaytirildi",
+                            "Қурилмангизга мослаб графика сифати пасайтирилди",
+                            "Качество графики снижено под ваше устройство"),
+    "safe.title": ("Xavfsiz grafika rejimi", "Хавфсиз графика режими", "Безопасный режим графики"),
+    "safe.opengl": ("Oldingi safar ilova yuklanishda qotib qoldi. Grafika OpenGL (moslik) rejimiga o‘tkazildi va "
+                    "sifat pasaytirildi. Sozlamalar → Grafika’da qaytarish mumkin.",
+                    "Олдинги сафар илова юкланишда қотиб қолди. Графика OpenGL (мослик) режимига ўтказилди ва "
+                    "сифат пасайтирилди. Созламалар → Графика’да қайтариш мумкин.",
+                    "В прошлый раз приложение зависло при загрузке. Графика переключена на OpenGL (совместимость), "
+                    "качество снижено. Вернуть можно в Настройки → Графика."),
+    "safe.low": ("Oldingi safar ilova yuklanishda qotib qoldi. Grafika sifati eng past darajaga tushirildi. Muammo "
+                 "takrorlansa, jurnalni nusxalab ishlab chiquvchiga yuboring.",
+                 "Олдинги сафар илова юкланишда қотиб қолди. Графика сифати энг паст даражага туширилди. Муаммо "
+                 "такрорланса, журнални нусхалаб ишлаб чиқувчига юборинг.",
+                 "В прошлый раз приложение зависло при загрузке. Качество графики снижено до минимума. Если "
+                 "повторится, скопируйте журнал и отправьте разработчику."),
+    "safe.auto": ("Yuklash vaqtida grafika drayveri javob bermay qoldi. O‘yin o‘zi OpenGL (moslik) rejimiga "
+                  "o‘tdi, sifatni pasaytirdi va qayta ishga tushdi. Sozlamalar → Grafika’da qaytarish mumkin.",
+                  "Юклаш вақтида графика драйвери жавоб бермай қолди. Ўйин ўзи OpenGL (мослик) режимига "
+                  "ўтди, сифатни пасайтирди ва қайта ишга тушди. Созламалар → Графика’да қайтариш мумкин.",
+                  "Во время загрузки графический драйвер перестал отвечать. Игра сама переключилась на OpenGL "
+                  "(совместимость), снизила качество и перезапустилась. Вернуть можно в Настройки → Графика."),
+    "safe.reopen": ("Yopish va qayta ochish", "Ёпиш ва қайта очиш", "Закрыть и открыть снова"),
+    "set.opengl": ("OpenGL (moslik) rejimi", "OpenGL (мослик) режими", "Режим OpenGL (совместимость)"),
+    "set.opengl_desc": ("O‘yin qotib qolsa yoqing. Ilova qayta ishga tushadi",
+                        "Ўйин қотиб қолса ёқинг. Илова қайта ишга тушади",
+                        "Включите, если игра зависает. Приложение перезапустится"),
+    "load.copy_log": ("Jurnalni nusxalash", "Журнални нусхалаш", "Скопировать журнал"),
+    "load.copied": ("Nusxalandi ✓", "Нусхаланди ✓", "Скопировано ✓"),
+    "load.to_menu": ("Menyuga qaytish", "Менюга қайтиш", "В меню"),
+    "set.diagnostics": ("Muammo bo‘lsa", "Муаммо бўлса", "Если что-то не так"),
+    "set.diagnostics_desc": ("Qurilma va jurnal ma’lumotlarini nusxalab, ishlab chiquvchiga yuboring",
+                             "Қурилма ва журнал маълумотларини нусхалаб, ишлаб чиқувчига юборинг",
+                             "Скопируйте сведения об устройстве и журнал и отправьте разработчику"),
+    "set.version": ("Versiya {0}", "Версия {0}", "Версия {0}"),
+    "menu.traffic_on": ("Yoqilgan · {0} ta mashina", "Ёқилган · {0} та машина", "Вкл · машин: {0}"),
+    "menu.traffic_off": ("O‘chiq — avtodromda faqat siz", "Ўчиқ — автодромда фақат сиз", "Выкл — на автодроме только вы"),
 }
 
 

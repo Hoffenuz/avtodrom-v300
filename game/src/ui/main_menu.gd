@@ -24,6 +24,8 @@ var _settings_panel: SettingsPanel
 ## takes over again a moment after the finger lifts.
 var _drag_idle := 99.0
 var _orbit_speed := 0.12
+const BRAND_MARK := preload("res://assets/ui/brand_mark.png")
+const BRAND_FONT := preload("res://assets/fonts/Montserrat-ExtraBold.ttf")
 
 
 func _ready() -> void:
@@ -33,6 +35,8 @@ func _ready() -> void:
 	_build_world()
 	_build_ui()
 	set_process(true)
+	if Loading.safe_mode_notice != "":
+		_safe_mode_dialog.call_deferred(Loading.safe_mode_notice)
 	Loading.finish()
 	Loc.language_changed.connect(_rebuild_ui)
 	Session.history_changed.connect(_update_stats)
@@ -42,6 +46,17 @@ func _ready() -> void:
 		"rules": _show_rules()
 		"settings": _show_settings()
 		"history": _show_history()
+	# Checks of an exported build (no scene path on its command line): leave
+	# the menu as a tap would, "--start=exam|free|<exercise id>".
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--start="):
+			var what := arg.substr(8)
+			if what == "exam":
+				_start(Session.Mode.EXAM)
+			elif what == "free":
+				_start(Session.Mode.FREE)
+			else:
+				_start(Session.Mode.PRACTICE, what)
 
 
 const DISC_TOP := 0.05 # turntable deck height (m)
@@ -145,8 +160,12 @@ func _process(delta: float) -> void:
 	# The slow orbit eases back in after a drag.
 	_orbit_speed = move_toward(_orbit_speed, 0.12 if _drag_idle > 2.5 else 0.0, delta * 0.08)
 	_orbit += delta * _orbit_speed
-	var r := 8.2
-	_cam.global_position = _car_focus + Vector3(cos(_orbit) * r, 1.55, sin(_orbit) * r)
+	# Farther back for a longer vehicle (the van is 6 m, the cars 4.5 m).
+	var length := 4.5
+	if _menu_car:
+		length = _menu_car.body_front + _menu_car.body_rear
+	var r := 8.2 * clampf(length / 4.5, 1.0, 1.5)
+	_cam.global_position = _car_focus + Vector3(cos(_orbit) * r, 1.55 * r / 8.2, sin(_orbit) * r)
 	_cam.look_at(_car_focus, Vector3.UP)
 	# The car sits in the right half of the screen, clear of the menu.
 	_cam.h_offset = -r * tan(deg_to_rad(_cam.fov * 0.5)) * _aspect() * 0.42
@@ -249,6 +268,7 @@ func _show_home() -> void:
 	var free := MenuCard.new(Loc.t("menu.free"), "wheel", UITheme.INFO)
 	free.pressed.connect(func() -> void: _start(Session.Mode.FREE))
 	left.add_child(free)
+	left.add_child(_traffic_switch())
 	var gap2 := Control.new()
 	gap2.custom_minimum_size = Vector2(0, 4)
 	left.add_child(gap2)
@@ -257,7 +277,7 @@ func _show_home() -> void:
 	left.add_child(row)
 	var items := [["menu.history", "list", _show_history], ["menu.rules", "warn", _show_rules],
 			["menu.settings", "gear", _show_settings]]
-	if not OS.has_feature("mobile"):
+	if not OS.has_feature("mobile") and not OS.has_feature("web"):
 		items.append(["menu.quit", "exit", func() -> void: get_tree().quit()])
 	for it in items:
 		var b := MenuCard.RoundAction.new(Loc.t(it[0]), it[1])
@@ -276,37 +296,86 @@ func _show_home() -> void:
 	car_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	right.add_child(car_row)
 	car_row.add_child(_car_carousel())
+	var foot := UITheme.label("avtotestu.uz  ·  v%s" % str(ProjectSettings.get_setting("application/config/version", "1.0")),
+			15, Color(1, 1, 1, 0.55))
+	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.add_child(foot)
 	_stats = null
 
 
 func _logo() -> Control:
 	var box := HBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
-	var badge := Control.new()
-	badge.custom_minimum_size = Vector2(64, 64)
-	badge.draw.connect(func() -> void:
-		var sb := StyleBoxFlat.new()
-		sb.set_corner_radius_all(18)
-		sb.bg_color = UITheme.GO
-		sb.shadow_color = Color(0, 0, 0, 0.35)
-		sb.shadow_size = 8
-		sb.anti_aliasing = true
-		badge.draw_style_box(sb, Rect2(Vector2.ZERO, badge.size))
-		Icons.draw(badge, "wheel", badge.size * 0.5, 22.0, Color.WHITE))
-	box.add_child(badge)
+	box.add_theme_constant_override("separation", 16)
+	var mark := TextureRect.new()
+	mark.texture = BRAND_MARK
+	mark.custom_minimum_size = Vector2(78, 78)
+	mark.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	box.add_child(mark)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", -4)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	var t := UITheme.label(Loc.t("app.title").to_upper(), 40, UITheme.TEXT, true)
-	t.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
-	t.add_theme_constant_override("outline_size", 6)
+	var t := _brand_label("AvtoSmart", 40, Color.WHITE, 0)
 	v.add_child(t)
+	var sub := _brand_label(Loc.t("app.title").to_upper(), 22, Color(0.29, 0.87, 0.5), 5)
+	v.add_child(sub)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 14)
+	v.add_child(gap)
 	var tag := UITheme.label(Loc.t("app.tagline"), 17, Color(1, 1, 1, 0.8))
 	tag.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
 	tag.add_theme_constant_override("outline_size", 4)
 	v.add_child(tag)
 	box.add_child(v)
 	return box
+
+
+## A line in the brand's typeface (Montserrat ExtraBold), `spacing` px
+## between the letters.
+func _brand_label(text: String, size: int, color: Color, spacing: int) -> Label:
+	var l := Label.new()
+	l.text = text
+	var fv := FontVariation.new()
+	fv.base_font = BRAND_FONT
+	fv.spacing_glyph = spacing
+	l.add_theme_font_override("font", fv)
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.45))
+	l.add_theme_constant_override("outline_size", 6)
+	return l
+
+
+## Home-page switch for the other participants (also in Settings → Avtodrom).
+func _traffic_switch() -> Control:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.08, 0.1, 0.13, 0.82), 20, 1, UITheme.LINE, 14))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	p.add_child(h)
+	var ic := Control.new()
+	ic.custom_minimum_size = Vector2(40, 40)
+	ic.draw.connect(func() -> void: Icons.draw(ic, "cars", ic.size * 0.5, 15.0, Color(1.0, 0.6, 0.2)))
+	h.add_child(ic)
+	var lv := VBoxContainer.new()
+	lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lv.alignment = BoxContainer.ALIGNMENT_CENTER
+	lv.add_theme_constant_override("separation", -2)
+	lv.add_child(UITheme.label(Loc.t("set.traffic"), 19, UITheme.TEXT, true))
+	var state := UITheme.label("", 15, UITheme.TEXT_DIM)
+	lv.add_child(state)
+	h.add_child(lv)
+	var c := CheckButton.new()
+	c.focus_mode = Control.FOCUS_NONE
+	c.button_pressed = bool(Settings.get_value("traffic"))
+	var show_state := func() -> void:
+		state.text = Loc.t("menu.traffic_on", [int(Settings.get_value("traffic_count"))]) 				if bool(Settings.get_value("traffic")) else Loc.t("menu.traffic_off")
+	show_state.call()
+	c.toggled.connect(func(on: bool) -> void:
+		Settings.set_value("traffic", on)
+		show_state.call())
+	h.add_child(c)
+	return p
 
 
 ## ‹ Nexia 2 · mexanika › — switches the car (and the model on screen).
@@ -351,12 +420,50 @@ func _chevron(icon: String) -> Button:
 	return b
 
 
+## The last run froze: say what was changed (on phones, ask to reopen).
+func _safe_mode_dialog(text: String) -> void:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.08, 0.07, 0.96), 18, 2, UITheme.CAUTION, 22))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 12)
+	p.add_child(v)
+	v.add_child(UITheme.label(Loc.t("safe.title"), 26, UITheme.CAUTION, true))
+	var d := UITheme.label(text, 18, UITheme.TEXT)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	d.custom_minimum_size = Vector2(560, 0)
+	v.add_child(d)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	v.add_child(row)
+	var copy := UITheme.button(Loc.t("load.copy_log"), 19, 56)
+	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	copy.pressed.connect(func() -> void:
+		DisplayServer.clipboard_set(Loading.diagnostics())
+		copy.text = Loc.t("load.copied"))
+	row.add_child(copy)
+	var ok := UITheme.button(Loc.t("safe.reopen") if OS.has_feature("mobile") and not Loading.opengl_mode() \
+			else "OK", 19, 56)
+	ok.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ok.pressed.connect(func() -> void:
+		if OS.has_feature("mobile") and not Loading.opengl_mode():
+			get_tree().quit()
+		p.queue_free())
+	row.add_child(ok)
+	_ui.add_child(p)
+	p.reset_size()
+	p.position = (_ui.size - p.size) * 0.5
+
+
 func _switch_car(step: int) -> void:
 	var i := Car.IDS.find(str(Settings.get_value("car")))
 	var cid: String = Car.IDS[posmod(i + step, Car.IDS.size())]
 	Settings.set_value("car", cid)
 	if _menu_car:
+		# A new car model means new GPU pipelines: guarded like a load.
+		Loading.guard_begin("menu car " + cid)
+		print("CAR switch %s" % cid)
 		_menu_car.configure(cid)
+		Loading.guard_end()
 	_show_car_name()
 
 

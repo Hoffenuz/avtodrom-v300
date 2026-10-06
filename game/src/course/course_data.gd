@@ -25,7 +25,13 @@ var grid_h := 0
 var surface_cells: PackedByteArray
 var edge_cells: PackedByteArray
 
+const TRUCK_PATH := "res://data/course_truck.json"
+## Vehicles of the truck categories (BC): their exam takes the trucks' lanes.
+## (Kept here, not in Car, so the course scripts load without the autoloads.)
+const TRUCKS := ["gazelle"]
+
 static var _cache: CourseData
+static var _truck_cache: CourseData
 
 
 static func get_default() -> CourseData:
@@ -33,6 +39,18 @@ static func get_default() -> CourseData:
 		_cache = CourseData.new()
 		_cache.load_file(PATH)
 	return _cache
+
+
+## The course with the exam route of this vehicle's category: the trucks
+## (TRUCKS) take their own 90° corridor (data/course_truck.json, the
+## same avtodrom otherwise).
+static func for_vehicle(car_id: String) -> CourseData:
+	if not car_id in TRUCKS or not FileAccess.file_exists(TRUCK_PATH):
+		return get_default()
+	if _truck_cache == null:
+		_truck_cache = CourseData.new()
+		_truck_cache.load_file(TRUCK_PATH)
+	return _truck_cache
 
 
 func load_file(path: String) -> void:

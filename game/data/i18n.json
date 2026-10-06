@@ -74,6 +74,16 @@
   "uz_cyrl": "Машина майдонга чиқмоқда…",
   "ru": "Машина выезжает на площадку…"
  },
+ "load.first_web": {
+  "uz_latn": "Birinchi kirish: grafika tayyorlanmoqda, bu bir oz vaqt oladi (faqat bir marta)",
+  "uz_cyrl": "Биринчи кириш: графика тайёрланмоқда, бу бир оз вақт олади (фақат бир марта)",
+  "ru": "Первый запуск: подготовка графики займёт немного времени (только один раз)"
+ },
+ "load.shaders": {
+  "uz_latn": "Grafika tayyorlanmoqda…",
+  "uz_cyrl": "Графика тайёрланмоқда…",
+  "ru": "Подготовка графики…"
+ },
  "load.menu": {
   "uz_latn": "Menyuga qaytilmoqda…",
   "uz_cyrl": "Менюга қайтилмоқда…",
@@ -139,20 +149,30 @@
   "uz_cyrl": "Gentra",
   "ru": "Gentra"
  },
+ "car.gazelle": {
+  "uz_latn": "Gazelle NEXT",
+  "uz_cyrl": "Gazelle NEXT",
+  "ru": "Газель NEXT"
+ },
  "car.nexia2_desc": {
-  "uz_latn": "mexanika",
-  "uz_cyrl": "механика",
-  "ru": "механика"
+  "uz_latn": "B toifa · mexanika",
+  "uz_cyrl": "B тоифа · механика",
+  "ru": "кат. B · механика"
  },
  "car.cobalt_at_desc": {
-  "uz_latn": "avtomat",
-  "uz_cyrl": "автомат",
-  "ru": "автомат"
+  "uz_latn": "B toifa · avtomat",
+  "uz_cyrl": "B тоифа · автомат",
+  "ru": "кат. B · автомат"
  },
  "car.gentra_desc": {
-  "uz_latn": "mexanika",
-  "uz_cyrl": "механика",
-  "ru": "механика"
+  "uz_latn": "B toifa · mexanika",
+  "uz_cyrl": "B тоифа · механика",
+  "ru": "кат. B · механика"
+ },
+ "car.gazelle_desc": {
+  "uz_latn": "BC toifa · mexanika, furgon",
+  "uz_cyrl": "BC тоифа · механика, фургон",
+  "ru": "кат. BC · механика, фургон"
  },
  "exam.title": {
   "uz_latn": "Imtihon",
@@ -365,9 +385,149 @@
   "ru": "Источники"
  },
  "set.credits_text": {
-  "uz_latn": "Gentra 3D modeli: «Daewoo_ Gentra», muallif Doniyor 3D (sketchfab.com/doniyorgroup), CC BY 4.0 litsenziyasi (creativecommons.org/licenses/by/4.0); o‘yin uchun o‘zgartirilgan. Teksturalar va osmon: Poly Haven (CC0). Shrift: Inter (SIL OFL).",
-  "uz_cyrl": "Gentra 3D модели: «Daewoo_ Gentra», муаллиф Doniyor 3D (sketchfab.com/doniyorgroup), CC BY 4.0 лицензияси (creativecommons.org/licenses/by/4.0); ўйин учун ўзгартирилган. Текстуралар ва осмон: Poly Haven (CC0). Шрифт: Inter (SIL OFL).",
-  "ru": "3D-модель Gentra: «Daewoo_ Gentra», автор Doniyor 3D (sketchfab.com/doniyorgroup), лицензия CC BY 4.0 (creativecommons.org/licenses/by/4.0); изменена для игры. Текстуры и небо: Poly Haven (CC0). Шрифт: Inter (SIL OFL)."
+  "uz_latn": "Gentra 3D modeli: «Daewoo_ Gentra», muallif Doniyor 3D (sketchfab.com/doniyorgroup), CC BY 4.0 litsenziyasi (creativecommons.org/licenses/by/4.0); o‘yin uchun o‘zgartirilgan. Gazelle NEXT 3D modeli: «[FREE] GAZelle Next - Pro», muallif UralStrong_lybnineg (sketchfab.com/lybnineg), CC BY 4.0; o‘yin uchun o‘zgartirilgan. Teksturalar va osmon: Poly Haven (CC0). Shriftlar: Inter, Montserrat (SIL OFL).",
+  "uz_cyrl": "Gentra 3D модели: «Daewoo_ Gentra», муаллиф Doniyor 3D (sketchfab.com/doniyorgroup), CC BY 4.0 лицензияси (creativecommons.org/licenses/by/4.0); ўйин учун ўзгартирилган. Gazelle NEXT 3D модели: «[FREE] GAZelle Next - Pro», муаллиф UralStrong_lybnineg (sketchfab.com/lybnineg), CC BY 4.0; ўйин учун ўзгартирилган. Текстуралар ва осмон: Poly Haven (CC0). Шрифтлар: Inter, Montserrat (SIL OFL).",
+  "ru": "3D-модель Gentra: «Daewoo_ Gentra», автор Doniyor 3D (sketchfab.com/doniyorgroup), лицензия CC BY 4.0 (creativecommons.org/licenses/by/4.0); изменена для игры. 3D-модель Gazelle NEXT: «[FREE] GAZelle Next - Pro», автор UralStrong_lybnineg (sketchfab.com/lybnineg), лицензия CC BY 4.0; изменена для игры. Текстуры и небо: Poly Haven (CC0). Шрифты: Inter, Montserrat (SIL OFL)."
+ },
+ "keys.title": {
+  "uz_latn": "Klaviatura tugmalari",
+  "uz_cyrl": "Клавиатура тугмалари",
+  "ru": "Управление с клавиатуры"
+ },
+ "keys.close": {
+  "uz_latn": "yoki Esc — yopish",
+  "uz_cyrl": "ёки Esc — ёпиш",
+  "ru": "или Esc — закрыть"
+ },
+ "keys.hint": {
+  "uz_latn": "Qaysi tugma nima qilishini ko‘rish",
+  "uz_cyrl": "Қайси тугма нима қилишини кўриш",
+  "ru": "Посмотреть, что делает каждая клавиша"
+ },
+ "keys.grp_drive": {
+  "uz_latn": "Harakat",
+  "uz_cyrl": "Ҳаракат",
+  "ru": "Движение"
+ },
+ "keys.grp_gears": {
+  "uz_latn": "Uzatmalar",
+  "uz_cyrl": "Узатмалар",
+  "ru": "Передачи"
+ },
+ "keys.grp_cabin": {
+  "uz_latn": "Kabina",
+  "uz_cyrl": "Кабина",
+  "ru": "Салон"
+ },
+ "keys.grp_view": {
+  "uz_latn": "Ko‘rinish va o‘yin",
+  "uz_cyrl": "Кўриниш ва ўйин",
+  "ru": "Обзор и игра"
+ },
+ "keys.gas": {
+  "uz_latn": "Gaz. Bosib tursangiz pedal asta-sekin oxirigacha bosiladi, qisqa bosish — yengil gaz",
+  "uz_cyrl": "Газ. Босиб турсангиз педаль аста-секин охиригача босилади, қисқа босиш — енгил газ",
+  "ru": "Газ. Удерживайте — педаль плавно дожимается, короткое нажатие — лёгкий газ"
+ },
+ "keys.brake": {
+  "uz_latn": "Tormoz. Qo‘yib yuborsangiz pedal qaytadi",
+  "uz_cyrl": "Тормоз. Қўйиб юборсангиз педаль қайтади",
+  "ru": "Тормоз. Отпустите — педаль вернётся"
+ },
+ "keys.steer": {
+  "uz_latn": "Rulni chapga / o‘ngga burish. Qo‘yib yuborsangiz rul o‘zi to‘g‘rilanadi",
+  "uz_cyrl": "Рулни чапга / ўнгга буриш. Қўйиб юборсангиз рул ўзи тўғриланади",
+  "ru": "Руль влево / вправо. Отпустите — руль вернётся прямо"
+ },
+ "keys.clutch": {
+  "uz_latn": "Mufta. Bosib turing, qo‘yib yuborganda sekin chiqadi (avtomat muftada kerak emas)",
+  "uz_cyrl": "Муфта. Босиб туринг, қўйиб юборганда секин чиқади (автомат муфтада керак эмас)",
+  "ru": "Сцепление. Удерживайте, отпускается плавно (с автосцеплением не нужно)"
+ },
+ "keys.handbrake": {
+  "uz_latn": "Qo‘l tormozini tortish / tushirish",
+  "uz_cyrl": "Қўл тормозини тортиш / тушириш",
+  "ru": "Поднять / опустить ручник"
+ },
+ "keys.gear_n": {
+  "uz_latn": "1–5-uzatma",
+  "uz_cyrl": "1–5-узатма",
+  "ru": "1–5 передача"
+ },
+ "keys.neutral": {
+  "uz_latn": "Neytral",
+  "uz_cyrl": "Нейтрал",
+  "ru": "Нейтраль"
+ },
+ "keys.reverse": {
+  "uz_latn": "Orqaga yurish (R)",
+  "uz_cyrl": "Орқага юриш (R)",
+  "ru": "Задний ход (R)"
+ },
+ "keys.gear_step": {
+  "uz_latn": "Uzatmani bittaga oshirish / tushirish",
+  "uz_cyrl": "Узатмани биттага ошириш / тушириш",
+  "ru": "Передачу выше / ниже"
+ },
+ "keys.auto": {
+  "uz_latn": "Avtomat qutida: P turish, R orqaga, N neytral, G yurish (D)",
+  "uz_cyrl": "Автомат қутида: P туриш, R орқага, N нейтрал, G юриш (D)",
+  "ru": "На автомате: P паркинг, R назад, N нейтраль, G движение (D)"
+ },
+ "keys.ignition": {
+  "uz_latn": "Kalit. Bir bosish — o‘tni yoqish / o‘chirish, bosib turish — dvigatelni o‘t oldirish",
+  "uz_cyrl": "Калит. Бир босиш — ўтни ёқиш / ўчириш, босиб туриш — двигателни ўт олдириш",
+  "ru": "Ключ. Нажатие — зажигание вкл. / выкл., удержание — запуск двигателя"
+ },
+ "keys.belt": {
+  "uz_latn": "Xavfsizlik kamari",
+  "uz_cyrl": "Хавфсизлик камари",
+  "ru": "Ремень безопасности"
+ },
+ "keys.indicators": {
+  "uz_latn": "Chap / o‘ng burilish chirog‘i (yana bosilsa o‘chadi)",
+  "uz_cyrl": "Чап / ўнг бурилиш чироғи (яна босилса ўчади)",
+  "ru": "Левый / правый поворотник (повторное нажатие — выкл.)"
+ },
+ "keys.hazard": {
+  "uz_latn": "Avariya chirog‘i",
+  "uz_cyrl": "Авария чироғи",
+  "ru": "Аварийная сигнализация"
+ },
+ "keys.lights": {
+  "uz_latn": "Faralar",
+  "uz_cyrl": "Фаралар",
+  "ru": "Фары"
+ },
+ "keys.camera": {
+  "uz_latn": "Kamera: kabinadan / orqadan / yuqoridan",
+  "uz_cyrl": "Камера: кабинадан / орқадан / юқоридан",
+  "ru": "Камера: из салона / сзади / сверху"
+ },
+ "keys.mouse": {
+  "uz_latn": "Sichqoncha",
+  "uz_cyrl": "Сичқонча",
+  "ru": "Мышь"
+ },
+ "keys.look": {
+  "uz_latn": "Surib atrofga qarash, g‘ildirak — yaqinlashtirish",
+  "uz_cyrl": "Суриб атрофга қараш, ғилдирак — яқинлаштириш",
+  "ru": "Перетаскивание — осмотреться, колесо — зум"
+ },
+ "keys.help": {
+  "uz_latn": "Shu ro‘yxat",
+  "uz_cyrl": "Шу рўйхат",
+  "ru": "Этот список"
+ },
+ "keys.fullscreen": {
+  "uz_latn": "To‘liq ekran / oyna (Alt+Enter ham)",
+  "uz_cyrl": "Тўлиқ экран / ойна (Alt+Enter ҳам)",
+  "ru": "Полный экран / окно (также Alt+Enter)"
+ },
+ "keys.pause": {
+  "uz_latn": "Pauza",
+  "uz_cyrl": "Пауза",
+  "ru": "Пауза"
  },
  "key.drive": {
   "uz_latn": "Gaz / tormoz / rul",
@@ -595,9 +755,9 @@
   "ru": "Продолжайте"
  },
  "hint.hill_stop": {
-  "uz_latn": "Estakadada chiziqlar orasida to‘xtang",
-  "uz_cyrl": "Эстакадада чизиқлар орасида тўхтанг",
-  "ru": "Остановитесь на эстакаде между линиями"
+  "uz_latn": "Estakadada STOP chizig‘i oldida to‘xtang",
+  "uz_cyrl": "Эстакадада STOP чизиғи олдида тўхтанг",
+  "ru": "Остановитесь на эстакаде перед линией STOP"
  },
  "hint.hold_3s": {
   "uz_latn": "Ushlab turing: {0} s",
@@ -1023,5 +1183,175 @@
   "uz_latn": "Imtihon vaqti tugadi",
   "uz_cyrl": "Имтиҳон вақти тугади",
   "ru": "Превышено время экзамена"
+ },
+ "set.avtodrom": {
+  "uz_latn": "Avtodrom",
+  "uz_cyrl": "Автодром",
+  "ru": "Автодром"
+ },
+ "set.about": {
+  "uz_latn": "Ilova haqida",
+  "uz_cyrl": "Илова ҳақида",
+  "ru": "О приложении"
+ },
+ "set.traffic": {
+  "uz_latn": "Boshqa qatnashchilar",
+  "uz_cyrl": "Бошқа қатнашчилар",
+  "ru": "Другие участники"
+ },
+ "set.traffic_desc": {
+  "uz_latn": "Avtodromda boshqa o‘quv mashinalari ham yuradi: qoidaga amal qiladi va sizga yo‘l beradi",
+  "uz_cyrl": "Автодромда бошқа ўқув машиналари ҳам юради: қоидага амал қилади ва сизга йўл беради",
+  "ru": "По автодрому ездят и другие учебные машины: соблюдают правила и уступают вам"
+ },
+ "set.traffic_count": {
+  "uz_latn": "Mashinalar soni",
+  "uz_cyrl": "Машиналар сони",
+  "ru": "Количество машин"
+ },
+ "set.traffic_count_desc": {
+  "uz_latn": "Keyingi haydashdan boshlab",
+  "uz_cyrl": "Кейинги ҳайдашдан бошлаб",
+  "ru": "Со следующей поездки"
+ },
+ "set.route_desc": {
+  "uz_latn": "Imtihonda ko‘k yo‘nalish chizig‘i ko‘rinadi",
+  "uz_cyrl": "Имтиҳонда кўк йўналиш чизиғи кўринади",
+  "ru": "На экзамене видна синяя линия маршрута"
+ },
+ "set.hints": {
+  "uz_latn": "Mashqlarda ko‘rsatmalar",
+  "uz_cyrl": "Машқларда кўрсатмалар",
+  "ru": "Подсказки в упражнениях"
+ },
+ "set.car_desc": {
+  "uz_latn": "Imtihonni qaysi mashinada topshirasiz",
+  "uz_cyrl": "Имтиҳонни қайси машинада топширасиз",
+  "ru": "На какой машине сдаёте экзамен"
+ },
+ "set.reset_title": {
+  "uz_latn": "Sozlamalarni tiklash",
+  "uz_cyrl": "Созламаларни тиклаш",
+  "ru": "Сброс настроек"
+ },
+ "set.reset_desc": {
+  "uz_latn": "Barcha sozlamalar dastlabki holatiga qaytadi",
+  "uz_cyrl": "Барча созламалар дастлабки ҳолатига қайтади",
+  "ru": "Все настройки вернутся к исходным"
+ },
+ "set.auto_clutch_desc": {
+  "uz_latn": "Mexanikada muftani ilova o‘zi boshqaradi",
+  "uz_cyrl": "Механикада муфтани илова ўзи бошқаради",
+  "ru": "На механике сцеплением управляет приложение"
+ },
+ "set.wheel_group": {
+  "uz_latn": "Ekrandagi rul joylashuvi",
+  "uz_cyrl": "Экрандаги рул жойлашуви",
+  "ru": "Положение экранного руля"
+ },
+ "set.vol_effects": {
+  "uz_latn": "Effektlar",
+  "uz_cyrl": "Эффектлар",
+  "ru": "Эффекты"
+ },
+ "set.fullscreen": {
+  "uz_latn": "To‘liq ekran",
+  "uz_cyrl": "Тўлиқ экран",
+  "ru": "Полный экран"
+ },
+ "set.fullscreen_desc": {
+  "uz_latn": "F11 yoki Alt+Enter bilan ham almashadi",
+  "uz_cyrl": "F11 ёки Alt+Enter билан ҳам алмашади",
+  "ru": "Переключается и клавишами F11 или Alt+Enter"
+ },
+ "load.stalled": {
+  "uz_latn": "Yuklash to‘xtab qoldi",
+  "uz_cyrl": "Юклаш тўхтаб қолди",
+  "ru": "Загрузка остановилась"
+ },
+ "load.stalled_desc": {
+  "uz_latn": "«{0}» bosqichida yuklash davom etmayapti. Jurnalni nusxalab, ishlab chiquvchiga yuboring va menyuga qayting.",
+  "uz_cyrl": "«{0}» босқичида юклаш давом этмаяпти. Журнални нусхалаб, ишлаб чиқувчига юборинг ва менюга қайтинг.",
+  "ru": "Загрузка не продолжается на шаге «{0}». Скопируйте журнал, отправьте разработчику и вернитесь в меню."
+ },
+ "hud.quality_lowered": {
+  "uz_latn": "Qurilmangizga moslab grafika sifati pasaytirildi",
+  "uz_cyrl": "Қурилмангизга мослаб графика сифати пасайтирилди",
+  "ru": "Качество графики снижено под ваше устройство"
+ },
+ "safe.title": {
+  "uz_latn": "Xavfsiz grafika rejimi",
+  "uz_cyrl": "Хавфсиз графика режими",
+  "ru": "Безопасный режим графики"
+ },
+ "safe.opengl": {
+  "uz_latn": "Oldingi safar ilova yuklanishda qotib qoldi. Grafika OpenGL (moslik) rejimiga o‘tkazildi va sifat pasaytirildi. Sozlamalar → Grafika’da qaytarish mumkin.",
+  "uz_cyrl": "Олдинги сафар илова юкланишда қотиб қолди. Графика OpenGL (мослик) режимига ўтказилди ва сифат пасайтирилди. Созламалар → Графика’да қайтариш мумкин.",
+  "ru": "В прошлый раз приложение зависло при загрузке. Графика переключена на OpenGL (совместимость), качество снижено. Вернуть можно в Настройки → Графика."
+ },
+ "safe.low": {
+  "uz_latn": "Oldingi safar ilova yuklanishda qotib qoldi. Grafika sifati eng past darajaga tushirildi. Muammo takrorlansa, jurnalni nusxalab ishlab chiquvchiga yuboring.",
+  "uz_cyrl": "Олдинги сафар илова юкланишда қотиб қолди. Графика сифати энг паст даражага туширилди. Муаммо такрорланса, журнални нусхалаб ишлаб чиқувчига юборинг.",
+  "ru": "В прошлый раз приложение зависло при загрузке. Качество графики снижено до минимума. Если повторится, скопируйте журнал и отправьте разработчику."
+ },
+ "safe.auto": {
+  "uz_latn": "Yuklash vaqtida grafika drayveri javob bermay qoldi. O‘yin o‘zi OpenGL (moslik) rejimiga o‘tdi, sifatni pasaytirdi va qayta ishga tushdi. Sozlamalar → Grafika’da qaytarish mumkin.",
+  "uz_cyrl": "Юклаш вақтида графика драйвери жавоб бермай қолди. Ўйин ўзи OpenGL (мослик) режимига ўтди, сифатни пасайтирди ва қайта ишга тушди. Созламалар → Графика’да қайтариш мумкин.",
+  "ru": "Во время загрузки графический драйвер перестал отвечать. Игра сама переключилась на OpenGL (совместимость), снизила качество и перезапустилась. Вернуть можно в Настройки → Графика."
+ },
+ "safe.reopen": {
+  "uz_latn": "Yopish va qayta ochish",
+  "uz_cyrl": "Ёпиш ва қайта очиш",
+  "ru": "Закрыть и открыть снова"
+ },
+ "set.opengl": {
+  "uz_latn": "OpenGL (moslik) rejimi",
+  "uz_cyrl": "OpenGL (мослик) режими",
+  "ru": "Режим OpenGL (совместимость)"
+ },
+ "set.opengl_desc": {
+  "uz_latn": "O‘yin qotib qolsa yoqing. Ilova qayta ishga tushadi",
+  "uz_cyrl": "Ўйин қотиб қолса ёқинг. Илова қайта ишга тушади",
+  "ru": "Включите, если игра зависает. Приложение перезапустится"
+ },
+ "load.copy_log": {
+  "uz_latn": "Jurnalni nusxalash",
+  "uz_cyrl": "Журнални нусхалаш",
+  "ru": "Скопировать журнал"
+ },
+ "load.copied": {
+  "uz_latn": "Nusxalandi ✓",
+  "uz_cyrl": "Нусхаланди ✓",
+  "ru": "Скопировано ✓"
+ },
+ "load.to_menu": {
+  "uz_latn": "Menyuga qaytish",
+  "uz_cyrl": "Менюга қайтиш",
+  "ru": "В меню"
+ },
+ "set.diagnostics": {
+  "uz_latn": "Muammo bo‘lsa",
+  "uz_cyrl": "Муаммо бўлса",
+  "ru": "Если что-то не так"
+ },
+ "set.diagnostics_desc": {
+  "uz_latn": "Qurilma va jurnal ma’lumotlarini nusxalab, ishlab chiquvchiga yuboring",
+  "uz_cyrl": "Қурилма ва журнал маълумотларини нусхалаб, ишлаб чиқувчига юборинг",
+  "ru": "Скопируйте сведения об устройстве и журнал и отправьте разработчику"
+ },
+ "set.version": {
+  "uz_latn": "Versiya {0}",
+  "uz_cyrl": "Версия {0}",
+  "ru": "Версия {0}"
+ },
+ "menu.traffic_on": {
+  "uz_latn": "Yoqilgan · {0} ta mashina",
+  "uz_cyrl": "Ёқилган · {0} та машина",
+  "ru": "Вкл · машин: {0}"
+ },
+ "menu.traffic_off": {
+  "uz_latn": "O‘chiq — avtodromda faqat siz",
+  "uz_cyrl": "Ўчиқ — автодромда фақат сиз",
+  "ru": "Выкл — на автодроме только вы"
  }
 }
