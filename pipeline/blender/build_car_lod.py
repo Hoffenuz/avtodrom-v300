@@ -40,7 +40,7 @@ GROUPS = {
     "paint": ["paint"],
     "glass": ["window", "lamp_glass", "mirror"],
     "bright": ["chrome", "rim", "metal", "lamp_white", "plate", "brake_disc"],
-    "red": ["lamp_red", "lamp_orange"],
+    "red": ["lamp_red", "lamp_orange", "lamp_glass_red"],
 }
 targets = {}
 for name in ["paint", "glass", "dark", "bright", "red"]:

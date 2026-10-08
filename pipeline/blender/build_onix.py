@@ -372,6 +372,7 @@ def place(p):
 # --- 3. Semantic materials ------------------------------------------------------------------------
 SEMANTIC = ["paint", "trim_black", "chrome", "rim", "rubber", "metal", "brake_disc", "window", "lamp_glass",
             "lamp_orange", "lamp_red", "lamp_white", "headlamp", "interior", "interior_light", "headliner",
+            "lamp_glass_red",
             "plate", "mirror", "badge"]
 sem = {name: bpy.data.materials.new(name) for name in SEMANTIC}
 assert all(m.name == n for n, m in sem.items())
@@ -547,6 +548,12 @@ assign(glass, lambda s: "window")
 lens = join([one("onix_90_22_glass_0"), one("onix_90_22.001_glass_0"), one("onix_90_23_onix_90_1.0_0"), one("onix_90_23.001_onix_90_1.0_0"),
              one("onix_90_1.001_onix_90_1.0_0"), one("onix_90_1.005_onix_90_1.0_0")], "LampGlass")
 assign(lens, lambda s: "lamp_glass")
+# The rear clusters' outer lens is smoked red, as on the car: clear, it read
+# as a pale grey blob over the lamps (worst on OpenGL).
+lens.data.materials.append(sem["lamp_glass_red"])
+for p in lens.data.polygons:
+    if p.center.y < -1.6:
+        p.material_index = len(lens.data.materials) - 1
 decimate(lens, 2600)
 
 # --- 9. Body ----------------------------------------------------------------------------------------

@@ -35,7 +35,7 @@ const MODELS := {
 			"mirror": Vector3(0.946, 1.033, -0.572), "speed_max": 220.0, "rpm_max": 7000.0, "height": 1.49,
 			# One-skin body: its inside (seen through the windows and the panel
 			# gaps, and from the seats) is drawn as trim and headliner.
-			"inner_shell": true,
+			"inner_shell": true, "head_energy": 1.1,
 			# Its 2.5k-triangle shadow proxy bulges out of the rear quarters:
 			# kept inside, and the paint takes no shadow (no grey patches).
 			"shadow_inset": 0.05},
@@ -44,7 +44,8 @@ const MODELS := {
 	"gazelle": {"path": "res://assets/cars/gazelle/gazelle.glb", "lod": "res://assets/cars/lod/gazelle_lod.glb", "front": 2.716, "rear": 3.352, "half_width": 1.03,
 			"mirror": Vector3(1.157, 1.323, -1.626), "speed_max": 160.0, "rpm_max": 5000.0,
 			"eye_offset": Vector3(-0.01, 0.42, 0.55), "paint": Color(0.95, 0.95, 0.96), "height": 2.65,
-			"shadow_inset": 0.12, "shadow_van": true, "cockpit_shell": true, "turn_glow": [0.1, 0.06, 0.12],
+			"shadow_inset": 0.12, "shadow_van": true, "cockpit_shell": true, "inner_shell": true,
+			"turn_glow": [0.1, 0.06, 0.12],
 			"plates": [[Vector3(0.012, 0.62, -2.712), Vector3(0.0, 0.0, -1.0)],
 					[Vector3(0.0, 0.66, 3.356), Vector3(0.0, 0.0, 1.0)]]},
 }
@@ -244,7 +245,8 @@ func _load_model() -> void:
 	elif outer:
 		outer.layers = LAYER_EXTERIOR
 	if spec.get("inner_shell", false):
-		_make_inner_shell()
+		# With a cockpit shell the seat has its own; from outside only.
+		_make_inner_shell(LAYER_EXTERIOR if spec.get("cockpit_shell", false) else 0)
 	_make_gauges(spec)
 	_make_collision()
 	_simple_shadow = RenderingServer.get_current_rendering_method() == "gl_compatibility"
@@ -300,7 +302,7 @@ func _make_cockpit_shell(outer: MeshInstance3D) -> void:
 ## drawn as the cabin trim (cabin_shell.gdshader), in every view: the same
 ## meshes once more, no new triangles, and only the back faces that show
 ## reach the fragment shader.
-func _make_inner_shell() -> void:
+func _make_inner_shell(layers: int) -> void:
 	var shell_mat := ShaderMaterial.new()
 	shell_mat.shader = CABIN_SHELL_SHADER
 	for part_name in ["BodyOuter", "Body"]:
@@ -314,6 +316,7 @@ func _make_inner_shell() -> void:
 		shell.transform = part.transform
 		shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		shell.lod_bias = part.lod_bias
+		shell.layers = layers if layers != 0 else part.layers
 		part.get_parent().add_child(shell)
 
 
@@ -703,6 +706,9 @@ static func _apply_materials(root: Node, paint_color: Color, paint_shadows := tr
 	window.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var lamp_glass := _pbr(Color(0.9, 0.92, 0.95, 0.22), 0.0, 0.03)
 	lamp_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	# Smoked red over a rear cluster (the Onix): the lamps behind still show.
+	var lamp_glass_red := _pbr(Color(0.32, 0.03, 0.035, 0.55), 0.0, 0.04)
+	lamp_glass_red.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	var table := {
 		"paint": paint,
 		"trim_black": _pbr(Color(0.035, 0.035, 0.038), 0.0, 0.55),
@@ -713,6 +719,7 @@ static func _apply_materials(root: Node, paint_color: Color, paint_shadows := tr
 		"chrome": _pbr(Color(0.86, 0.87, 0.88), 1.0, 0.12),
 		"window": window,
 		"lamp_glass": lamp_glass,
+		"lamp_glass_red": lamp_glass_red,
 		"lamp_orange": _pbr(Color(0.75, 0.33, 0.02), 0.0, 0.25),
 		"lamp_red": _pbr(Color(0.42, 0.03, 0.03), 0.0, 0.2),
 		"interior": _cabin(Color(0.13, 0.13, 0.135), 0.85),
@@ -804,7 +811,9 @@ func _make_lamp_materials() -> void:
 		elif n == "Lamp_Reverse":
 			_lamp_on[n] = _emissive(white, 4.0 * maxf(k, 0.5))
 		else:
-			_lamp_on[n] = _emissive(white, 5.0 * maxf(k, 0.5))
+			# "head_energy": a model whose lamp mesh is the whole chrome
+			# reflector (the Onix) washes out to a white blob at the usual 5.
+			_lamp_on[n] = _emissive(white, float(Car.spec_for(preset).get("head_energy", 5.0)) * maxf(k, 0.5))
 	# Brighter tail variant used while braking (the Nexia's tail and stop
 	# lamps share one lens).
 	if _lamps.has("Lamp_Tail"):
@@ -1083,12 +1092,14 @@ func _update_tyre_audio(delta: float, speed: float) -> void:
 	if not is_finite(speed):
 		speed = 0.0
 	var muffle := 0.5 if _interior else 1.0
-	_set_loop(_squeal, _squeal_lvl * 0.32 * muffle, 0.94 + 0.1 * _squeal_lvl)
-	_set_loop(_scrub, _scrub_lvl * 0.25 * muffle, 0.75 + clampf(speed / 20.0, 0.0, 0.45))
+	_set_loop(_squeal, _squeal_lvl * 0.2 * muffle, 0.95 + 0.06 * _squeal_lvl)
+	_set_loop(_scrub, _scrub_lvl * 0.18 * muffle, 0.75 + clampf(speed / 20.0, 0.0, 0.35))
 
 
 static func _follow(current: float, target: float, delta: float) -> float:
-	var tau := 0.05 if target > current else 0.2
+	# The ABS releases a wheel ~10 times a second: a faster attack turned
+	# its slip pulses into a rattle.
+	var tau := 0.09 if target > current else 0.25
 	return lerpf(current, target, 1.0 - exp(-delta / tau))
 
 

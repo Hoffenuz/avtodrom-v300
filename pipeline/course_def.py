@@ -99,7 +99,9 @@ ISLAND_CUT_PX = [(1781.8, 995, 1853.3, 1012.5), (2025, 488, 2045, 530), (1110, 4
 # the centre it is 4.7 m, a little narrower (west kerb kept, the east island grows
 # over the rest).
 T90_CAR_LEG_X = (538.0, 538.0 + 4.7 * 12)  # px: west kerb, new east kerb
-T90_CAR_STRIP_PX = (T90_CAR_LEG_X[1], 425.0, 612.0, 503.0)  # the leg's east strip, below the exit corner's curve
+# The leg's east strip, from below the exit corner's curve down to the road
+# (it stopped 4 m short, and the kerb jogged 0.8 m there).
+T90_CAR_STRIP_PX = (T90_CAR_LEG_X[1], 425.0, 612.0, 551.9)
 T90_TRUCK_LEG_X = (377.6, 465.2)  # the trucks' leg (upper pad), as drawn
 # The car box (pad 5): the scheme's bay is 4.46 m wide and 7.0 m deep, roomy
 # enough to reverse in without aiming. It is 3.6 m x 6.0 m now: the grass
@@ -341,6 +343,81 @@ def smooth_zmeyka_kerbs(isl_w, zones_px, near=1.0 * S, max_deg=50.0, iters=4):
 
 
 islands_w = [smooth_zmeyka_kerbs(isl, [_pads_px_reg[k] for k in (3, 4)]) for isl in islands_w]
+
+
+def straighten_steps(pts, max_step=0.35, min_run=0.8, max_deg=8.0):
+    """World points of a closed outline. A short edge (under max_step) between
+    two long ones running the same way a few centimetres apart is a step the
+    tracer left (an island takes the pad's outline where they meet): the kerb
+    built along it jogs by that much. The second run is moved onto the line of
+    the first (with the corner after it, when the next edge runs across, so
+    that edge keeps its direction) and the step disappears."""
+    cos_max = math.cos(math.radians(max_deg))
+    p = [np.array(q, dtype=float) for q in pts]
+    changed = True
+    passes = 0
+    while changed and passes < 50:
+        changed = False
+        passes += 1
+        n = len(p)
+        for i in range(n):
+            a, b, c, d = p[i - 1], p[i], p[(i + 1) % n], p[(i + 2) % n]
+            e1, e2, e3 = b - a, c - b, d - c
+            l1, l2, l3 = np.linalg.norm(e1), np.linalg.norm(e2), np.linalg.norm(e3)
+            if l2 >= max_step or l1 < min_run or l3 < min_run:
+                continue
+            u1, u3 = e1 / l1, e3 / l3
+            if u1 @ u3 < cos_max:
+                continue
+            if l1 >= l3:
+                # c onto the line through a, b; d follows when the next edge runs across.
+                off = (a + u1 * ((c - a) @ u1)) - c
+                e4 = p[(i + 3) % n] - d
+                l4 = np.linalg.norm(e4)
+                if l4 > 1e-6 and np.linalg.norm(off) > 1e-6 and abs((e4 / l4) @ (off / np.linalg.norm(off))) > 0.9:
+                    p[(i + 2) % n] = d + off
+                p[(i + 1) % n] = c + off
+            else:
+                # b onto the line through c, d; a follows likewise.
+                off = (d - u3 * ((d - b) @ u3)) - b
+                e0 = a - p[i - 2]
+                l0 = np.linalg.norm(e0)
+                if l0 > 1e-6 and np.linalg.norm(off) > 1e-6 and abs((e0 / l0) @ (off / np.linalg.norm(off))) > 0.9:
+                    p[i - 1] = a + off
+                p[i] = b + off
+            changed = True
+            break
+    q = Polygon([tuple(v) for v in p]).buffer(0).simplify(0.005)
+    q = max(_parts(q), key=lambda g: g.area)
+    return [[round(x, 3), round(y, 3)] for x, y in list(q.exterior.coords)[:-1]]
+
+
+# Island corners whose traced curve starts with a jog (the kerb ran on, then
+# turned in sharply before the bend): replaced by a true arc. (corner x, z of
+# the two straight kerbs' meeting point, radius, direction into the island.)
+ROUND_CORNERS_W = [(-39.88, -17.06, 2.7, 1, 1)]  # cars' 90° corridor, inner corner of the exit
+
+
+def round_corners(pts):
+    q = Polygon(pts).buffer(0)
+    for cx, cz, r, sx, sz in ROUND_CORNERS_W:
+        centre = (cx + sx * r, cz + sz * r)
+        if not q.buffer(0.05).contains(Point(centre)):
+            continue
+        def rect(x0, z0, x1, z1):
+            return box(min(x0, x1), min(z0, z1), max(x0, x1), max(z0, z1))
+
+        sq = rect(cx, cz, cx + sx * r, cz + sz * r)
+        disc = Point(centre).buffer(r, quad_segs=32)
+        # Off the arc's outside, with 0.6 m beyond the straight kerbs for the jog...
+        q = q.difference(rect(cx - sx * 0.6, cz - sz * 0.6, cx + sx * r, cz + sz * r).difference(disc))
+        # ...and up to it on the inside.
+        q = q.union(sq.intersection(disc))
+        q = max(_parts(q.buffer(0)), key=lambda g: g.area).simplify(0.02)
+    return [[round(x, 3), round(y, 3)] for x, y in list(q.exterior.coords)[:-1]]
+
+
+islands_w = [round_corners(straighten_steps(isl)) for isl in islands_w]
 islands_px = [Polygon([px_of(p) for p in isl]).buffer(0) for isl in islands_w]
 islands_union_px = unary_union(islands_px)
 
@@ -384,7 +461,7 @@ def tuck_under_islands(pad_w):
     return [w(x, y) for x, y in list(grown.exterior.coords)[:-1]]
 
 
-pads_out = [tuck_under_islands(p) for p in pads_out]
+pads_out = [straighten_steps(tuck_under_islands(p)) for p in pads_out]
 
 
 # ----------------------------------------------------------------------------- route

@@ -66,7 +66,11 @@ Kutilgan natija: `RESULT ... penalty=0`.
   (kompilyatsiya xatosi → bake abadiy kutadi). Daraxt orqali: `(Engine.get_main_loop() as SceneTree).root.get_node_or_null("Loading")`.
 - Cursor'dagi godot-tools LSP (`--lsp-port`) DLL'ni band qiladi → import/bake/export oldidan o'ldiring.
 - Foydalanuvchi `export/windows/Avtodrom.exe` ni ochib qo'yishi mumkin → eksport `.tmp` bo'lib qoladi.
-- Bu tarmoqda katta HTTPS yuklamalar buziladi: `curl -C -` bilan qayta urining; Gradle `tools/gradle/` dan.
+- Bu tarmoqda katta HTTPS yuklamalar vaqti-vaqti bilan buziladi (`SEC_E_DECRYPT_FAILURE`): `curl -C -` bilan qayta urining;
+  Gradle `tools/gradle/` dan. Sabab (2026-10-09 tashxis): internet telefon hotspot'i ("poco x6") + arzon USB Wi-Fi
+  (Ralink/MediaTek MT7601U, VID_148F&PID_7601, 2.4 GHz, Windows'ning 2007-yilgi umumiy drayveri) — drayver
+  aloqani o'zi uzadi ("disconnected by the driver", 2 kunda 16 marta, NDIS reset), uTorrent ko'p ulanish ochadi
+  (Tcpip 4231 port tugashi). Tizim sozlamalarini o'zgartirmang — foydalanuvchiga yo'l-yo'riq bering.
 - AAB eksporti birinchi urinishda Maven xatosi bilan yiqilishi mumkin — qayta ishga tushiring.
 - AAB yozilgandan keyin Godot jarayoni yopilmay qolsa — Gradle demoni oqimni ushlagan:
   `game/android/build/gradle.properties` da `org.gradle.daemon=false` bo'lishi kerak (shablon qayta
@@ -135,6 +139,11 @@ Kutilgan natija: `RESULT ... penalty=0`.
   (eshik ochilishlari) build'da haydovchi ko'zi/markaz tomonga qaraganlari `interior_light`.
   Soya proksisi orqa qanotdan chiqadi → `shadow_inset` 0.05. Kuzovni tekshirish:
   `car_render_test ... onix body` (orqa qanotlar, raqam, oynalar orqali, yuqoridan).
+- G'ildirak ovozi: `AudioSynth.squeal()` 620 Hz, yumshoq modulyatsiya (940 Hz + kuchli overton "hushtak" edi);
+  `scrub()` siyrak yumshoq donalar (zich qattiq donalar "taraq-taraq"); `Car._follow` tau 0.09/0.25 (ABS pulslari).
+- Onix farasi: `head_energy` 1.1 (reflektor butun mesh, 5 da oqarib ketadi); orqa klaster ustida `lamp_glass_red`.
+- Gazelle kuzovi: `refine_car.py` `denoise_normals` (spec `"denoise": 0.14`) — yassi panellarda to'lqin yo'q;
+  `inner_shell` + `cockpit_shell` birga: tashqaridan oynalar ichi trim bilan.
 - O'yinchi mashinasi `lod_bias = 4` (telefonda avto-LOD kuzovda "buklangan" qirralar beradi).
 - Osmon (`EnvironmentSetup._sky`) sessiyada bitta: radiance bir marta filtrlanadi. Jurnalda
   `LOAD uncovered ... after N ms` — sahifa yopilgan payt (telefondan jurnal so'rang).

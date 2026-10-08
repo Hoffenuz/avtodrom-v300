@@ -88,6 +88,9 @@ SPEC = {
         "cut_z": 0.92, "cut_keep_x": 0.92, "hood_w": 0.42, "gauge_r": 0.066, "gauge_z": 1.285,
         "body_tris": 48000,
         "spin_tris": 2600,
+        # Long flat sides: the decimated panels shade in waves and diagonal
+        # creases (see denoise_normals).
+        "denoise": 0.14,
         "tunnel": False,  # the lever sits in the dash, beside the driver
         "seats": None,
         "headlight": None,
@@ -607,6 +610,40 @@ bm.free()
 outer_obj = bpy.data.objects.new("BodyOuter", outer_me)
 outer_obj.matrix_world = body.matrix_world
 collection.objects.link(outer_obj)
+
+# --- 4c. Smooth normals over flat panels ------------------------------------------------------
+def denoise_normals(o, radius, max_angle_deg=22.0):
+    """Each corner's normal becomes the area-weighted mean of the faces within
+    `radius` that face nearly the same way (within max_angle): the triangle
+    noise a decimation leaves on a flat panel averages out, while creases,
+    the swage lines and the wheel arches (other directions) stay sharp."""
+    from mathutils.kdtree import KDTree
+    me = o.data
+    polys = me.polygons
+    tree = KDTree(len(polys))
+    for p in polys:
+        tree.insert(p.center, p.index)
+    tree.balance()
+    cos_max = math.cos(math.radians(max_angle_deg))
+    normals = [None] * len(me.loops)
+    for p in polys:
+        n0 = p.normal
+        for li in p.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            acc = Vector()
+            for _, gi, dist in tree.find_range(co, radius):
+                g = polys[gi]
+                if g.normal.dot(n0) >= cos_max:
+                    acc += g.normal * g.area * (1.0 - dist / radius)
+            normals[li] = acc.normalized() if acc.length > 1e-9 else n0
+    me.normals_split_custom_set(normals)
+
+
+if SPEC.get("denoise"):
+    for name in ("Body", "BodyOuter"):
+        if name in bpy.data.objects:
+            denoise_normals(bpy.data.objects[name], SPEC["denoise"])
+    print("normals denoised, radius", SPEC["denoise"])
 
 # --- 5. Report + export -----------------------------------------------------------------------
 total = 0

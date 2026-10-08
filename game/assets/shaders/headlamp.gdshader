@@ -31,9 +31,11 @@ vec3 bowl(vec2 d, float radius) {
 	float ang = atan(d.y, d.x);
 	float facet = fract(ang / 6.2832 * 12.0);
 	float wedge = 0.9 + 0.1 * sin(floor(ang / 6.2832 * 12.0) * 2.7);
-	float depth = mix(0.62, 1.0, smoothstep(0.15, 0.95, r)); // darker deep inside
+	float depth = mix(0.5, 1.0, smoothstep(0.15, 0.95, r)); // darker deep inside
 	float seam = smoothstep(0.0, 0.04, facet) * smoothstep(1.0, 0.96, facet);
-	vec3 c = vec3(0.86, 0.87, 0.89) * depth * wedge * mix(0.85, 1.0, seam);
+	// Lit from above: the upper half of the bowl brighter than the lower.
+	float sky = 0.85 + 0.15 * clamp(d.y / radius, -1.0, 1.0);
+	vec3 c = vec3(0.84, 0.85, 0.87) * depth * wedge * sky * mix(0.82, 1.0, seam);
 	c = mix(c, vec3(0.97), smoothstep(0.88, 0.97, r)); // rolled lip
 	return c;
 }
@@ -46,10 +48,12 @@ void fragment() {
 	float u = clamp((s - bounds.x) / w, 0.0, 1.0); // 0 at the grille, 1 at the wing
 	float v = clamp((y - bounds.z) / h, 0.0, 1.0);
 
-	// Housing: bright satin chrome all over.
-	vec3 albedo = vec3(0.74, 0.76, 0.79);
-	float metal = 1.0;
-	float rough = 0.22;
+	// Housing: satin chrome, darker towards the bottom (the inside of the
+	// lamp is in its own shade). Not a mirror: polished, it reflected the
+	// blue sky and the whole lamp read blue.
+	vec3 albedo = vec3(0.7, 0.71, 0.73) * mix(0.62, 1.0, smoothstep(0.1, 0.8, v));
+	float metal = 0.7;
+	float rough = 0.34;
 
 	// Large reflector (middle) and the smaller one towards the grille.
 	float cy = bounds.z + h * 0.5;
@@ -65,14 +69,22 @@ void fragment() {
 	float gap = (1.0 - smoothstep(0.002, 0.005, abs(length(da) - ra))) + (1.0 - smoothstep(0.002, 0.005, abs(length(db) - rb)));
 	albedo = mix(albedo, bowl(da, ra), in_a);
 	albedo = mix(albedo, bowl(db, rb), in_b);
-	rough = mix(rough, 0.05, max(in_a, in_b));
+	metal = mix(metal, 0.8, max(in_a, in_b));
+	rough = mix(rough, 0.26, max(in_a, in_b));
 	albedo *= 1.0 - 0.45 * clamp(gap, 0.0, 1.0);
-	// Bulb shield in the large bowl, a bare bulb in the small one.
-	float shield = 1.0 - smoothstep(0.02, 0.024, length(da));
+	// The projector in the large bowl: a dark glass lens in a bright ring;
+	// a bare bulb in the small one.
+	float pr = ra * 0.42;
+	float proj = 1.0 - smoothstep(pr - 0.002, pr, length(da));
+	float ring = (1.0 - smoothstep(pr, pr + 0.006, length(da))) * (1.0 - proj);
 	float bulb = 1.0 - smoothstep(0.011, 0.014, length(db));
-	albedo = mix(albedo, vec3(0.93), shield);
+	albedo = mix(albedo, vec3(0.95), ring);
+	vec3 lens = mix(vec3(0.16, 0.17, 0.19), vec3(0.04, 0.045, 0.05), smoothstep(0.0, pr, length(da - vec2(-0.25, 0.3) * pr)));
+	albedo = mix(albedo, lens, proj);
+	metal = mix(metal, 0.2, proj);
+	rough = mix(rough, 0.06, proj);
 	albedo = mix(albedo, vec3(0.98, 0.97, 0.94), bulb);
-	rough = mix(rough, 0.1, max(shield, bulb));
+	rough = mix(rough, 0.12, bulb);
 
 	// The chrome "smile" along the lower edge, the dark lip under it, and a
 	// dark bezel along the top.
@@ -106,7 +118,8 @@ void fragment() {
 
 	vec3 glow = vec3(0.0);
 	float head_on = part == 0 ? lit : beam;
-	float beam_shape = in_a * (1.0 - 0.55 * length(da) / ra) + in_b * (1.0 - 0.55 * length(db) / rb) * 0.85;
+	float beam_shape = in_a * (1.0 - 0.55 * length(da) / ra) * (1.0 - 0.7 * proj) + proj * 1.4
+			+ in_b * (1.0 - 0.55 * length(db) / rb) * 0.85;
 	glow += vec3(1.0, 0.97, 0.9) * head_on * (beam_shape * 3.2 + 0.25 * (1.0 - lip) * (1.0 - bezel));
 	float turn_on = part == 1 ? lit : 0.0;
 	glow += vec3(1.0, 0.5, 0.04) * turn_on * (amber_bulb * 6.0 + amber_glow * 3.0);
@@ -114,8 +127,9 @@ void fragment() {
 	ALBEDO = albedo;
 	METALLIC = metal;
 	ROUGHNESS = rough;
-	SPECULAR = 0.6;
-	CLEARCOAT = 1.0;
-	CLEARCOAT_ROUGHNESS = 0.04;
+	SPECULAR = 0.5;
+	// The clear lens: a sharp highlight over the whole lamp.
+	CLEARCOAT = 0.8;
+	CLEARCOAT_ROUGHNESS = 0.05;
 	EMISSION = glow;
 }

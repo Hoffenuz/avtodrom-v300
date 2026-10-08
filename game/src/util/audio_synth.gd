@@ -125,7 +125,7 @@ static func beeper() -> AudioStreamWAV:
 
 
 ## Tyre squeal loop. Rubber stick-slipping at its grip limit screams at a
-## pitch (~1 kHz) that wanders and chatters, so the loop is a tone with two
+## pitch (here ~620 Hz) that wanders and chatters, so the loop is a tone with two
 ## harmonics whose pitch and loudness drift, plus a thin band of noise around
 ## it for the rubber. Broadband noise alone sounds like TV static, not tyres.
 ## Every modulation runs a whole number of cycles per loop: no seam.
@@ -134,10 +134,13 @@ static func squeal() -> AudioStreamWAV:
 		return _cache["squeal"]
 	var dur := 1.5
 	var n := int(RATE * dur)
-	var f0 := 940.0 # f0 * dur is whole, so the tone's phase closes the loop
+	# A lower, rounder scream: at 940 Hz with strong overtones it read as a
+	# piercing whistle. f0 * dur is whole, so the tone's phase closes the loop.
+	var f0 := 620.0
 	# [cycles per loop, depth, phase]
 	var wander := [[2, 0.03, 0.4], [5, 0.018, 1.9], [13, 0.009, 3.1], [32, 0.005, 0.7]]
-	var chatter := [[4, 0.22, 0.0], [10, 0.14, 2.2], [22, 0.08, 4.0]]
+	# Gentle: deep, fast swells sounded like rattling under ABS braking.
+	var chatter := [[4, 0.1, 0.0], [10, 0.05, 2.2], [22, 0.025, 4.0]]
 	# The modulation (all under 25 Hz) is updated every 16 samples, 2 kHz: the
 	# same sound for a fraction of the work. n is a multiple of 16.
 	var block := 16
@@ -156,20 +159,20 @@ static func squeal() -> AudioStreamWAV:
 			for m in chatter:
 				amp += m[1] * sin(u * m[0] + m[2])
 			step = TAU * f0 * (1.0 + dev) / RATE
-		tone[i] = (sin(ph) + 0.35 * sin(2.0 * ph + 0.3) + 0.12 * sin(3.0 * ph + 1.1)) * amp
+		tone[i] = (sin(ph) + 0.18 * sin(2.0 * ph + 0.3) + 0.04 * sin(3.0 * ph + 1.1)) * amp
 		ph = fmod(ph + step, TAU)
 	var xf := int(RATE * 0.1)
 	var noise := PackedFloat32Array()
 	noise.resize(n + xf)
 	var r := _rng()
 	var b1 := _Biquad.new()
-	b1.bandpass(f0, 9.0, RATE)
+	b1.bandpass(f0, 6.0, RATE)
 	for i in n + xf:
 		noise[i] = b1.tick(r.randf_range(-1.0, 1.0))
 	noise = _normalize(_seamless(noise, xf), 1.0)
 	tone = _normalize(tone, 1.0)
 	for i in n:
-		tone[i] += noise[i] * 0.3
+		tone[i] += noise[i] * 0.22
 	_cache["squeal"] = _wav(_normalize(tone, 0.8), true)
 	return _cache["squeal"]
 
@@ -192,11 +195,12 @@ static func scrub() -> AudioStreamWAV:
 	var grain := 0.0
 	for i in n:
 		var x := r.randf_range(-1.0, 1.0)
-		# Sparse grains (~80/s) give the texture of rubber tearing over grit.
-		if r.randf() < 80.0 / RATE:
-			grain = r.randf_range(0.5, 1.0)
-		grain *= 0.994
-		s[i] = body.tick(x) * (0.7 + grain) + grit.tick(x * grain) * 0.3
+		# A few soft grains give the texture of rubber over grit (dense, hard
+		# ones knocked like a rattle).
+		if r.randf() < 30.0 / RATE:
+			grain = r.randf_range(0.15, 0.35)
+		grain *= 0.996
+		s[i] = body.tick(x) * (0.85 + grain) + grit.tick(x * grain) * 0.15
 	_cache["scrub"] = _wav(_seamless(_normalize(s, 0.8), xf), true)
 	return _cache["scrub"]
 
