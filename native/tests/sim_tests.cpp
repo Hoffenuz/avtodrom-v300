@@ -61,6 +61,8 @@ int main() {
 	const VehicleParams nexia = make_nexia2();
 	const VehicleParams cobalt = make_cobalt_at();
 	const VehicleParams gentra = make_gentra();
+	const VehicleParams onix = make_onix(false);
+	const VehicleParams onix_at = make_onix(true);
 
 	std::vector<Test> tests = {
 		{ "Idle is stable in neutral",
@@ -453,6 +455,67 @@ int main() {
 					}
 					check_range(worst, 0.0, 6.0, "worst speedometer lead over ground speed (km/h)");
 					check(h.sim.telemetry().engine_running, "engine running", h.sim.telemetry().rpm);
+				} },
+		{ "Onix: idles, creeps in 1st with the auto-clutch",
+				[&] {
+					auto h = make(onix, true);
+					h.run(8.0);
+					check_range(h.sim.telemetry().rpm, 750.0, 860.0, "idle rpm");
+					h.input.auto_clutch = true;
+					check(h.sim.request_gear(1, 0.0, true), "engage 1st without pedal", 1.0);
+					h.run(8.0);
+					check(h.sim.telemetry().engine_running, "engine running", h.sim.telemetry().rpm);
+					check_range(h.forward_speed() * 3.6, 4.0, 9.5, "creep speed (km/h)");
+				} },
+		{ "Onix: auto-clutch full-throttle launch does not spin the front tyres",
+				[&] {
+					auto h = make(onix, true);
+					h.input.auto_clutch = true;
+					h.sim.request_gear(1, 0.0, true);
+					h.input.throttle = 1.0;
+					double worst = 0.0;
+					for (double t = 0.0; t < 3.0; t += 1.0 / 120.0) {
+						h.step(1.0 / 120.0);
+						worst = std::max(worst, (h.sim.telemetry().speed - h.forward_speed()) * 3.6);
+					}
+					check_range(worst, 0.0, 6.0, "worst speedometer lead over ground speed (km/h)");
+					check(h.sim.telemetry().engine_running, "engine running", h.sim.telemetry().rpm);
+				} },
+		{ "Onix: turning circle at full lock",
+				[&] {
+					auto h = make(onix, true);
+					h.input.auto_clutch = true;
+					h.sim.request_gear(1, 0.0, true);
+					h.input.steering_wheel_deg = onix.steering.wheel_lock_deg;
+					h.run(9.0);
+					double minx = 1e9, maxx = -1e9;
+					for (int i = 0; i < 1800; ++i) {
+						h.step(1.0 / 120.0);
+						const WheelParams &w = h.sim.params().wheels[0];
+						const double wx = h.x + std::cos(h.yaw) * w.x + std::sin(h.yaw) * w.z;
+						minx = std::min(minx, wx);
+						maxx = std::max(maxx, wx);
+					}
+					check_range(maxx - minx, 9.5, 11.5, "outer-wheel turning circle diameter (m)");
+				} },
+		{ "Onix automatic: creeps in D, upshifts, reverse moves backwards",
+				[&] {
+					auto h = make(onix_at, true);
+					h.input.brake = 0.6;
+					h.sim.request_gear(static_cast<int>(AutoSelector::Drive), 0.0);
+					h.run(3.0);
+					check_range(h.speed(), 0.0, 0.01, "held by the brake (m/s)");
+					h.input.brake = 0.0;
+					h.run(10.0);
+					check_range(h.forward_speed() * 3.6, 4.0, 14.0, "creep speed (km/h)");
+					h.input.throttle = 0.4;
+					h.run(10.0);
+					check(h.sim.telemetry().gear >= 3, "in 3rd or higher", h.sim.telemetry().gear);
+					auto r = make(onix_at, true);
+					r.sim.request_gear(static_cast<int>(AutoSelector::Reverse), 0.0);
+					r.input.throttle = 0.1;
+					r.run(5.0);
+					check(r.forward_speed() < -0.5, "moving backwards (m/s)", r.forward_speed());
 				} },
 	};
 

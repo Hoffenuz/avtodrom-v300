@@ -17,6 +17,8 @@ var _stats: Label
 var _menu_car: Car
 var _car_name: Label
 var _car_type: Label
+## Under the car switch: opens the colour (and the Onix's gearbox) choice.
+var _car_options: Button
 var _car_focus := Vector3.ZERO
 var _on_home := true
 var _settings_panel: SettingsPanel
@@ -40,12 +42,14 @@ func _ready() -> void:
 	Loading.finish()
 	Loc.language_changed.connect(_rebuild_ui)
 	Session.history_changed.connect(_update_stats)
+	Settings.changed.connect(_on_setting_changed)
 	match DebugShots.menu_page:
 		"exam": _show_exam()
 		"practice": _show_practice()
 		"rules": _show_rules()
 		"settings": _show_settings()
 		"history": _show_history()
+		"car_options": _car_options_dialog()
 	# Checks of an exported build (no scene path on its command line): leave
 	# the menu as a tap would, "--start=exam|free|<exercise id>".
 	for arg in OS.get_cmdline_user_args():
@@ -303,6 +307,12 @@ func _show_home() -> void:
 	car_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	right.add_child(car_row)
 	car_row.add_child(_car_carousel())
+	var opt_row := HBoxContainer.new()
+	opt_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	right.add_child(opt_row)
+	_car_options = _options_button()
+	opt_row.add_child(_car_options)
+	_show_car_name()
 	var foot := UITheme.label("avtotestu.uz  ·  v%s" % str(ProjectSettings.get_setting("application/config/version", "1.0")),
 			15, Color(1, 1, 1, 0.55))
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -502,24 +512,135 @@ func _app_dialog() -> void:
 	p.position = (_ui.size - p.size) * 0.5
 
 
+## A small pill under the car switch, with the body colour as a dot.
+func _options_button() -> Button:
+	var b := UITheme.button("", 17, 46)
+	b.custom_minimum_size.x = 250
+	b.add_theme_stylebox_override("normal", UITheme.box(Color(0.08, 0.1, 0.13, 0.86), 23, 1, UITheme.LINE, 12))
+	b.add_theme_stylebox_override("hover", UITheme.box(Color(0.12, 0.15, 0.19, 0.92), 23, 1, UITheme.LINE, 12))
+	b.add_theme_stylebox_override("pressed", UITheme.box(Color(0.05, 0.07, 0.09, 0.92), 23, 1, UITheme.LINE, 12))
+	b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.draw.connect(func() -> void:
+		var e := CarPaint.entry(CarPaint.key_for(Session.car_id()))
+		if e.is_empty():
+			return
+		var c := Vector2(24.0, b.size.y * 0.5)
+		b.draw_circle(c, 11.0, e[2])
+		b.draw_arc(c, 11.0, 0.0, TAU, 28, Color(1, 1, 1, 0.55), 1.5, true))
+	b.pressed.connect(_car_options_dialog)
+	return b
+
+
+## Colour swatches for the shown car, and for the Onix its gearbox.
+func _car_options_dialog() -> void:
+	var cid := str(Settings.get_value("car"))
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.5)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ui.add_child(shade)
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.07, 0.09, 0.97), 20, 1, UITheme.LINE, 22))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	p.add_child(v)
+	v.add_child(UITheme.label(Loc.t("car.paint_title") + " · " + Loc.t("car." + cid), 24, UITheme.TEXT, true))
+	var swatches := HBoxContainer.new()
+	swatches.add_theme_constant_override("separation", 6)
+	v.add_child(swatches)
+	for row in CarPaint.COLORS:
+		var key: String = row[0]
+		var sw := Button.new()
+		sw.flat = true
+		sw.focus_mode = Control.FOCUS_NONE
+		sw.custom_minimum_size = Vector2(92, 96)
+		sw.draw.connect(func() -> void:
+			var chosen := CarPaint.key_for(cid) == key
+			var c := Vector2(sw.size.x * 0.5, 34.0)
+			if chosen:
+				sw.draw_circle(c, 31.0, UITheme.GO)
+			sw.draw_circle(c, 26.0, Color(0, 0, 0, 0.5))
+			sw.draw_circle(c, 24.0, row[2])
+			# A highlight, as on a paint sample.
+			sw.draw_circle(c + Vector2(-8, -9), 7.0, Color(1, 1, 1, 0.16 + 0.2 * float(row[3])))
+			var f := UITheme.regular()
+			var caption := Loc.t("paint." + key)
+			var fs := 15
+			var w := f.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			sw.draw_string(f, Vector2(sw.size.x * 0.5 - w * 0.5, 86.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, fs,
+					UITheme.TEXT if chosen else UITheme.TEXT_DIM))
+		sw.pressed.connect(func() -> void:
+			Settings.set_value(CarPaint.setting_key(cid), key)
+			for s in swatches.get_children():
+				(s as Control).queue_redraw())
+		swatches.add_child(sw)
+	if cid == "onix":
+		var gb := HBoxContainer.new()
+		gb.add_theme_constant_override("separation", 10)
+		v.add_child(gb)
+		var gl := UITheme.label(Loc.t("car.gearbox"), 19, UITheme.TEXT)
+		gl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		gb.add_child(gl)
+		var buttons: Array[Button] = []
+		for opt in [["manual", "car.manual"], ["auto", "car.auto"]]:
+			var ob := UITheme.button(Loc.t(opt[1]), 18, 48)
+			ob.custom_minimum_size.x = 150
+			ob.toggle_mode = true
+			ob.button_pressed = str(Settings.get_value("onix_gearbox")) == opt[0]
+			ob.add_theme_stylebox_override("pressed", UITheme.box(UITheme.GO.darkened(0.15), 14, 0, UITheme.LINE, 12))
+			buttons.append(ob)
+			gb.add_child(ob)
+			ob.pressed.connect(func() -> void:
+				for o in buttons:
+					o.set_pressed_no_signal(o == ob)
+				if str(Settings.get_value("onix_gearbox")) == opt[0]:
+					return
+				Settings.set_value("onix_gearbox", opt[0]))
+	var close := func() -> void:
+		shade.queue_free()
+		p.queue_free()
+	var done := UITheme.primary_button(Loc.t("car.done"), 20, 52)
+	done.pressed.connect(close)
+	v.add_child(done)
+	shade.gui_input.connect(func(e: InputEvent) -> void:
+		if (e is InputEventMouseButton or e is InputEventScreenTouch) and e.pressed:
+			close.call())
+	_ui.add_child(p)
+	p.reset_size()
+	p.position = ((_ui.size - p.size) * 0.5).max(Vector2.ZERO)
+
+
 func _switch_car(step: int) -> void:
 	var i := Car.IDS.find(str(Settings.get_value("car")))
-	var cid: String = Car.IDS[posmod(i + step, Car.IDS.size())]
-	Settings.set_value("car", cid)
-	if _menu_car:
-		# A new car model means new GPU pipelines: guarded like a load.
-		Loading.guard_begin("menu car " + cid)
-		print("CAR switch %s" % cid)
-		_menu_car.configure(cid)
-		Loading.guard_end()
-	_show_car_name()
+	Settings.set_value("car", Car.IDS[posmod(i + step, Car.IDS.size())]) # -> _on_setting_changed
+
+
+## The car on the turntable follows the settings, whichever page changed them.
+func _on_setting_changed(key: String) -> void:
+	if key == "car" or key == "onix_gearbox":
+		if _menu_car:
+			var preset := Session.car_id()
+			# A new car model means new GPU pipelines: guarded like a load.
+			Loading.guard_begin("menu car " + preset)
+			print("CAR switch %s" % preset)
+			_menu_car.configure(preset)
+			Loading.guard_end()
+		_show_car_name()
+	elif key.begins_with("paint_"):
+		if _menu_car:
+			_menu_car.refresh_paint()
+		if _car_options and is_instance_valid(_car_options):
+			_car_options.queue_redraw()
 
 
 func _show_car_name() -> void:
 	var cid := str(Settings.get_value("car"))
 	if _car_name:
 		_car_name.text = Loc.t("car." + cid)
-		_car_type.text = Loc.t("car." + cid + "_desc")
+		_car_type.text = Loc.t("car." + Session.car_id() + "_desc")
+	if _car_options and is_instance_valid(_car_options):
+		_car_options.visible = CarPaint.paintable(cid)
+		_car_options.text = "     " + Loc.t("car.options" if cid == "onix" else "car.paint")
+		_car_options.queue_redraw()
 
 
 func _update_stats() -> void:

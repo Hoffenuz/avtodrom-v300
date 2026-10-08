@@ -69,10 +69,28 @@ S = {
     "car.nexia2": ("Nexia 2", "Nexia 2", "Nexia 2"),
     "car.cobalt_at": ("Cobalt", "Cobalt", "Cobalt"),
     "car.gentra": ("Gentra", "Gentra", "Gentra"),
+    "car.onix": ("Onix", "Onix", "Onix"),
+    "car.onix_at": ("Onix", "Onix", "Onix"),
     "car.gazelle": ("Gazelle NEXT", "Gazelle NEXT", "Газель NEXT"),
     "car.nexia2_desc": ("B toifa · mexanika", "B тоифа · механика", "кат. B · механика"),
     "car.cobalt_at_desc": ("B toifa · avtomat", "B тоифа · автомат", "кат. B · автомат"),
     "car.gentra_desc": ("B toifa · mexanika", "B тоифа · механика", "кат. B · механика"),
+    "car.onix_desc": ("B toifa · mexanika", "B тоифа · механика", "кат. B · механика"),
+    "car.onix_at_desc": ("B toifa · avtomat", "B тоифа · автомат", "кат. B · автомат"),
+    "car.options": ("Rang va uzatma", "Ранг ва узатма", "Цвет и коробка"),
+    "car.paint": ("Rangi", "Ранги", "Цвет"),
+    "car.paint_title": ("Mashina rangi", "Машина ранги", "Цвет машины"),
+    "car.gearbox": ("Uzatmalar qutisi", "Узатмалар қутиси", "Коробка передач"),
+    "car.gearbox_desc": ("Onix ikkala qutida ham bor", "Onix иккала қутида ҳам бор", "Onix бывает с обеими коробками"),
+    "car.manual": ("Mexanika", "Механика", "Механика"),
+    "car.auto": ("Avtomat", "Автомат", "Автомат"),
+    "car.done": ("Tayyor", "Тайёр", "Готово"),
+    "paint.white": ("Oq", "Оқ", "Белый"),
+    "paint.silver": ("Kumushrang", "Кумушранг", "Серебристый"),
+    "paint.grey": ("To‘q kulrang", "Тўқ кулранг", "Тёмно-серый"),
+    "paint.black": ("Qora", "Қора", "Чёрный"),
+    "paint.red": ("To‘q qizil", "Тўқ қизил", "Тёмно-красный"),
+    "paint.champagne": ("Shampan", "Шампан", "Шампань"),
     "car.gazelle_desc": ("BC toifa · mexanika, furgon", "BC тоифа · механика, фургон", "кат. BC · механика, фургон"),
 
     # exam intro
@@ -130,16 +148,22 @@ S = {
         "CC BY 4.0 litsenziyasi (creativecommons.org/licenses/by/4.0); o‘yin uchun o‘zgartirilgan. "
         "Gazelle NEXT 3D modeli: «[FREE] GAZelle Next - Pro», muallif UralStrong_lybnineg "
         "(sketchfab.com/lybnineg), CC BY 4.0; o‘yin uchun o‘zgartirilgan. "
+        "Onix 3D modeli: «chevrolet onix», muallif uzb_rx7 (sketchfab.com/uzbek_supra), "
+        "CC BY 4.0; o‘yin uchun o‘zgartirilgan. "
         "Teksturalar va osmon: Poly Haven (CC0). Shriftlar: Inter, Montserrat (SIL OFL).",
         "Gentra 3D модели: «Daewoo_ Gentra», муаллиф Doniyor 3D (sketchfab.com/doniyorgroup), "
         "CC BY 4.0 лицензияси (creativecommons.org/licenses/by/4.0); ўйин учун ўзгартирилган. "
         "Gazelle NEXT 3D модели: «[FREE] GAZelle Next - Pro», муаллиф UralStrong_lybnineg "
         "(sketchfab.com/lybnineg), CC BY 4.0; ўйин учун ўзгартирилган. "
+        "Onix 3D модели: «chevrolet onix», муаллиф uzb_rx7 (sketchfab.com/uzbek_supra), "
+        "CC BY 4.0; ўйин учун ўзгартирилган. "
         "Текстуралар ва осмон: Poly Haven (CC0). Шрифтлар: Inter, Montserrat (SIL OFL).",
         "3D-модель Gentra: «Daewoo_ Gentra», автор Doniyor 3D (sketchfab.com/doniyorgroup), "
         "лицензия CC BY 4.0 (creativecommons.org/licenses/by/4.0); изменена для игры. "
         "3D-модель Gazelle NEXT: «[FREE] GAZelle Next - Pro», автор UralStrong_lybnineg "
         "(sketchfab.com/lybnineg), лицензия CC BY 4.0; изменена для игры. "
+        "3D-модель Onix: «chevrolet onix», автор uzb_rx7 (sketchfab.com/uzbek_supra), "
+        "лицензия CC BY 4.0; изменена для игры. "
         "Текстуры и небо: Poly Haven (CC0). Шрифты: Inter, Montserrat (SIL OFL)."),
     "keys.title": ("Klaviatura tugmalari", "Клавиатура тугмалари", "Управление с клавиатуры"),
     "keys.close": ("yoki Esc — yopish", "ёки Esc — ёпиш", "или Esc — закрыть"),

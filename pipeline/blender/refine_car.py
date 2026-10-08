@@ -3,7 +3,7 @@ Blender (headless) clean-up pass over a built car (output of build_nexia.py /
 build_cobalt.py):
 
     python3 -c "import bpy"  # or: blender -b --python ...
-    blender -b --python pipeline/blender/refine_car.py -- <car.glb> <out.glb> nexia2|cobalt_at
+    blender -b --python pipeline/blender/refine_car.py -- <car.glb> <out.glb> nexia2|cobalt_at|gentra|gazelle|onix
 
 The heavy decimation in the build scripts leaves two kinds of damage that
 show in the game, and this pass repairs both:
@@ -67,6 +67,18 @@ SPEC = {
         "body_tris": 42000,
         "spin_tris": 3700,  # a lathed tyre (clean, not decimated) plus the rim
         "tunnel": True,  # manual: the gear-lever tunnel gets the modelled lever
+        "seats": None,
+        "headlight": None,
+    },
+    "onix": {
+        # Measured on build_onix.py's output: the steering wheel sits at
+        # y 0.45, z 0.92 (Gentra 0.39 / 0.84), the windscreen base at z 0.98.
+        "half_width": 0.77, "y_back": 0.59, "z_top": 1.04, "z_knee": 0.70, "z_floor": 0.53,
+        "cut_z": 0.58, "cut_keep_x": 0.67, "keep_pillars": (0.56, 1.03),
+        "hood_w": 0.38, "gauge_r": 0.060, "gauge_z": 0.985,
+        "body_tris": 42000,
+        "spin_tris": 2700,
+        "tunnel": False,  # keeps the model's own console and lever
         "seats": None,
         "headlight": None,
     },

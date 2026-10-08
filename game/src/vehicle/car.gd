@@ -29,6 +29,16 @@ const MODELS := {
 	"gentra": {"path": "res://assets/cars/gentra/gentra.glb", "lod": "res://assets/cars/lod/gentra_lod.glb", "front": 2.22, "rear": 2.31, "half_width": 0.87,
 			"mirror": Vector3(0.905, 1.019, -0.45), "speed_max": 240.0, "rpm_max": 8000.0,
 			"paint": Color(0.012, 0.012, 0.014)},
+	# Chevrolet Onix sedan (pipeline/blender/build_onix.py); "onix_at" is the
+	# same car with the automatic gearbox (settings "onix_gearbox").
+	"onix": {"path": "res://assets/cars/onix/onix.glb", "lod": "res://assets/cars/lod/onix_lod.glb", "front": 2.163, "rear": 2.322, "half_width": 0.877,
+			"mirror": Vector3(0.946, 1.033, -0.572), "speed_max": 220.0, "rpm_max": 7000.0, "height": 1.49,
+			# One-skin body (no headliner of its own): seen from the seats it is drawn
+			# as trim and headliner, as on the GAZelle.
+			"cockpit_shell": true,
+			# Its 2.5k-triangle shadow proxy bulges out of the rear quarters:
+			# kept inside, and the paint takes no shadow (no grey patches).
+			"shadow_inset": 0.05},
 	# GAZelle NEXT van (pipeline/blender/build_gazelle.py): the model's own
 	# front plate, the rear one low on the back doors.
 	"gazelle": {"path": "res://assets/cars/gazelle/gazelle.glb", "lod": "res://assets/cars/lod/gazelle_lod.glb", "front": 2.716, "rear": 3.352, "half_width": 1.03,
@@ -39,8 +49,9 @@ const MODELS := {
 					[Vector3(0.0, 0.66, 3.356), Vector3(0.0, 0.0, 1.0)]]},
 }
 const WHITE_PAINT := Color(0.93, 0.94, 0.95)
-## The cars on offer, in the order the menu shows them.
-const IDS := ["nexia2", "cobalt_at", "gentra", "gazelle"]
+## The cars on offer, in the order the menu shows them ("onix" stands for
+## both Onix gearboxes, see Session.car_id()).
+const IDS := ["nexia2", "cobalt_at", "gentra", "onix", "gazelle"]
 ## Vehicles of the truck categories (BC): the exam sends them through the
 ## trucks' lanes (the first 90° corridor, the wide box P1).
 const TRUCKS := CourseData.TRUCKS
@@ -128,6 +139,8 @@ var _ground_mat: ShaderMaterial
 var _simple_shadow := false
 var _sun: DirectionalLight3D
 var _sun_check := 0
+## The body paint (one material per car): a new colour only changes it.
+var _paint: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -144,10 +157,13 @@ func _ready() -> void:
 func configure(preset_id: String) -> void:
 	preset = preset_id
 	auto_clutch = bool(Settings.get_value("auto_clutch"))
-	# _ready() already built the default model when the car entered the tree.
-	if model and _model_preset != preset_id:
+	# _ready() already built the default model when the car entered the tree;
+	# a preset on the same model (the Onix's two gearboxes) keeps it.
+	if model and Car.spec_for(_model_preset)["path"] != Car.spec_for(preset_id)["path"]:
 		_clear_model()
 		_load_model()
+	else:
+		refresh_paint()
 
 
 # --------------------------------------------------------------------------- model
@@ -176,7 +192,7 @@ func _clear_model() -> void:
 
 func _load_model() -> void:
 	_model_preset = preset
-	var spec: Dictionary = MODELS.get(preset, MODELS["nexia2"])
+	var spec: Dictionary = Car.spec_for(preset)
 	body_front = spec["front"]
 	body_rear = spec["rear"]
 	body_half_width = spec["half_width"]
@@ -203,7 +219,8 @@ func _load_model() -> void:
 		var mi := model.find_child(n, true, false) as MeshInstance3D
 		if mi:
 			_lamps[n] = mi
-	_apply_materials(model, spec.get("paint", WHITE_PAINT), not spec.has("shadow_inset"))
+	_paint = _apply_materials(model, spec.get("paint", WHITE_PAINT), not spec.has("shadow_inset"))
+	refresh_paint()
 	# The player's car stays near the camera: its automatic LODs (switched
 	# early on phones, EnvironmentSetup.apply_viewport) fold the smooth body
 	# into visible creases in the paint's highlights.
@@ -628,7 +645,27 @@ static func _cabin(color: Color, roughness: float, metallic := 0.0) -> StandardM
 ## participants' cars, TrafficCars).
 ## `paint_shadows` false: the paint takes no shadows (a van's long flat
 ## sides caught its own simplified shadow caster in patches).
-static func _apply_materials(root: Node, paint_color: Color, paint_shadows := true) -> void:
+## The model spec of a preset (the automatic Onix uses the Onix's).
+static func spec_for(preset_id: String) -> Dictionary:
+	return MODELS.get(CarPaint.base_id(preset_id), MODELS["nexia2"])
+
+
+## Puts the colour chosen for this car (CarPaint) on the body paint.
+func refresh_paint() -> void:
+	var e := CarPaint.entry(CarPaint.key_for(preset))
+	if _paint == null or e.is_empty():
+		return
+	Car.set_paint(_paint, e[2], e[3], e[4])
+
+
+static func set_paint(paint: StandardMaterial3D, colour: Color, metallic: float, roughness: float) -> void:
+	paint.albedo_color = colour
+	paint.metallic = metallic
+	paint.roughness = roughness
+
+
+## Returns the body paint material.
+static func _apply_materials(root: Node, paint_color: Color, paint_shadows := true) -> StandardMaterial3D:
 	# A dark paint needs a smoother top coat to read as paint, not plastic.
 	var dark := paint_color.get_luminance() < 0.2
 	var paint := _pbr(paint_color, 0.05, 0.2 if dark else 0.28)
@@ -678,6 +715,7 @@ static func _apply_materials(root: Node, paint_color: Color, paint_shadows := tr
 		# The shadow comes from the light proxy (see _add_shadow_proxy): the
 		# full model would cost ~100k triangles again in the shadow pass.
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return paint
 
 
 func _make_gauges(spec: Dictionary) -> void:

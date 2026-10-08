@@ -207,6 +207,85 @@ VehicleParams make_gentra() {
 	return p;
 }
 
+VehicleParams make_onix(bool automatic) {
+	VehicleParams p;
+	p.id = automatic ? "onix_at" : "onix";
+	p.mass = (automatic ? 1150.0 : 1125.0) + 75.0;
+	// Estimated like the Gentra's (same size class, ~61/39 front/rear).
+	p.inertia = { 600.0, 2060.0, 1910.0 };
+	p.center_of_mass = { 0.0, 0.53, -0.27 };
+	p.drag_area = 0.31 * 2.08;
+	// Measured on the game model (pipeline/blender/build_onix.py, scaled to
+	// the maker's 2600 mm wheelbase): track 1533 mm at the wheel centres.
+	p.wheelbase = 2.60;
+	p.track = 1.533;
+	p.abs = true;
+
+	EngineParams &e = p.engine;
+	// 1.2 turbo (CSS Prime): 173 N·m from 2000 to 4000 rpm, 115 hp @ 5200 rpm;
+	// the turbo fills in between 1500 and 2500 rpm (as felt from a launch).
+	e.torque_full = Curve{ { 0.0, 70.0 }, { 600.0, 95.0 }, { 1000.0, 110.0 }, { 1500.0, 128.0 }, { 2000.0, 155.0 },
+		{ 2500.0, 173.0 }, { 4000.0, 173.0 }, { 4600.0, 166.0 }, { 5200.0, 157.0 }, { 5800.0, 138.0 },
+		{ 6200.0, 112.0 }, { 6600.0, 80.0 } };
+	e.inertia = 0.13;
+	e.idle_rpm = 800.0;
+	e.limiter_rpm = 6300.0;
+	e.redline_rpm = 6000.0;
+
+	GearboxParams &g = p.gearbox;
+	if (automatic) {
+		// GM GF6 6-speed automatic.
+		g.type = TransmissionType::Automatic;
+		g.forward = { 4.449, 2.908, 1.893, 1.446, 1.000, 0.742 };
+		g.reverse = 2.871;
+		g.final_drive = 3.49;
+		g.efficiency = 0.90;
+		g.upshift_kmh_light = { 16.0, 29.0, 42.0, 55.0, 68.0 };
+		g.upshift_kmh_full = { 44.0, 76.0, 110.0, 145.0, 175.0 };
+		g.downshift_hysteresis_kmh = 8.0;
+		g.creep_idle_rpm = 750.0;
+		TorqueConverterParams &tc = g.converter;
+		tc.k_factor = Curve{ { 0.0, 150.0 }, { 0.5, 158.0 }, { 0.7, 170.0 }, { 0.8, 185.0 }, { 0.86, 205.0 },
+			{ 0.92, 260.0 }, { 0.97, 450.0 }, { 1.0, 2000.0 } };
+		tc.torque_ratio = Curve{ { 0.0, 2.0 }, { 0.3, 1.72 }, { 0.6, 1.36 }, { 0.8, 1.10 }, { 0.86, 1.0 }, { 1.0, 1.0 } };
+		tc.turbine_inertia = 0.05;
+	} else {
+		// 6-speed manual; a tall 1st gear keeps the turbo's
+		// torque from spinning the front tyres at a full-throttle start.
+		p.clutch.max_torque = 240.0;
+		g.type = TransmissionType::Manual;
+		g.forward = { 3.154, 1.947, 1.300, 0.976, 0.787, 0.660 };
+		g.reverse = 3.818;
+		g.final_drive = 3.94;
+		g.efficiency = 0.93;
+	}
+
+	TireParams &t = p.tire;
+	t.radius = 0.317; // the game model's tyre (185/65 R15 ~ 0.311 m)
+	t.width = 0.185;
+	t.load_nominal = (p.mass * kGravity) / 4.0;
+
+	p.steering.wheel_lock_deg = 500.0;
+	p.steering.max_road_angle_deg = 37.0; // 10.4 m turning circle
+
+	layout_wheels(p, p.wheelbase, p.track, p.track, t.radius, 0.27);
+	for (int i = 0; i < 4; ++i) {
+		WheelParams &w = p.wheels[static_cast<size_t>(i)];
+		const bool front = i < 2;
+		w.inertia = front ? 1.2 : 1.0;
+		w.brake_torque = front ? 1470.0 : 630.0;
+		w.handbrake_torque = front ? 0.0 : 1000.0;
+		w.spring_rate = front ? 25000.0 : 21000.0;
+		w.damper_bump = front ? 1700.0 : 1400.0;
+		w.damper_rebound = front ? 2700.0 : 2250.0;
+		w.travel_up = 0.10;
+		w.travel_down = 0.09;
+	}
+	p.anti_roll_front = 12500.0;
+	p.anti_roll_rear = 4000.0;
+	return p;
+}
+
 VehicleParams make_gazelle() {
 	VehicleParams p;
 	p.id = "gazelle";
@@ -289,6 +368,9 @@ VehicleParams make_preset(const std::string &id) {
 	}
 	if (id == "gentra") {
 		return make_gentra();
+	}
+	if (id == "onix" || id == "onix_at") {
+		return make_onix(id == "onix_at");
 	}
 	return make_nexia2();
 }

@@ -139,6 +139,20 @@ blender -b --python pipeline/blender/build_car_lod.py -- game/assets/cars/gentra
 blender -b --python pipeline/blender/build_parked_car.py -- game/assets/cars/gentra/gentra.glb game/assets/cars/lod/gentra_parked.glb
 ```
 
+Onix (Sketchfab, CC BY 4.0) ham ikki bosqichda: `build_onix.py` g'ildiraklarni
+bir izga tekislaydi, antenna, rul ostidagi ortiqcha chiroq nusxasi va raqam
+yozuvlarini olib tashlaydi, 310 ming uchburchakni kamaytiradi, salon ichidagi
+bo'yoq yuzlarini kulrang qoplamaga o'tkazadi (rang almashsa salon bo'yalmaydi);
+`refine_car.py ... onix` torpedo va ko'rsatkichlarni yasaydi. Mexanika va
+avtomat bitta model: C++ presetlari `onix` / `onix_at`
+(Sozlamalar → "Uzatmalar qutisi"):
+
+```
+blender -b --python pipeline/blender/build_onix.py -- "chevrolet_onix (2).glb" onix_build.glb
+blender -b --python pipeline/blender/refine_car.py -- onix_build.glb game/assets/cars/onix/onix.glb onix
+blender -b --python pipeline/blender/build_car_lod.py -- game/assets/cars/onix/onix.glb game/assets/cars/lod/onix_lod.glb
+```
+
 Ilova ochilishidagi rasm (Godot boot splash — skriptlardan oldin
 ko'rinadi, keyin uni loading sahifasi davom ettiradi):
 `python pipeline/make_splash.py` → `game/assets/ui/boot_splash.png`.
@@ -298,6 +312,12 @@ joyini surish — kamerani aylantirish.
   muallif UralStrong_lybnineg (https://sketchfab.com/lybnineg), litsenziya
   CC-BY-4.0. O'zgartirilgan: masshtablangan, shinalar almashtirilgan, rul va
   torpedo qo'shilgan, uchburchaklar kamaytirilgan, rangi oq.
+- Onix 3D modeli: "chevrolet onix"
+  (https://sketchfab.com/3d-models/chevrolet-onix-bfd798c2695847b28ab681d42abc7056),
+  muallif uzb_rx7 (https://sketchfab.com/uzbek_supra), litsenziya CC-BY-4.0.
+  O'zgartirilgan: masshtablangan, g'ildiraklar tekislangan, antenna va ortiqcha
+  qismlar olib tashlangan, uchburchaklar 310 mingdan ~80 minggacha kamaytirilgan,
+  torpedo va ko'rsatkichlar qayta qurilgan, raqam belgilari almashtirilgan.
 - Teksturalar va osmon: Poly Haven (CC0).
 - Shriftlar: Inter va Montserrat (SIL Open Font License, `game/assets/fonts/OFL.txt`).
 - Yo'l belgilari va jarima jadvali: AvtoSmart (variant-vision-quiz) ma'lumotlari.

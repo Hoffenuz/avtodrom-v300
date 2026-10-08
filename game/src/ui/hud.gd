@@ -405,7 +405,9 @@ func _layout() -> void:
 	var steer_mode := str(Settings.get_value("steering_mode"))
 	var manual_clutch := not car.is_automatic() and not car.auto_clutch
 	var left_handed := bool(Settings.get_value("left_handed"))
-	var controls_on := touch_mode and not demo
+	# In the demonstrations too: the wheel and pedals show what the autopilot
+	# does (they only take touches when the player drives, see below).
+	var controls_on := touch_mode
 
 	# Top row, right: pause, camera, map.
 	var bx := R - 60.0
@@ -489,6 +491,9 @@ func _layout() -> void:
 	for c in [gas, brake_pedal, gears, b_key, b_belt, b_handbrake, b_ind_left, b_ind_right, b_hazard]:
 		c.visible = controls_on
 	clutch_pedal.visible = controls_on and manual_clutch
+	for c in [wheel, btn_steer_left, btn_steer_right, gas, brake_pedal, clutch_pedal, gears, b_key, b_belt,
+			b_handbrake, b_ind_left, b_ind_right, b_hazard]:
+		(c as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE if demo else Control.MOUSE_FILTER_STOP
 	b_map.visible = director != null or data != null
 
 	# Speed strip: bottom centre, between the wheel and the pedals on phones.

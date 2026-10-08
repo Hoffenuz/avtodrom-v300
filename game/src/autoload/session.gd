@@ -71,8 +71,13 @@ func route_visible() -> bool:
 	return mode == Mode.EXAM and bool(Settings.get_value("show_route"))
 
 
+## The car preset to drive: the menu's choice, the Onix with the gearbox
+## chosen in the settings ("onix" manual, "onix_at" automatic).
 func car_id() -> String:
-	return car_override if car_override != "" else str(Settings.get_value("car"))
+	var cid := car_override if car_override != "" else str(Settings.get_value("car"))
+	if cid == "onix" and str(Settings.get_value("onix_gearbox")) == "auto":
+		return "onix_at"
+	return cid
 
 
 func record_result(result: Dictionary) -> void:

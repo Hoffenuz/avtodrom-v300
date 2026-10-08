@@ -201,7 +201,11 @@ func _setup_traffic(seed_arg: int) -> void:
 		if arg.begins_with("--traffic="): # checks (also with the autopilot: frame-time runs)
 			count = int(arg.substr(10))
 			forced = true
-	if count <= 0 or ((autopilot != null or Session.demo) and not forced):
+	# The demonstrations drive among the other participants as the player
+	# would (they wait while the car is on their way); the automated checks
+	# stay alone unless they ask for traffic.
+	if count <= 0 or (autopilot != null and not Session.demo and not forced) \
+			or ("--autopilot-test" in OS.get_cmdline_user_args() and not forced):
 		return
 	traffic_cars = TrafficCars.new()
 	add_child(traffic_cars)

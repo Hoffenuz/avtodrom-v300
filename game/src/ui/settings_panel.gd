@@ -270,6 +270,8 @@ func _build_general() -> void:
 	for cid in Car.IDS:
 		cars.append([cid, Loc.t("car." + cid)])
 	_row("menu.car", _segmented("car", cars), "set.car_desc")
+	_row("car.gearbox", _segmented("onix_gearbox", [["manual", Loc.t("car.manual")], ["auto", Loc.t("car.auto")]]),
+			"car.gearbox_desc")
 	var reset := UITheme.button(Loc.t("set.reset"), 19, 56)
 	reset.custom_minimum_size.x = 220
 	reset.pressed.connect(func() -> void:

@@ -3,7 +3,7 @@ extends Node
 ##   --shots=<dir>        save a screenshot every --shot-every seconds
 ##   --shot-every=<s>     interval (default 2)
 ##   --quit-after-s=<s>   quit after this many seconds of game time
-##   --menu-page=<name>   open a main-menu page (practice, rules, settings, history, help)
+##   --menu-page=<name>   open a main-menu page (practice, rules, settings, history, help, car_options)
 ##   --perf               print frame/physics/render counters every 2 s, and a
 ##                        summary (average and worst frame) on exit
 ## Inactive unless one of them is given.

@@ -12,7 +12,13 @@ const SECTION := "settings"
 
 const DEFAULTS := {
 	"language": "uz_latn", # uz_latn | uz_cyrl | ru
-	"car": "nexia2", # nexia2, gentra (mexanika) | cobalt_at (avtomat) — Car.IDS
+	"car": "nexia2", # nexia2, gentra (mexanika) | cobalt_at (avtomat) | onix | gazelle — Car.IDS
+	"onix_gearbox": "manual", # manual | auto: the Onix comes with either
+	# Body colour per car (CarPaint.COLORS keys; "" = the car's own).
+	"paint_nexia2": "",
+	"paint_cobalt_at": "",
+	"paint_gentra": "",
+	"paint_onix": "",
 	"auto_clutch": true, # manual gearbox: the simulation works the clutch
 	"abs": true,
 	"steering_mode": "wheel", # wheel | tilt | buttons (on-screen controls)

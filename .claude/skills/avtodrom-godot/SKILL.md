@@ -20,6 +20,11 @@ Har qadamdan oldin: kerakli faylni `Grep` bilan toping, `Read` ni `offset/limit`
   orolidagi uzun cho'ntak (7.6.1+7.4.1, TRUCK_POCKET_PX). `--debug` ikkala rejimda overlay chizadi
   (`reference/debug_course[_truck].png`). Belgi rasmi o'zgarsa: `python pipeline/make_sign_atlas.py` + import.
 - Mashinalar: `car.gd` `MODELS` + C++ preset (`vehicle_params.cpp`). Yuk: `CourseData.TRUCKS`.
+  Onix: menyuda bitta "onix", `Session.car_id()` sozlama `onix_gearbox` bo'yicha `onix`/`onix_at` beradi
+  (bitta model, `Car.spec_for()`; `configure()` model yo'li bir xil bo'lsa qayta yuklamaydi).
+- Rang: `vehicle/car_paint.gd` (6 rang, `paint_<car>` sozlamalari, Gazelle yo'q). Faqat bo'yoq materiali
+  (`Car._paint`, `refresh_paint()`) — grafikaga yuk yo'q. Menyu: mashina ostidagi "Rang va uzatma" oynasi
+  (`--menu-page=car_options`), `Settings.changed` → turntable mashinasi yangilanadi.
 
 ## Buyruqlar (repo ildizidan, Git Bash)
 ```
@@ -46,6 +51,7 @@ Kutilgan natija: `RESULT ... penalty=0`.
 --autopilot --seed=N --traffic=N --traffic-near --traffic-log --quality=0..2 --set=key:value --perf
 --shots=<dir> --shot-every=S --quit-after-s=S --menu-page=... --settings-tab=... --start=exam|free|<id>
 --stall-test --print-diagnostics --physics-hz=60 --no-process=<node,...> --keys-sheet (F1 oynasi ochiq) --hang-test`
+- `--set=key:value` qiymatni `str_to_var` bilan o'qiydi: matn qo'shtirnoqda bo'lsin (`"--set=paint_onix:\"red\""`).
 - Eksport EXE sahna yo'lini qabul qilmaydi → `--start=` bilan menyudan kiring.
 - Skrinshot: `--windowed --resolution 1920x1080` (aks holda to'liq ekran va fokusni oladi).
 - Statik ko'rinishlar: `res://tests/scenery_shots.tscn -- <dir> <quality> <shots.json>`;
@@ -118,6 +124,10 @@ Kutilgan natija: `RESULT ... penalty=0`.
 - Chiroqlar: Mobile renderer ~2x da kesadi, OpenGL kesmaydi → 7x qizil oqarib ketadi. `_make_lamp_materials`
   va turn_glow OpenGL'da toza rang + ~0.36x energiya. Test: `car_render_test ... brake q=1` +
   `--rendering-method gl_compatibility --rendering-driver opengl3`.
+- Sketchfab manbalari ikki tomonlama chiziladi: yuzlarning yarmi teskari bo'lishi mumkin (Godot'da kuzov
+  "yirtiq"). Tekshirish: Blender workbench `show_backface_culling = True` bilan render. Tuzatish:
+  `build_onix.py` `weld()` + `orient()` (manifold bo'laklar, nur bilan tashqi tomon). Onix bitta qatlamli
+  kuzov → `cockpit_shell`; soya proksisi orqa qanotdan chiqadi → `shadow_inset` 0.05.
 - O'yinchi mashinasi `lod_bias = 4` (telefonda avto-LOD kuzovda "buklangan" qirralar beradi).
 - Osmon (`EnvironmentSetup._sky`) sessiyada bitta: radiance bir marta filtrlanadi. Jurnalda
   `LOAD uncovered ... after N ms` — sahifa yopilgan payt (telefondan jurnal so'rang).

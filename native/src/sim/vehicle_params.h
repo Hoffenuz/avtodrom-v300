@@ -150,6 +150,12 @@ VehicleParams make_cobalt_at();
 // Lacetti/Gentra D-series 5-speed (estimate where UzAuto does not publish them).
 VehicleParams make_gentra();
 
+// Chevrolet Onix sedan (2nd gen, UzAuto), 1.2 turbo, FWD, 6-speed manual
+// ("onix") or 6-speed automatic ("onix_at"). Maker data: 115 hp @ 5200 rpm,
+// 173 N·m @ 2000-4000 rpm, curb ~1125/1150 kg, wheelbase 2600 mm, length
+// 4474 mm, tyres 185/65 R15.
+VehicleParams make_onix(bool automatic);
+
 // GAZ GAZelle NEXT van (A31R32), Cummins ISF 2.8 turbodiesel, 5-speed manual,
 // rear-wheel drive. Maker data: 120 hp @ 3400 rpm, 297 N·m @ 1400-2600 rpm,
 // curb ~2150 kg, wheelbase 3745 mm, tyres 185/75 R16C. Categories B / C
