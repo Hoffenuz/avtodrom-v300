@@ -86,7 +86,7 @@ S = {
     "car.auto": ("Avtomat", "Автомат", "Автомат"),
     "car.done": ("Tayyor", "Тайёр", "Готово"),
     "paint.white": ("Oq", "Оқ", "Белый"),
-    "paint.silver": ("Kumushrang", "Кумушранг", "Серебристый"),
+    "paint.darkblue": ("To‘q ko‘k", "Тўқ кўк", "Тёмно-синий"),
     "paint.grey": ("To‘q kulrang", "Тўқ кулранг", "Тёмно-серый"),
     "paint.black": ("Qora", "Қора", "Чёрный"),
     "paint.red": ("To‘q qizil", "Тўқ қизил", "Тёмно-красный"),

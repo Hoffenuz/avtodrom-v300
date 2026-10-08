@@ -14,6 +14,9 @@ var wait := 0
 ## "spin" mode: close-ups of the left and right wheels at several spin angles.
 var spin_mode := false
 var turn_mode := false
+## "body" mode: the paint up close (rear quarters, the boot and plate) and
+## views through the windows, where a one-sided body shows the far side.
+var body_mode := false
 
 
 func _ready() -> void:
@@ -50,6 +53,8 @@ func _ready() -> void:
 		car.ignition = true
 	elif args.size() > 2 and args[2] == "spin":
 		spin_mode = true
+	elif args.size() > 2 and args[2] == "body":
+		body_mode = true
 	elif args.size() > 2 and args[2] in ["detail", "detail_lit"]:
 		detail_mode = true
 		if args[2] == "detail_lit":
@@ -97,6 +102,18 @@ func _ready() -> void:
 			["t_side", 30, Vector3(-4.5, 1.0, -0.6), Vector3(0, 0.6, -0.6)],
 			["t_headlamp", 22, Vector3(-1.5, 0.9, -3.6), Vector3(-0.6, 0.72, -2.05)],
 			["t_rear", 26, Vector3(-0.8, 1.0, 4.4), Vector3(-0.55, 0.8, 2.1)],
+		]
+	if body_mode:
+		shots = [
+			["b_quarter_left", 34, Vector3(-3.4, 1.3, 3.6), Vector3(-0.6, 0.75, 1.3)],
+			["b_quarter_right", 34, Vector3(3.4, 1.3, 3.6), Vector3(0.6, 0.75, 1.3)],
+			["b_rear", 30, Vector3(0, 1.1, 5.4), Vector3(0, 0.7, 2.0)],
+			["b_rear_low", 26, Vector3(0.6, 0.6, 4.2), Vector3(0, 0.55, 2.2)],
+			["b_through_left", 40, Vector3(-4.2, 1.15, 0.4), Vector3(0, 1.0, 0.2)],
+			["b_through_right", 40, Vector3(4.2, 1.15, -0.2), Vector3(0, 1.0, 0.0)],
+			["b_through_rear", 40, Vector3(1.2, 1.7, 5.2), Vector3(0, 1.05, 0.5)],
+			["b_chase", 55, Vector3(0, 2.2, 6.2), Vector3(0, 0.9, -1.0)],
+			["b_above", 40, Vector3(-3.2, 3.8, 2.4), Vector3(0, 0.6, 0.0)],
 		]
 	if spin_mode:
 		shots = []

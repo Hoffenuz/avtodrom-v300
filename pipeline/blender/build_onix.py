@@ -28,6 +28,7 @@ BodyOuter, as for the other cars.
 """
 import math
 import sys
+from collections import deque
 
 import bmesh
 import bpy
@@ -226,11 +227,8 @@ def island_labels(obj, pred):
 # --- 1b. Face orientation ----------------------------------------------------------------------
 # The source was made for a double-sided viewer: about half the faces are
 # wound backwards. A one-sided engine drops those (the body shows as torn
-# patches) and smooth normals across them cancel out. The winding is made
-# consistent across manifold edges, then each such piece is turned to face
-# outwards: a closed piece away from its own centre; an open sheet (glass, a
-# body panel, a stray triangle) away from the car's centre line, or, inside
-# the cabin, towards it.
+# patches) and smooth normals across them cancel out: every face is turned
+# outwards (weld, then orient).
 INTERIOR_SET = set(INTERIOR)
 
 
@@ -273,63 +271,53 @@ def occluders():
 
 
 def orient(o, tree):
-    """Each manifold piece faces the side its faces see the open sky from: a
-    few of its faces cast a ray each way and the side that escapes the car
-    more often is outside. Where neither does (inside the cabin, a lamp's
-    inner parts) the shape decides: a closed piece faces away from its own
-    centre, an open sheet away from the car's centre line, or, for the cabin
-    parts, towards it."""
+    """Each face is turned to the side it sees the open sky from: a ray
+    each way from its centre, and the side that escapes the car (through
+    the windows too: the glass is not in the BVH) is outside. A face that
+    cannot tell (both or neither ray escapes: inside a lamp, under a seat)
+    takes the winding of its neighbours across manifold edges. Whatever is
+    still unknown falls back to the shape: away from the car's centre line,
+    or, for the cabin parts, towards it. A whole-piece decision did not do:
+    the body shell's winding was mixed within one piece."""
     bm = bmesh.new()
     bm.from_mesh(o.data)
     bm.faces.ensure_lookup_table()
-    seen = set()
-    flipped = 0
-    for f0 in bm.faces:
-        if f0.index in seen:
+    state = {}
+    for f in bm.faces:
+        n = f.normal
+        if n.length < 0.5:
             continue
-        stack, isl = [f0], []
-        seen.add(f0.index)
-        while stack:
-            g = stack.pop()
-            isl.append(g)
-            for e in g.edges:
-                if len(e.link_faces) != 2:
-                    continue  # only across manifold edges, where the winding agrees
-                for h in e.link_faces:
-                    if h.index not in seen:
-                        seen.add(h.index)
-                        stack.append(h)
-        sample = sorted(isl, key=lambda f: -f.calc_area())[:48]
-        votes = 0
-        for f in sample:
-            c = f.calc_center_median()
-            n = f.normal
-            if n.length < 0.5:
+        c = f.calc_center_median()
+        out = tree.ray_cast(c + n * 0.003, n, 30.0)[0] is None
+        back = tree.ray_cast(c - n * 0.003, -n, 30.0)[0] is None
+        if out != back:
+            state[f.index] = 1 if out else -1
+    queue = deque(f for f in bm.faces if f.index in state)
+    while queue:
+        f = queue.popleft()
+        sf = state[f.index]
+        for loop in f.loops:
+            e = loop.edge
+            if len(e.link_faces) != 2:
                 continue
-            out = tree.ray_cast(c + n * 0.003, n, 30.0)[0] is None
-            back = tree.ray_cast(c - n * 0.003, -n, 30.0)[0] is None
-            votes += int(out) - int(back)
-        if abs(votes) >= max(2, len(sample) // 6):
-            score = float(votes)
-        else:
-            pts = [v.co for f in isl for v in f.verts]
-            mn, mx = bounds_pts(pts)
-            centre = (mn + mx) / 2
-            edges = {e for f in isl for e in f.edges}
-            sheet = sum(1 for e in edges if len(e.link_faces) != 2) > 0.03 * len(edges)
-            score = 0.0
-            for f in isl:
-                c = f.calc_center_median()
-                if sheet:
-                    axis = Vector((0.0, max(-1.4, min(1.6, c.y)), -0.2))
-                    d = (c - axis) if o.name not in INTERIOR_SET else (axis - c)
-                else:
-                    d = c - centre
-                score += f.calc_area() * f.normal.dot(d)
-        if score < 0.0:
-            for f in isl:
-                f.normal_flip()
-            flipped += len(isl)
+            g = e.link_faces[0] if e.link_faces[1] == f else e.link_faces[1]
+            if g.index in state:
+                continue
+            lg = next(lp for lp in g.loops if lp.edge == e)
+            # Consistent winding runs the shared edge the other way round.
+            state[g.index] = sf if lg.vert != loop.vert else -sf
+            queue.append(g)
+    flipped = 0
+    for f in bm.faces:
+        sf = state.get(f.index)
+        if sf is None:
+            c = f.calc_center_median()
+            axis = Vector((0.0, max(-1.4, min(1.6, c.y)), -0.2))
+            d = (c - axis) if o.name not in INTERIOR_SET else (axis - c)
+            sf = 1 if f.normal.dot(d) >= 0.0 else -1
+        if sf < 0:
+            f.normal_flip()
+            flipped += 1
     bm.to_mesh(o.data)
     bm.free()
     return flipped
@@ -568,9 +556,12 @@ for o in rest:
     assign(o, lambda s: MAT_RULE.get(s, "trim_black"))
 body = join(rest, "Body")
 
-# The painted shell's inner faces (roof, pillars and doors from the inside)
-# turn into cabin trim: seen through the windows they must not wear the paint.
+# The painted shell's inner faces (roof, pillars, door shuts and the doors
+# from the inside: faces in the cabin turned towards its middle) become
+# cabin trim; seen from the seats or through the windows they must not wear
+# the paint.
 me = body.data
+DRIVER_EYE = Vector((-0.376, -0.07, 1.26))  # behind the steering wheel (car.gd cockpit_eye)
 mi_head = len(me.materials)
 me.materials.append(sem["headliner"])
 mi_trim = len(me.materials)
@@ -581,22 +572,34 @@ for p in me.polygons:
     if p.material_index not in paint_i:
         continue
     c, n = p.center, p.normal
-    if not (-1.25 < c.y < 1.0 and abs(c.x) < 0.78):
+    if not (-1.75 < c.y < 1.15 and abs(c.x) < 0.9 and 0.3 < c.z < 1.6):
         continue
-    if c.z > 1.05 and n.z < -0.5:
-        p.material_index = mi_head
-        inner += 1
-    elif c.z > 0.3 and abs(c.x) > 0.42 and n.x * (1 if c.x > 0 else -1) < -0.5:
-        p.material_index = mi_trim
-        inner += 1
+    if c.y < -1.25 and c.z < 0.95:
+        continue  # the boot
+    to_mid = Vector((0.0, max(-1.2, min(0.9, c.y)), 0.95)) - c
+    # Or turned to the driver's eye (door shuts, pillar edges round the
+    # glass): the outer panels all face away from it. The door mirrors and
+    # the bonnet stay paint.
+    to_eye = (DRIVER_EYE - c).normalized()
+    if n.dot(to_mid.normalized()) < 0.35 and not (n.dot(to_eye) > 0.2 and abs(c.x) < 0.86 and c.y < 1.0):
+        continue
+    p.material_index = mi_head if (c.z > 1.05 and n.z < -0.5) else mi_trim
+    inner += 1
 print("paint faces turned to cabin trim:", inner)
 
-# Plain plate fields: the rear one is the source's (lettering dropped); the
-# front one sits in the plate recess of the lower grille.
+# Plain plate fields of the real plate's size (520 x 112 mm), flat in their
+# recesses: the game lays its AVTOSMART plates exactly over them. The rear
+# one replaces the source's field (smaller, bent with the bumper: its edge
+# showed above the new plate, which stood off at an angle); the front one
+# sits in the plate recess of the lower grille.
 plate_i = [i for i, m in enumerate(me.materials) if m and m.name == "plate"]
-rear_pts = [me.vertices[v].co for p in me.polygons if p.material_index in plate_i for v in p.vertices]
-assert rear_pts, "rear plate field not found"
+old_field = [p for p in me.polygons if p.material_index in plate_i]
+assert old_field, "rear plate field not found"
+rear_pts = [me.vertices[v].co for p in old_field for v in p.vertices]
 rmn, rmx = bounds_pts(rear_pts)
+rear_c = (rmn + rmx) / 2
+
+rear_y = min(v.y for v in rear_pts)
 # The recess is the flat black panel in the lower grille (the slats around it
 # are small faces): its big forward-facing faces, area-weighted.
 recess = [p for p in me.polygons if abs(p.center.x) < 0.3 and p.center.y > 2.0 and 0.38 < p.center.z < 0.65
@@ -606,16 +609,19 @@ front_y = max(p.center.y for p in recess)
 front_z = sum(p.center.z * p.area for p in recess) / sum(p.area for p in recess)
 bm = bmesh.new()
 bm.from_mesh(me)
+bm.faces.ensure_lookup_table()
+bmesh.ops.delete(bm, geom=[bm.faces[p.index] for p in old_field], context="FACES")
 w, h = 0.52 / 2, 0.112 / 2
-vs = [bm.verts.new((dx * w, front_y + 0.006, front_z + dz * h)) for dx, dz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-f = bm.faces.new(vs)
-f.material_index = plate_i[0]
-f.normal_update()
-if f.normal.y < 0:
-    f.normal_flip()
+for cy, cz, outward in ((front_y + 0.006, front_z, 1.0), (rear_y - 0.006, rear_c.z, -1.0)):
+    vs = [bm.verts.new((dx * w, cy, cz + dz * h)) for dx, dz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    f = bm.faces.new(vs)
+    f.material_index = plate_i[0]
+    f.normal_update()
+    if f.normal.y * outward < 0:
+        f.normal_flip()
 bm.to_mesh(me)
 bm.free()
-print(f"PLATES rear centre={tuple(round(v, 3) for v in (rmn + rmx) / 2)} size={tuple(round(v, 3) for v in rmx - rmn)}"
+print(f"PLATES rear y={rear_y - 0.006:.3f} z={rear_c.z:.3f} (old field {tuple(round(v, 3) for v in rmx - rmn)})"
       f" front y={front_y:.3f} z={front_z:.3f}")
 
 decimate(body, 70000)

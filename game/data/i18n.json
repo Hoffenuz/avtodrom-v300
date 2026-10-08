@@ -279,10 +279,10 @@
   "uz_cyrl": "Оқ",
   "ru": "Белый"
  },
- "paint.silver": {
-  "uz_latn": "Kumushrang",
-  "uz_cyrl": "Кумушранг",
-  "ru": "Серебристый"
+ "paint.darkblue": {
+  "uz_latn": "To‘q ko‘k",
+  "uz_cyrl": "Тўқ кўк",
+  "ru": "Тёмно-синий"
  },
  "paint.grey": {
   "uz_latn": "To‘q kulrang",

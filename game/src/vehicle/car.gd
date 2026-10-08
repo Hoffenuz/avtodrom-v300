@@ -33,9 +33,9 @@ const MODELS := {
 	# same car with the automatic gearbox (settings "onix_gearbox").
 	"onix": {"path": "res://assets/cars/onix/onix.glb", "lod": "res://assets/cars/lod/onix_lod.glb", "front": 2.163, "rear": 2.322, "half_width": 0.877,
 			"mirror": Vector3(0.946, 1.033, -0.572), "speed_max": 220.0, "rpm_max": 7000.0, "height": 1.49,
-			# One-skin body (no headliner of its own): seen from the seats it is drawn
-			# as trim and headliner, as on the GAZelle.
-			"cockpit_shell": true,
+			# One-skin body: its inside (seen through the windows and the panel
+			# gaps, and from the seats) is drawn as trim and headliner.
+			"inner_shell": true,
 			# Its 2.5k-triangle shadow proxy bulges out of the rear quarters:
 			# kept inside, and the paint takes no shadow (no grey patches).
 			"shadow_inset": 0.05},
@@ -243,6 +243,8 @@ func _load_model() -> void:
 		_make_cockpit_shell(outer as MeshInstance3D)
 	elif outer:
 		outer.layers = LAYER_EXTERIOR
+	if spec.get("inner_shell", false):
+		_make_inner_shell()
 	_make_gauges(spec)
 	_make_collision()
 	_simple_shadow = RenderingServer.get_current_rendering_method() == "gl_compatibility"
@@ -290,6 +292,29 @@ func _make_cockpit_shell(outer: MeshInstance3D) -> void:
 	for n in _cockpit_only:
 		(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		(n as VisualInstance3D).layers = LAYER_INTERIOR
+
+
+## A body made of one skin (its source was drawn two-sided) shows nothing
+## where the inside should be: the floor and the far doors through the
+## windows, the inside of the panels through their gaps. Its back faces are
+## drawn as the cabin trim (cabin_shell.gdshader), in every view: the same
+## meshes once more, no new triangles, and only the back faces that show
+## reach the fragment shader.
+func _make_inner_shell() -> void:
+	var shell_mat := ShaderMaterial.new()
+	shell_mat.shader = CABIN_SHELL_SHADER
+	for part_name in ["BodyOuter", "Body"]:
+		var part := model.find_child(part_name, true, false) as MeshInstance3D
+		if part == null:
+			continue
+		var shell := MeshInstance3D.new()
+		shell.name = part_name + "Inner"
+		shell.mesh = part.mesh
+		shell.material_override = shell_mat
+		shell.transform = part.transform
+		shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		shell.lod_bias = part.lod_bias
+		part.get_parent().add_child(shell)
 
 
 ## The indicator bulbs sit deep behind their lenses and show as a dot when

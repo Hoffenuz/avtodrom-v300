@@ -22,7 +22,9 @@ Har qadamdan oldin: kerakli faylni `Grep` bilan toping, `Read` ni `offset/limit`
 - Mashinalar: `car.gd` `MODELS` + C++ preset (`vehicle_params.cpp`). Yuk: `CourseData.TRUCKS`.
   Onix: menyuda bitta "onix", `Session.car_id()` sozlama `onix_gearbox` bo'yicha `onix`/`onix_at` beradi
   (bitta model, `Car.spec_for()`; `configure()` model yo'li bir xil bo'lsa qayta yuklamaydi).
-- Rang: `vehicle/car_paint.gd` (6 rang, `paint_<car>` sozlamalari, Gazelle yo'q). Faqat bo'yoq materiali
+- Autopilot tepalikda: to'xtaydi, qo'l tormozi, gaz, keyin qo'l tormozi tushadi (`_hill_t`; boshlangan chiqish
+  oxirigacha boradi — aks holda 60 s sekin sudralardi).
+- Rang: `vehicle/car_paint.gd` (6 rang: oq, to'q kulrang, Darkmoon Blue, qora, to'q qizil, shampan, `paint_<car>` sozlamalari, Gazelle yo'q). Faqat bo'yoq materiali
   (`Car._paint`, `refresh_paint()`) — grafikaga yuk yo'q. Menyu: mashina ostidagi "Rang va uzatma" oynasi
   (`--menu-page=car_options`), `Settings.changed` → turntable mashinasi yangilanadi.
 
@@ -126,8 +128,13 @@ Kutilgan natija: `RESULT ... penalty=0`.
   `--rendering-method gl_compatibility --rendering-driver opengl3`.
 - Sketchfab manbalari ikki tomonlama chiziladi: yuzlarning yarmi teskari bo'lishi mumkin (Godot'da kuzov
   "yirtiq"). Tekshirish: Blender workbench `show_backface_culling = True` bilan render. Tuzatish:
-  `build_onix.py` `weld()` + `orient()` (manifold bo'laklar, nur bilan tashqi tomon). Onix bitta qatlamli
-  kuzov → `cockpit_shell`; soya proksisi orqa qanotdan chiqadi → `shadow_inset` 0.05.
+  `build_onix.py` `weld()` + `orient()` — HAR BIR YUZ uchun ikki tomonga nur (bo'lak bo'yicha emas: Onix
+  kuzovida bitta bo'lak ichida aralash edi → orqa qanot/C-ustun teskari), noaniqlari qo'shnidan BFS.
+  Onix bitta qatlamli kuzov → `inner_shell` (BodyOuter/Body ning orqa yuzlari `cabin_shell.gdshader`,
+  `cull_front`, har ko'rinishda; oynadan narigi tomon ko'rinmaydi). Kabina ichidagi bo'yoq yuzlari
+  (eshik ochilishlari) build'da haydovchi ko'zi/markaz tomonga qaraganlari `interior_light`.
+  Soya proksisi orqa qanotdan chiqadi → `shadow_inset` 0.05. Kuzovni tekshirish:
+  `car_render_test ... onix body` (orqa qanotlar, raqam, oynalar orqali, yuqoridan).
 - O'yinchi mashinasi `lod_bias = 4` (telefonda avto-LOD kuzovda "buklangan" qirralar beradi).
 - Osmon (`EnvironmentSetup._sky`) sessiyada bitta: radiance bir marta filtrlanadi. Jurnalda
   `LOAD uncovered ... after N ms` — sahifa yopilgan payt (telefondan jurnal so'rang).

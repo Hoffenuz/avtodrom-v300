@@ -1,9 +1,9 @@
 class_name CarPaint
 ## Body colours on offer and the per-car choice (settings "paint_<car>").
 ##
-## The colours are the common ones on Uzbek roads (UzAuto paint codes), with
-## the near-duplicates left out: one white (not white and cream), one grey of
-## each shade, one red, champagne for the warm shades. A colour is only the
+## The common colours on Uzbek roads (UzAuto paint codes) without the
+## near-duplicates (one white, one grey, one red, champagne for the warm
+## shades), and Darkmoon Blue, a near-black blue, for one cooler dark. A colour is only the
 ## paint material's albedo and sheen (Car._apply_materials), so it costs
 ## nothing to draw. The GAZelle keeps its white: nobody repaints a van.
 ##
@@ -11,11 +11,11 @@ class_name CarPaint
 ## name: car.gd (and so this) also compiles in the course bake, which runs
 ## without autoloads.
 
-## key, paint code, colour (sRGB), metallic, roughness.
+## key, paint name, colour (sRGB), metallic, roughness.
 const COLORS := [
 	["white", "GAZ", Color(0.93, 0.94, 0.95), 0.05, 0.28],
-	["silver", "GAN", Color(0.66, 0.68, 0.7), 0.55, 0.3],
 	["grey", "GNJ", Color(0.27, 0.285, 0.3), 0.45, 0.28],
+	["darkblue", "Darkmoon Blue", Color(0.06, 0.085, 0.16), 0.5, 0.26],
 	["black", "GB0", Color(0.012, 0.012, 0.014), 0.05, 0.2],
 	["red", "GL8", Color(0.36, 0.025, 0.04), 0.3, 0.24],
 	["champagne", "GJT", Color(0.7, 0.62, 0.49), 0.5, 0.3],

@@ -40,6 +40,8 @@ var _speed_i := 0.0
 var _phase := ""
 var _t := 0.0
 var _hold_t := 0.0
+## Seconds into the hill start (gas against the handbrake, then away); -1 = not started.
+var _hill_t := -1.0
 var _box_state := 0
 var _parallel_state := 0
 var _emergency_state := 0
@@ -310,7 +312,16 @@ func _drive_route(dt: float, ex: Exercise) -> void:
 		var ds: float = float(st["s"]) - s
 		if ds < -3.0:
 			st["done"] = true
+			if st["kind"] == "hill" and _hill_t >= 0.0:
+				_hill_t = -1.0
+				car.handbrake = 0.0
 			continue
+		# A hill start under way runs to its end: braking again as soon as the
+		# car moved (the stop point still ahead) made it creep up the ramp at
+		# walking pace for a minute, gas and brake in turn.
+		if st["kind"] == "hill" and _hill_t >= 0.0:
+			_hill_start(dt, st)
+			return
 		if st["kind"] == "light" and director.traffic_go(str(st["approach"])) and _stop_t <= 0.0 \
 				and _clears_before_yellow(ds, str(st["approach"])):
 			if ds < 1.0:
@@ -366,16 +377,17 @@ func _clears_before_yellow(ds: float, approach: String) -> bool:
 
 
 func _hill_start(dt: float, st: Dictionary) -> void:
-	# Throttle against the handbrake until the clutch bites, then let it go.
-	_hold_t += dt
+	# As taught: the handbrake holds the car, gas until the clutch bites and
+	# the car pulls against it, then the handbrake goes and the car moves off
+	# without rolling back.
+	_hill_t = maxf(_hill_t, 0.0) + dt
 	var steer := _pursue(_lookahead_route(4.0), false)
 	_set_controls(0.42, 0.0, steer)
-	if _hold_t > 1.1:
-		car.handbrake = 0.0
-	if _hold_t > 1.5 and car.get_forward_speed() > 0.4:
+	car.handbrake = 1.0 if _hill_t < 1.1 else 0.0
+	if _hill_t > 1.5 and car.get_forward_speed() > 0.4:
 		st["done"] = true
 		_stop_t = 0.0
-		_hold_t = 0.0
+		_hill_t = -1.0
 		_log("hill start done")
 
 
