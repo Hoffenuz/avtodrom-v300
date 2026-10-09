@@ -609,6 +609,27 @@ func _car_options_dialog() -> void:
 	p.position = ((_ui.size - p.size) * 0.5).max(Vector2.ZERO)
 
 
+## One exam option: its name and what it does, and a switch.
+func _exam_option(key: String, title_key: String, desc_key: String) -> Control:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(UITheme.label(Loc.t(title_key), 20, UITheme.TEXT, true))
+	var d := UITheme.label(Loc.t(desc_key), 15, UITheme.TEXT_DIM)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(d)
+	h.add_child(v)
+	var sw := CheckButton.new()
+	sw.button_pressed = bool(Settings.get_value(key))
+	sw.focus_mode = Control.FOCUS_NONE
+	sw.custom_minimum_size = Vector2(80, 48)
+	sw.toggled.connect(func(on: bool) -> void: Settings.set_value(key, on))
+	h.add_child(sw)
+	return h
+
+
 func _switch_car(step: int) -> void:
 	var i := Car.IDS.find(str(Settings.get_value("car")))
 	Settings.set_value("car", Car.IDS[posmod(i + step, Car.IDS.size())]) # -> _on_setting_changed
@@ -727,6 +748,16 @@ func _show_exam() -> void:
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(l)
 		box.add_child(h)
+	# The exam's options: failing at 100 points, and the helper.
+	var opts := PanelContainer.new()
+	opts.add_theme_stylebox_override("panel", UITheme.box(Color(0.08, 0.1, 0.13, 0.88), 22, 1, UITheme.LINE, 16))
+	body.add_child(opts)
+	var ob := VBoxContainer.new()
+	ob.add_theme_constant_override("separation", 6)
+	opts.add_child(ob)
+	for opt in [["exam_fail", "exam.opt_fail", "exam.opt_fail_desc"],
+			["show_route", "exam.opt_assist", "exam.opt_assist_desc"]]:
+		ob.add_child(_exam_option(opt[0], opt[1], opt[2]))
 	var fill := Control.new()
 	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(fill)

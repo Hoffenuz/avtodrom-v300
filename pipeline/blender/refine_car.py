@@ -90,7 +90,7 @@ SPEC = {
         "spin_tris": 2600,
         # Long flat sides: the decimated panels shade in waves and diagonal
         # creases (see denoise_normals).
-        "denoise": 0.14,
+        "denoise": 0.45,
         "tunnel": False,  # the lever sits in the dash, beside the driver
         "seats": None,
         "headlight": None,
@@ -612,7 +612,7 @@ outer_obj.matrix_world = body.matrix_world
 collection.objects.link(outer_obj)
 
 # --- 4c. Smooth normals over flat panels ------------------------------------------------------
-def denoise_normals(o, radius, max_angle_deg=22.0):
+def denoise_normals(o, radius, max_angle_deg=12.0):
     """Each corner's normal becomes the area-weighted mean of the faces within
     `radius` that face nearly the same way (within max_angle): the triangle
     noise a decimation leaves on a flat panel averages out, while creases,

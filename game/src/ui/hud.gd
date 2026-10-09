@@ -653,7 +653,7 @@ func _font_color(l: Label, color: Color) -> void:
 
 
 func _update_prepare() -> void:
-	var preparing := director.state == ExamDirector.State.PREPARE
+	var preparing := director.state == ExamDirector.State.PREPARE and Session.exam_assist()
 	if prepare_panel.visible != preparing:
 		prepare_panel.visible = preparing
 		_refresh_card()
@@ -693,7 +693,7 @@ func _update_turn() -> void:
 ## Shows the light of the junction the car is in (see SignalBadge).
 func _update_signal_badge() -> void:
 	var ex := director.current_exercise()
-	var at_light := ex is ExIntersection and director.traffic != null \
+	var at_light := ex is ExIntersection and director.traffic != null and Session.exam_assist() \
 			and director.state == ExamDirector.State.RUNNING and not (ex as ExIntersection).entered
 	signal_badge.visible = at_light
 	if at_light:
@@ -707,7 +707,8 @@ func _refresh_card() -> void:
 		card.visible = false
 		return
 	# The preparation checklist has its own panel; the card stays out of the way.
-	card.visible = director.state == ExamDirector.State.RUNNING
+	# Without the exam's helper there is no card: no names, no next step.
+	card.visible = director.state == ExamDirector.State.RUNNING and Session.exam_assist()
 	var ex := director.current_exercise()
 	if ex:
 		card_title.text = ex.title()
@@ -757,6 +758,8 @@ func _prewarm_toasts() -> void:
 
 ## A step done right: a green banner at the top and a bright chime.
 func _on_milestone(text: String, silent := false) -> void:
+	if not silent and not Session.exam_assist():
+		return # the exam without its helper: no "done right" notices
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", UITheme.box(Color(0.04, 0.12, 0.07, 0.9), 14, 2, UITheme.GO, 12))
 	var h := HBoxContainer.new()

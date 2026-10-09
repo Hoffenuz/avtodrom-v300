@@ -116,6 +116,13 @@ Kutilgan natija: `RESULT ... penalty=0`.
 - Lokal Worker: `export/web-cf` da `npx wrangler@4 dev --port 8787`. TaskStop npx bolalarini o'ldirmaydi — `wrangler` node jarayonlari + `taskkill /F /IM workerd.exe`.
 - Headless sinov: Playwright (scratchpad/webtest/run.js, `channel:'chrome'`, `--use-angle=d3d11`, persistent profile). `--use-angle=gl` NVIDIA drayver keshi tufayli sovuq kompilyatsiyani yashiradi.
 
+## Imtihon parametrlari (imtihon sahifasi)
+- "Yiqitish" = Settings `exam_fail` → `Session.exam_can_fail()`; o'chiq: 100+ ballda ham to'xtamaydi,
+  natija `no_fail` → "IMTIHON TUGADI" (hukmsiz).
+- "Yordamchi navigator" = `show_route` → `Session.exam_assist()` (practice/demo da doim true); o'chiq:
+  chiziq, mashq kartasi, xabarlar, tayyorgarlik paneli yo'q; start dvigatel + (chap signal yoki ruchnoy
+  tushirildi) — faqat dvigatelda boshlansa avtopilot "30 s qimirlamadi" oladi.
+
 ## Mashina vizual tuzoqlari
 - Kabinadan BodyOuter yashirin (LAYER_EXTERIOR). Gazelle'da `cockpit_shell`: kuzov kabinadan ko'rinadi, ichki
   tomoni `cabin_shell.gdshader` (faqat orqa yuzlar), oyna ichkaridan alohida `GlassInside`; LAYER_INTERIOR
@@ -142,8 +149,14 @@ Kutilgan natija: `RESULT ... penalty=0`.
 - G'ildirak ovozi: `AudioSynth.squeal()` 620 Hz, yumshoq modulyatsiya (940 Hz + kuchli overton "hushtak" edi);
   `scrub()` siyrak yumshoq donalar (zich qattiq donalar "taraq-taraq"); `Car._follow` tau 0.09/0.25 (ABS pulslari).
 - Onix farasi: `head_energy` 1.1 (reflektor butun mesh, 5 da oqarib ketadi); orqa klaster ustida `lamp_glass_red`.
-- Gazelle kuzovi: `refine_car.py` `denoise_normals` (spec `"denoise": 0.14`) — yassi panellarda to'lqin yo'q;
+- Gazelle kuzovi: `refine_car.py` `denoise_normals` (spec `"denoise": 0.45`, `max_angle_deg` 12) — 0.14 da
+  menyuda yon panellarda past chastotali dog'lar qolardi; satin bo'yoq (`satin_paint`) ham shu uchun;
   `inner_shell` + `cockpit_shell` birga: tashqaridan oynalar ichi trim bilan.
+- Cobalt farasi: `headlamp.gdshader` linza meshiga ichini chizadi (obyekt koordinatasi, `bounds`): to'q
+  tutunli korpus, katta proyektor (xrom halqa + qora linza), kichik yuqori nur kosasi, amber, pastki xrom
+  chiziq. Hammasi `disc()` yumshoq chegarali — "g'alati chiziqlar" bo'lmasin. Orqa: alohida mesh qo'shish
+  ishlamadi (model ichki qismlari oldida/kuzovdan chiqadi) → `rear_turn_red`: orqa burilish linzasi qizil
+  (Lamp_Tail materiali), faqat yonganda amber.
 - O'yinchi mashinasi `lod_bias = 4` (telefonda avto-LOD kuzovda "buklangan" qirralar beradi).
 - Osmon (`EnvironmentSetup._sky`) sessiyada bitta: radiance bir marta filtrlanadi. Jurnalda
   `LOAD uncovered ... after N ms` — sahifa yopilgan payt (telefondan jurnal so'rang).

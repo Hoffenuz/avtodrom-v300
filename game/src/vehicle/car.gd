@@ -25,7 +25,9 @@ const MODELS := {
 					[Vector3(0.0, 0.82, 2.171), Vector3(0.0, 0.23, 0.973)]]},
 	"cobalt_at": {"path": "res://assets/cars/cobalt/cobalt.glb", "lod": "res://assets/cars/lod/cobalt_lod.glb", "front": 2.22, "rear": 2.26, "half_width": 0.86,
 			"mirror": Vector3(0.936, 1.043, -0.53), "speed_max": 220.0, "rpm_max": 7000.0,
-			"smooth_lamps": ["Lamp_Head", "Lamp_TurnFL", "Lamp_TurnFR"], "lamp_shader": true},
+			"smooth_lamps": ["Lamp_Head", "Lamp_TurnFL", "Lamp_TurnFR"], "lamp_shader": true,
+			# The rear indicators sit in the red lens: red when off, not amber.
+			"rear_turn_red": true},
 	"gentra": {"path": "res://assets/cars/gentra/gentra.glb", "lod": "res://assets/cars/lod/gentra_lod.glb", "front": 2.22, "rear": 2.31, "half_width": 0.87,
 			"mirror": Vector3(0.905, 1.019, -0.45), "speed_max": 240.0, "rpm_max": 8000.0,
 			"paint": Color(0.012, 0.012, 0.014)},
@@ -45,6 +47,9 @@ const MODELS := {
 			"mirror": Vector3(1.157, 1.323, -1.626), "speed_max": 160.0, "rpm_max": 5000.0,
 			"eye_offset": Vector3(-0.01, 0.42, 0.55), "paint": Color(0.95, 0.95, 0.96), "height": 2.65,
 			"shadow_inset": 0.12, "shadow_van": true, "cockpit_shell": true, "inner_shell": true,
+			# Commercial paint, a softer sheen: its long flat sides mirrored the
+			# clouds in blotches.
+			"satin_paint": true,
 			"turn_glow": [0.1, 0.06, 0.12],
 			"plates": [[Vector3(0.012, 0.62, -2.712), Vector3(0.0, 0.0, -1.0)],
 					[Vector3(0.0, 0.66, 3.356), Vector3(0.0, 0.0, 1.0)]]},
@@ -221,6 +226,16 @@ func _load_model() -> void:
 		if mi:
 			_lamps[n] = mi
 	_paint = _apply_materials(model, spec.get("paint", WHITE_PAINT), not spec.has("shadow_inset"))
+	if spec.get("satin_paint", false):
+		_paint.roughness = 0.5
+		_paint.metallic = 0.0
+		_paint.metallic_specular = 0.3
+		_paint.clearcoat_enabled = false
+	if spec.get("rear_turn_red", false) and _lamps.has("Lamp_Tail"):
+		var red_lens: Material = (_lamps["Lamp_Tail"] as MeshInstance3D).get_active_material(0)
+		for n in ["Lamp_TurnRL", "Lamp_TurnRR"]:
+			if _lamps.has(n):
+				(_lamps[n] as MeshInstance3D).set_surface_override_material(0, red_lens)
 	refresh_paint()
 	# The player's car stays near the camera: its automatic LODs (switched
 	# early on phones, EnvironmentSetup.apply_viewport) fold the smooth body
@@ -1034,6 +1049,7 @@ func _update_lamps(delta: float) -> void:
 	if lamp_prewarm:
 		for n in _lamps:
 			_set_lamp(n, true, "_brake" if Engine.get_process_frames() % 2 == 0 else "")
+
 
 
 func _update_audio(delta: float) -> void:

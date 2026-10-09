@@ -319,6 +319,26 @@
   "uz_cyrl": "12 та машқ битта маршрутда",
   "ru": "12 упражнений на одном маршруте"
  },
+ "exam.opt_fail": {
+  "uz_latn": "Yiqitish",
+  "uz_cyrl": "Йиқитиш",
+  "ru": "Провал при 100 баллах"
+ },
+ "exam.opt_fail_desc": {
+  "uz_latn": "100 ball to‘planganda imtihon to‘xtaydi",
+  "uz_cyrl": "100 балл тўпланганда имтиҳон тўхтайди",
+  "ru": "Экзамен прекращается при 100 баллах"
+ },
+ "exam.opt_assist": {
+  "uz_latn": "Yordamchi navigator",
+  "uz_cyrl": "Ёрдамчи навигатор",
+  "ru": "Помощник-навигатор"
+ },
+ "exam.opt_assist_desc": {
+  "uz_latn": "Yo‘nalish chizig‘i, mashq nomi va start ko‘rsatmasi",
+  "uz_cyrl": "Йўналиш чизиғи, машқ номи ва старт кўрсатмаси",
+  "ru": "Линия маршрута, название упражнения и подсказка старта"
+ },
  "exam.rule_pass": {
   "uz_latn": "100 ball va ko‘proq — o‘tmadi",
   "uz_cyrl": "100 балл ва кўпроқ — ўтмади",
@@ -1098,6 +1118,16 @@
   "uz_latn": "O‘TDINGIZ",
   "uz_cyrl": "ЎТДИНГИЗ",
   "ru": "СДАН"
+ },
+ "res.finished": {
+  "uz_latn": "IMTIHON TUGADI",
+  "uz_cyrl": "ИМТИҲОН ТУГАДИ",
+  "ru": "ЭКЗАМЕН ЗАВЕРШЁН"
+ },
+ "res.no_fail_note": {
+  "uz_latn": "Yiqitish o‘chiq edi: imtihon oxirigacha davom etdi",
+  "uz_cyrl": "Йиқитиш ўчиқ эди: имтиҳон охиригача давом этди",
+  "ru": "Провал был отключён: экзамен шёл до конца"
  },
  "res.failed": {
   "uz_latn": "O‘TMADINGIZ",

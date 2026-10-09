@@ -50,6 +50,10 @@ func show_result(r: Dictionary) -> void:
 	elif practice:
 		head = Loc.t("res.practice")
 		col = UITheme.GO if total == 0 else UITheme.CAUTION
+	elif r.get("no_fail", false):
+		# "Yiqitish" was off: the points, no verdict.
+		head = Loc.t("res.finished")
+		col = UITheme.INFO
 	else:
 		head = Loc.t("res.passed") if passed else Loc.t("res.failed")
 		col = UITheme.GO if passed else UITheme.STOP
@@ -61,7 +65,8 @@ func show_result(r: Dictionary) -> void:
 	tot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	outer.add_child(tot)
 	if not practice and not Session.demo:
-		var rule := UITheme.label(Loc.t("res.rule"), 16, UITheme.TEXT_DIM)
+		var rule := UITheme.label(Loc.t("res.no_fail_note" if r.get("no_fail", false) else "res.rule"), 16,
+				UITheme.TEXT_DIM)
 		rule.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		outer.add_child(rule)
 

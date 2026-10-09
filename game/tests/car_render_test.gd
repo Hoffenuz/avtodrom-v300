@@ -93,6 +93,7 @@ func _ready() -> void:
 			["d_headlamp", 24, Vector3(-1.5, 0.9, -3.6), Vector3(-0.6, 0.72, -2.05)],
 			["d_headlamp_front", 20, Vector3(-0.35, 0.8, -4.2), Vector3(-0.62, 0.72, -2.1)],
 			["d_rear", 32, Vector3(0, 0.95, 4.8), Vector3(0, 0.7, 2.1)],
+			["d_taillamp", 18, Vector3(1.5, 1.0, 3.9), Vector3(0.68, 0.85, 2.1)],
 			["d_front34", 30, Vector3(-2.6, 1.2, -4.4), Vector3(0, 0.55, -1.2)],
 		]
 	if turn_mode:

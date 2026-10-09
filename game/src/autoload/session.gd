@@ -71,6 +71,20 @@ func route_visible() -> bool:
 	return mode == Mode.EXAM and bool(Settings.get_value("show_route"))
 
 
+## The exam's helper ("Yordamchi navigator", setting show_route): the route
+## line, the exercise card, the notices and the start checklist. Off, the
+## candidate finds the way and the steps alone. Practice and the
+## demonstrations always help.
+func exam_assist() -> bool:
+	return mode != Mode.EXAM or demo or bool(Settings.get_value("show_route"))
+
+
+## Whether the exam ends as failed at 100 points ("Yiqitish"). Off, it runs
+## to the end and the result shows the points without a verdict.
+func exam_can_fail() -> bool:
+	return mode == Mode.EXAM and not demo and bool(Settings.get_value("exam_fail"))
+
+
 ## The car preset to drive: the menu's choice, the Onix with the gearbox
 ## chosen in the settings ("onix" manual, "onix_at" automatic).
 func car_id() -> String:

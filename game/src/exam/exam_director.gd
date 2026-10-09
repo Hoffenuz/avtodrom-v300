@@ -182,7 +182,7 @@ func add_penalty(no: int, exercise_id := "", detail := "") -> void:
 	}
 	entries.append(entry)
 	penalty_added.emit(entry)
-	if total >= PenaltyTable.pass_below and not practice:
+	if total >= PenaltyTable.pass_below and not practice and Session.exam_can_fail():
 		_end(State.FAILED)
 
 
@@ -203,7 +203,11 @@ func _physics_process(dt: float) -> void:
 func _prepare(dt: float) -> void:
 	_prepare_t += dt
 	var engine_ok := car.is_engine_running()
-	var ready := engine_ok and (car.signalling_left() or ready_requested)
+	# Without the exam's helper there is no checklist and no button: the
+	# candidate is ready when, engine running, the left indicator goes on or
+	# the handbrake comes off.
+	var unassisted := not practice and not Session.exam_assist()
+	var ready := engine_ok and (car.signalling_left() or ready_requested or (unassisted and car.handbrake < 0.5))
 	if ready:
 		if _ready_t < 0.0:
 			_ready_t = 0.0
@@ -395,6 +399,8 @@ func result() -> Dictionary:
 		"practice": practice,
 		"exercise": practice_id,
 		"passed": total < PenaltyTable.pass_below and state == State.FINISHED,
+		# "Yiqitish" off: the result shows the points without a verdict.
+		"no_fail": not practice and not Session.exam_can_fail() and not Session.demo,
 		"completed": state == State.FINISHED,
 		"penalty": total,
 		"entries": entries,

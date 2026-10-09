@@ -36,7 +36,11 @@ const DEFAULTS := {
 	"shadows": true,
 	"mirrors": true,
 	"show_hints": true,
+	# Exam "Yordamchi navigator": the route line, the exercise card, the
+	# notices and the start checklist (off: the candidate drives on their own).
 	"show_route": true,
+	# Exam "Yiqitish": the exam ends at 100 points (off: it runs to the end).
+	"exam_fail": true,
 	"vol_master": 0.9,
 	"vol_engine": 0.8,
 	"vol_effects": 0.8,
