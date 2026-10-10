@@ -10,7 +10,7 @@ config/name="AvtoSmart Avtodrom"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="Godot/app_userdata/Avtodrom"
 config/description="AvtoSmart Avtodrom — haydovchilik amaliy imtihoni simulyatori"
-config/version="1.0.8"
+config/version="1.0.11"
 ; Written by the game (Settings -> Graphics mode, or after a load that hung):
 ; switches the renderer to OpenGL on the next start, on every platform.
 config/project_settings_override="user://graphics_override.cfg"
