@@ -164,12 +164,17 @@ func _debug_options() -> void:
 			start_autopilot()
 		elif arg.begins_with("--no-process="):
 			# Frame-time checks: stop the named nodes' per-frame work.
-			for n in arg.substr(13).split(","):
-				var node := find_child(n, true, false)
-				if node:
+			# A node name or a script class (Hud, RouteGuide, TrafficCars...).
+			var names := arg.substr(13).split(",")
+			for node in find_children("*", "", true, false):
+				var cls: String = node.get_script().get_global_name() if node.get_script() else ""
+				if String(node.name) in names or cls in names:
 					node.process_mode = Node.PROCESS_MODE_DISABLED
 		elif arg == "--open-pause":
 			_pause.call_deferred()
+		elif arg.begins_with("--restart-every="):
+			# Memory checks: "start again" over and over (the scene reloads).
+			get_tree().create_timer(float(arg.substr(16))).timeout.connect(_restart)
 		elif arg.begins_with("--faults="):
 			start_autopilot()
 			autopilot.faults = arg.substr(9).split(",")
@@ -461,7 +466,12 @@ func _on_finished(result: Dictionary) -> void:
 				result["completed"], result["penalty"], result["time"], result["distance"]])
 		for ex in result["exercises"]:
 			print("  %-14s performed=%s penalties=%d" % [ex["id"], ex["performed"], ex["penalties"]])
-		get_tree().quit(0 if int(result["penalty"]) == 0 and result["completed"] else 1)
+		var code := 0 if int(result["penalty"]) == 0 and result["completed"] else 1
+		# The headless (dummy) renderer can crash while the engine shuts down,
+		# after everything here is done (the real renderers exit cleanly): the
+		# checks read this line rather than the process's exit code.
+		print("EXIT %d" % code)
+		get_tree().quit(code)
 		return
 	Session.record_result(result)
 	await get_tree().create_timer(RESULTS_DELAY).timeout

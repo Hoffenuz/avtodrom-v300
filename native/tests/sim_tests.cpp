@@ -63,6 +63,7 @@ int main() {
 	const VehicleParams gentra = make_gentra();
 	const VehicleParams onix = make_onix(false);
 	const VehicleParams onix_at = make_onix(true);
+	const VehicleParams gazelle = make_gazelle();
 
 	std::vector<Test> tests = {
 		{ "Idle is stable in neutral",
@@ -83,6 +84,21 @@ int main() {
 					check(h.sim.telemetry().engine_running, "running after 1.2 s of cranking", 1.0);
 					h.run(3.0);
 					check_range(h.sim.telemetry().rpm, 780.0, 950.0, "settles to idle");
+				} },
+		{ "Every car starts without a stall counted",
+				[&] {
+					for (const VehicleParams *p : { &nexia, &cobalt, &gentra, &onix, &onix_at, &gazelle }) {
+						check(p->engine.stall_rpm < p->engine.catch_rpm, "stall below catch rpm", p->engine.stall_rpm);
+						auto h = make(*p, false);
+						h.input.ignition = true;
+						h.input.starter = true;
+						h.run(1.2);
+						h.input.starter = false;
+						h.run(4.0);
+						check(h.sim.telemetry().engine_running, "running after the start", h.sim.telemetry().rpm);
+						check(h.sim.telemetry().stall_count == 0, "no stall on the start",
+								h.sim.telemetry().stall_count);
+					}
 				} },
 		{ "Car at rest on the flat does not creep",
 				[&] {

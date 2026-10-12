@@ -61,12 +61,11 @@ func _ready() -> void:
 	v.add_child(_warn)
 
 
-## During a real exam there is no "start again": leaving counts as a failed
-## attempt (№26), like walking away from the examiner.
+## "Start again" is always there; during a real exam the note says that
+## leaving (or starting over) counts as a failed attempt (№26).
 func open(exam_running: bool, touch_controls := false) -> void:
 	visible = true
 	_warn.visible = exam_running
-	_restart.visible = not exam_running
 	_layout_btn.visible = touch_controls
 	_panel.visible = true
 	# A quick pop-in, as mobile games do.

@@ -3,15 +3,26 @@ extends MeshInstance3D
 ## A soft blue ribbon painted on the road along the next ~35 m of the exam
 ## route, plus glowing strips over the lines that matter in the current
 ## exercise (stop / fixation / start / end lines).
+##
+## Nothing is rebuilt per frame: the ribbon is the whole route as one static
+## mesh whose shader (route_ribbon.gdshader) shows the stretch ahead of the
+## car, and the overlay (parking guides, highlighted lines) is redrawn only
+## when what it shows changes. Rebuilding a mesh ten times a second made a
+## new GPU buffer each time, which phone drivers map and release lazily: a
+## long drive ran a phone out of memory maps (Scudo "Out of memory").
 
 const AHEAD := 36.0
 const WIDTH := 0.55
+const STEP := 1.0
 
 var data: CourseData
 var director: ExamDirector
 var course: CourseBuilder
 var _mesh := ImmediateMesh.new()
-var _t := 0.0
+var _ribbon: MeshInstance3D
+var _ribbon_mat: ShaderMaterial
+## What the overlay shows now; it is redrawn only when this changes.
+var _overlay_key := ""
 ## Exercise id -> route s where its parking guide leaves the route.
 var _guide_s := {}
 
@@ -30,44 +41,76 @@ func setup(p_data: CourseData, p_director: ExamDirector, p_course: CourseBuilder
 	m.render_priority = 2
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material_override = m
+	_build_ribbon()
 
 
-func _process(delta: float) -> void:
-	_t -= delta
-	if _t > 0.0:
-		return
-	_t = 0.1
-	_mesh.clear_surfaces()
-	if director == null or director.state != ExamDirector.State.RUNNING:
-		return
-	var show_route := Session.route_visible()
-	var s0 := director.tracker.s + 2.0
-	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-	var wrote := false
-	# A parking exercise (current, or coming up within the ribbon's reach)
-	# shows its own way in: the ribbon stops where the manoeuvre leaves the
-	# route, a bar marks the stop, and the guide takes over from there.
-	var guided := _guided_exercise(s0)
-	var s_end := s0 + AHEAD
-	if guided:
-		s_end = minf(s_end, _guide_start_s(guided))
+## The whole route as one strip, UV.x = route length s.
+func _build_ribbon() -> void:
+	var length := data.route_length()
+	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var s := 0.0
+	while s <= length + 0.001:
+		var p := data.route_point(minf(s, length))
+		var d := data.route_point(minf(s + 0.5, length)) - data.route_point(maxf(minf(s, length) - 0.5, 0.0))
+		d = d.normalized() if d.length() > 1e-6 else Vector2(1, 0)
+		var n := Vector2(-d.y, d.x) * WIDTH * 0.5
+		for q in [p + n, p - n]:
+			verts.append(Vector3(q.x, _y(q), q.y))
+			uvs.append(Vector2(s, 0.0))
+		s += STEP
+	var idx := PackedInt32Array()
+	for i in range(0, verts.size() - 2, 2):
+		idx.append_array([i, i + 1, i + 2, i + 1, i + 3, i + 2])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = idx
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_ribbon_mat = ShaderMaterial.new()
+	_ribbon_mat.shader = preload("res://assets/shaders/route_ribbon.gdshader")
+	_ribbon_mat.render_priority = 2
+	_ribbon_mat.set_shader_parameter("ahead", AHEAD)
+	_ribbon = MeshInstance3D.new()
+	_ribbon.name = "Ribbon"
+	_ribbon.mesh = am
+	_ribbon.material_override = _ribbon_mat
+	_ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The route's box is the whole site: never culled by distance.
+	_ribbon.extra_cull_margin = 4.0
+	_ribbon.visible = false
+	add_child(_ribbon)
+
+
+func _process(_delta: float) -> void:
+	var running := director != null and director.state == ExamDirector.State.RUNNING
+	var show_route := running and Session.route_visible()
+	var s0 := director.tracker.s + 2.0 if running else 0.0
+	var guided := _guided_exercise(s0) if running else null
+	# The ribbon: only its window moves.
+	_ribbon.visible = show_route
 	if show_route:
-		var step := 1.0
-		var s := s0
-		while s < s_end - 0.01:
-			step = minf(1.0, s_end - s)
-			var a := data.route_point(s)
-			var b := data.route_point(s + step)
-			var d := (b - a).normalized()
-			var n := Vector2(-d.y, d.x) * WIDTH * 0.5
-			var fade_a := 1.0 - (s - s0) / AHEAD
-			var fade_b := 1.0 - (s + step - s0) / AHEAD
-			var ca := Color(0.3, 0.62, 1.0, 0.33 * fade_a)
-			var cb := Color(0.3, 0.62, 1.0, 0.33 * fade_b)
-			_quad(a + n, a - n, b + n, b - n, ca, ca, cb, cb)
-			wrote = true
-			s += step
-	if show_route and guided:
+		var s_end := s0 + AHEAD
+		if guided:
+			s_end = minf(s_end, _guide_start_s(guided))
+		_ribbon_mat.set_shader_parameter("s0", s0)
+		_ribbon_mat.set_shader_parameter("s_end", s_end)
+	# The overlay: redrawn when the exercise, the guide or the hints change.
+	var cur := director.current_exercise() if running else null
+	var key := "%s|%s|%s|%s" % [guided.id if guided and show_route else "",
+			cur.id if cur and Session.hints_enabled() else "", show_route, running]
+	if key != _overlay_key:
+		_overlay_key = key
+		_draw_overlay(guided if show_route else null, cur if Session.hints_enabled() else null)
+
+
+func _draw_overlay(guided: Exercise, cur: Exercise) -> void:
+	_mesh.clear_surfaces()
+	var wrote := false
+	_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	if guided:
 		# Parking exercises: the way into the bay or pocket and the spot to stop in.
 		var g: Dictionary = guided.def["guide"]
 		var c := Color(0.3, 0.62, 1.0, 0.3)
@@ -95,18 +138,16 @@ func _process(delta: float) -> void:
 		for i in spot.size():
 			_segment(spot[i], spot[(i + 1) % spot.size()], 0.14, Color(0.3, 0.62, 1.0, 0.55))
 		wrote = true
-	if Session.hints_enabled():
-		var ex := director.current_exercise()
-		if ex:
-			for line in ex.highlight:
-				var a := CourseData.v2(line["a"])
-				var b := CourseData.v2(line["b"])
-				var d := (b - a).normalized()
-				var n := Vector2(-d.y, d.x) * 0.22
-				# Green "put the wheels here": yellow would read as the box's limit line.
-				var c := Color(0.25, 0.9, 0.45, 0.5)
-				_quad(a + n, a - n, b + n, b - n, c, c, c, c)
-				wrote = true
+	if cur:
+		for line in cur.highlight:
+			var a := CourseData.v2(line["a"])
+			var b := CourseData.v2(line["b"])
+			var d := (b - a).normalized()
+			var n := Vector2(-d.y, d.x) * 0.22
+			# Green "put the wheels here": yellow would read as the box's limit line.
+			var c := Color(0.25, 0.9, 0.45, 0.5)
+			_quad(a + n, a - n, b + n, b - n, c, c, c, c)
+			wrote = true
 	if wrote:
 		_mesh.surface_end()
 	else:

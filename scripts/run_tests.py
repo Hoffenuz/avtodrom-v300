@@ -28,7 +28,12 @@ NATIVE = ROOT / "native"
 def run(cmd, cwd, timeout=1800):
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=timeout)
-    return p.returncode, p.stdout + p.stderr
+    out = p.stdout + p.stderr
+    # A drive check prints "EXIT <code>" once it is done: the headless (dummy)
+    # renderer can then crash during the engine's shutdown, which the real
+    # renderers do not. A crash before that line still fails.
+    m = re.findall(r"^EXIT (\d+)$", out, re.M)
+    return (int(m[-1]) if m else p.returncode), out
 
 
 def godot_drive(extra, timeout=1800):

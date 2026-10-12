@@ -46,7 +46,9 @@ func _tick(_dt: float, p: CarProbe) -> void:
 	var aligned := p.heading_error_deg(float(def["park_heading"])) < MAX_ANGLE
 	match phase:
 		Phase.APPROACH:
-			if inside and aligned and p.stopped_time > STABLE_STOP:
+			if inside and aligned and (p.reversing or p.stopped_time > STABLE_STOP):
+				# In the pocket: performed; the wheels on the band are judged
+				# at the last stop (№17), never "not performed" (№27).
 				phase = Phase.IN_POCKET
 				performed = true
 			elif p.reversing:

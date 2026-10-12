@@ -6,6 +6,8 @@
 // a bright chrome ring); towards the wing a smaller round high-beam reflector
 // with its bulb; under it, at the outer corner, the amber indicator; a thin
 // chrome strip along the lower edge. Everything has soft edges: no lines.
+// The player's car (`recessed`) cuts the two optics out instead: there they
+// are real geometry behind the hull (HeadlampInsides); traffic keeps paint.
 //   bounds = (inner |x|, outer |x|, lowest y, highest y) of one lamp, metres
 //   part   = 0 the lamp, 1 its outer end pieces (the indicator)
 //   lit    = 0 off .. 1 on (headlamp beams, or the indicator flash)
@@ -17,6 +19,9 @@ uniform int part = 0;
 uniform float lit = 0.0;
 // The headlamps' state, for the end pieces (their own `lit` is the indicator).
 uniform float beam = 0.0;
+// The player's car: the projector and the high-beam bowl are real geometry
+// behind holes in the hull (HeadlampInsides); only the housing is drawn here.
+uniform bool recessed = false;
 
 varying vec3 lp;
 
@@ -44,9 +49,15 @@ void fragment() {
 	float rough = 0.3;
 
 	// The projector: chrome ring, a dark bezel, the glass lens.
-	vec2 ca = vec2(bounds.x + w * 0.4, bounds.z + h * 0.5);
-	float ra = h * 0.3;
+	vec2 ca = vec2(bounds.x + w * 0.36, bounds.z + h * 0.5);
+	float ra = h * 0.28;
 	float da = length(vec2(s, y) - ca);
+	vec2 cb = vec2(bounds.x + w * 0.79, bounds.z + h * 0.56);
+	float rb = h * 0.14;
+	float db = length(vec2(s, y) - cb);
+	if (recessed && (da < ra * 0.995 || db < rb * 0.995)) {
+		discard;
+	}
 	float ring = disc(da, ra, e);
 	float bezel = disc(da, ra * 0.8, e);
 	float lens = disc(da, ra * 0.66, e);
@@ -66,9 +77,6 @@ void fragment() {
 	rough = mix(rough, 0.04, lens);
 
 	// The high-beam reflector: a smooth chrome bowl, its bulb in the middle.
-	vec2 cb = vec2(bounds.x + w * 0.76, bounds.z + h * 0.56);
-	float rb = h * 0.15;
-	float db = length(vec2(s, y) - cb);
 	float bowl = disc(db, rb, e);
 	// Satin, not a mirror: polished it showed the sky as a bright blue disc.
 	vec3 bowl_col = vec3(0.62, 0.63, 0.65) * mix(0.5, 1.0, smoothstep(0.0, rb, db));

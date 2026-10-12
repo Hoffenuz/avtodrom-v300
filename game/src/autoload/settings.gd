@@ -254,7 +254,16 @@ func render_scale() -> float:
 		return [0.8, 0.9, 1.0][clampi(int(get_value("quality")), 0, 2)]
 	if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
 		return 0.5
-	return [0.6, 0.72, 0.85][clampi(int(get_value("quality")), 0, 2)]
+	var q := clampi(int(get_value("quality")), 0, 2)
+	var s: float = [0.6, 0.72, 0.85][q]
+	# A pixel budget too: on today's 2.7k screens (~450 ppi) 85% is 2.4 M
+	# pixels to shade, past what a mid-range GPU holds at 60 fps, and the
+	# FSR-upscaled picture at 2 M looks the same at that density.
+	var screen := Vector2(DisplayServer.screen_get_size())
+	var budget: float = [1.0e6, 1.5e6, 2.0e6][q]
+	if screen.x * screen.y > 0.0:
+		s = minf(s, sqrt(budget / (screen.x * screen.y)))
+	return maxf(s, 0.5)
 
 
 ## Frame cap that divides the display's refresh rate evenly (never below the

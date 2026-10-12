@@ -536,7 +536,8 @@ void VehicleSim::substep(double h, const DriverInput &in, const std::array<Wheel
 		if ((cranking_ && rpm_after >= e.catch_rpm) || (!cranking_ && rpm_after >= e.catch_rpm * 1.6)) {
 			running_ = true;
 		}
-	} else if (rpm_after < e.stall_rpm) {
+	} else if (rpm_after < std::min(e.stall_rpm, e.catch_rpm * 0.9)) {
+		// Never above the catch speed: a fresh start must not count as a stall.
 		running_ = false;
 		tel_.stall_count++;
 	}

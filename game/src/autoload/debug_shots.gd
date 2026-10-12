@@ -75,6 +75,12 @@ func _perf_sample(delta: float) -> void:
 	_perf_t += delta
 	if _perf_t < 2.0:
 		return
+	# Memory too: a phone ran out of it (Scudo "Out of memory") after a while.
+	print("PERF_MEM t=%5.1f static=%.1fMB objects=%d resources=%d orphans=%d" % [_t,
+			Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0,
+			Performance.get_monitor(Performance.OBJECT_COUNT),
+			Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT),
+			Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)])
 	print("PERF t=%5.1f fps=%5.1f frame_avg=%5.2fms worst=%5.2fms process=%5.2fms physics=%5.2fms draws=%d prims=%d objs=%d nodes=%d vram=%dMB" % [
 			_t, Performance.get_monitor(Performance.TIME_FPS), _perf_sum_ms / _perf_frames, _perf_worst_ms,
 			Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
@@ -101,3 +107,26 @@ func _perf_summary() -> void:
 	print("PERF_SUMMARY frames=%d avg=%.2fms p95=%.2fms p99=%.2fms worst=%.2fms" % [sorted.size(),
 			total / sorted.size(), sorted[int(sorted.size() * 0.95)], sorted[int(sorted.size() * 0.99)],
 			sorted[-1]])
+	# Where the draw calls come from: visible geometry by node name (digits
+	# folded), surfaces counted, the largest groups first.
+	var groups := {}
+	var scene := get_tree().current_scene
+	if scene:
+		for n in scene.find_children("*", "GeometryInstance3D", true, false):
+			var gi := n as GeometryInstance3D
+			if not gi.is_visible_in_tree():
+				continue
+			var mesh: Mesh = gi.mesh if gi is MeshInstance3D else \
+					((gi as MultiMeshInstance3D).multimesh.mesh if gi is MultiMeshInstance3D and gi.multimesh else null)
+			var key := RegEx.create_from_string("[0-9_@]+").sub(String(gi.name), "#", true)
+			var e: Array = groups.get(key, [0, 0])
+			groups[key] = [e[0] + 1, e[1] + (mesh.get_surface_count() if mesh else 1)]
+	var keys := groups.keys()
+	keys.sort_custom(func(a: String, b: String) -> bool: return groups[a][1] > groups[b][1])
+	var tot := [0, 0]
+	for k in keys:
+		tot[0] += groups[k][0]
+		tot[1] += groups[k][1]
+	print("PERF_GROUPS total nodes=%d surfaces=%d groups=%d" % [tot[0], tot[1], keys.size()])
+	for k in keys.slice(0, 25):
+		print("PERF_GROUP %-28s nodes=%4d surfaces=%4d" % [k, groups[k][0], groups[k][1]])

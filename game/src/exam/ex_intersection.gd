@@ -9,6 +9,11 @@ extends Exercise
 
 const STOP_SPEED := 0.12
 const STABLE_STOP := 0.4 # a crawl through zero speed while creeping up is not a stop
+## When the light leaves green the driver may go on if a normal stop before
+## the line is no longer possible (SDA: no emergency braking on amber):
+## reaction time and a firm but ordinary deceleration.
+const REACTION_S := 0.8
+const STOP_DECEL := 3.0
 
 var line: Dictionary
 var travel := Vector2.ZERO
@@ -20,6 +25,10 @@ var green_since := -1.0
 var green_flagged := false
 var red_flagged := false
 var gap_judged := false
+var _was_go := true
+## The light changed when the car could no longer stop: crossing is allowed
+## until the car comes to rest.
+var _late_amber := false
 
 
 func _on_begin() -> void:
@@ -46,6 +55,12 @@ func _tick(dt: float, p: CarProbe) -> void:
 	_update_hint()
 	var front_past := Geo.past(line, travel, p.front)
 	if not entered:
+		if _was_go and not go:
+			var v := maxf(p.speed, 0.0)
+			_late_amber = -front_past < v * REACTION_S + v * v / (2.0 * STOP_DECEL)
+		elif go or absf(p.speed) < STOP_SPEED:
+			_late_amber = false
+		_was_go = go
 		# Time on green counts from the moment the car is waiting at (or
 		# arriving at) the line while the light allows passage.
 		if go and front_past > -15.0:
@@ -63,7 +78,7 @@ func _tick(dt: float, p: CarProbe) -> void:
 			if stop_gap > float(def.get("max_gap", 1.0)):
 				penalize(4, "stopped %.2f m before the line" % stop_gap)
 		if front_past > 0.0:
-			if not go and not red_flagged:
+			if not go and not red_flagged and not _late_amber:
 				red_flagged = true
 				penalize(24)
 			entered = true

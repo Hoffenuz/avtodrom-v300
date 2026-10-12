@@ -47,8 +47,10 @@ const MODELS := {
 			"mirror": Vector3(1.157, 1.323, -1.626), "speed_max": 160.0, "rpm_max": 5000.0,
 			"eye_offset": Vector3(-0.01, 0.42, 0.55), "paint": Color(0.95, 0.95, 0.96), "height": 2.65,
 			"shadow_inset": 0.12, "shadow_van": true, "cockpit_shell": true, "inner_shell": true,
-			# Commercial paint, a softer sheen: its long flat sides mirrored the
-			# clouds in blotches.
+			# Commercial paint, a softer sheen. (The blotches on its long sides
+			# seen from the menu's distance were the importer's automatic LOD,
+			# whose merged normals shade the flat panels in patches: the van's
+			# gazelle.glb.import has meshes/generate_lods off.)
 			"satin_paint": true,
 			"turn_glow": [0.1, 0.06, 0.12],
 			"plates": [[Vector3(0.012, 0.62, -2.712), Vector3(0.0, 0.0, -1.0)],
@@ -134,6 +136,8 @@ var _last_hit_time := -10.0
 var _model_preset := ""
 ## Headlamp interiors drawn by headlamp.gdshader (the Cobalt's lens hulls).
 var _lamp_shader := false
+## The Cobalt's projector and high-beam bowl in depth (HeadlampInsides).
+var _head_insides: HeadlampInsides
 ## Lit patches over the indicator lenses, by lamp name (MODELS[...]["turn_glow"]).
 var _glows := {}
 ## Drawn only while the camera is in the driver's seat.
@@ -809,7 +813,9 @@ func _make_lamp_materials() -> void:
 		k = 0.36
 		orange = Color(1.0, 0.42, 0.02)
 		red = Color(1.0, 0.012, 0.008)
-	var drawn := Car.headlamp_materials(_lamps, model) if _lamp_shader else {}
+	var drawn := Car.headlamp_materials(_lamps, model, true) if _lamp_shader else {}
+	if not drawn.is_empty() and _lamps.has("Lamp_Head"):
+		_head_insides = HeadlampInsides.build(_lamps, model, Car.headlamp_bounds(_lamps, model))
 	for n in _lamps:
 		if drawn.has(n):
 			_lamp_off[n] = drawn[n][0]
@@ -835,10 +841,10 @@ func _make_lamp_materials() -> void:
 		_lamp_on["Lamp_Tail_brake"] = _emissive(red, 7.0 * k)
 
 
-## Off / on materials of the front lamps painted by headlamp.gdshader, with
-## the lamp's extent (inner edge to the end of the indicator piece) measured
-## from the right-hand meshes; the shader mirrors it for the left.
-static func headlamp_materials(lamps: Dictionary, model: Node3D) -> Dictionary:
+## The lamp's extent (inner edge to the end of the indicator piece, lowest
+## to highest point) measured from the right-hand meshes in `model`'s space;
+## headlamp.gdshader mirrors it for the left. x = INF: no lamp.
+static func headlamp_bounds(lamps: Dictionary, model: Node3D) -> Vector4:
 	var b := Vector4(INF, -INF, INF, -INF)
 	for n in ["Lamp_Head", "Lamp_TurnFR"]:
 		if not lamps.has(n):
@@ -851,6 +857,13 @@ static func headlamp_materials(lamps: Dictionary, model: Node3D) -> Dictionary:
 			if v.x <= 0.0:
 				continue
 			b = Vector4(minf(b.x, v.x), maxf(b.y, v.x), minf(b.z, v.y), maxf(b.w, v.y))
+	return b
+
+
+## Off / on materials of the front lamps painted by headlamp.gdshader.
+## `recessed`: the optics are HeadlampInsides geometry (the player's car).
+static func headlamp_materials(lamps: Dictionary, model: Node3D, recessed := false) -> Dictionary:
+	var b := Car.headlamp_bounds(lamps, model)
 	if b.x == INF:
 		return {}
 	var out := {}
@@ -864,6 +877,7 @@ static func headlamp_materials(lamps: Dictionary, model: Node3D) -> Dictionary:
 			m.set_shader_parameter("bounds", b)
 			m.set_shader_parameter("part", 0 if n == "Lamp_Head" else 1)
 			m.set_shader_parameter("lit", on)
+			m.set_shader_parameter("recessed", recessed)
 			pair.append(m)
 		out[n] = pair
 	return out
@@ -884,6 +898,8 @@ func _set_lamp(n: String, on: bool, variant := "") -> void:
 			for s in range(1, mi.mesh.get_surface_count()):
 				mi.set_surface_override_material(s, mat)
 		if _lamp_shader and n == "Lamp_Head":
+			if _head_insides:
+				_head_insides.set_lit(on)
 			# The indicator end pieces carry part of the beam's reflectors.
 			for tn in ["Lamp_TurnFL", "Lamp_TurnFR"]:
 				for key in [tn, tn + "_on"]:

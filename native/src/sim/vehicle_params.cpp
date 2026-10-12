@@ -310,7 +310,10 @@ VehicleParams make_gazelle() {
 	e.friction_per_krpm = 9.0;
 	e.compression_hold = 70.0;
 	e.idle_rpm = 750.0;
-	e.stall_rpm = 380.0;
+	// Below the catch speed, or every start counted as a stall: the engine
+	// fired at 330, dipped under 380 before the idle took over, and the
+	// learner saw "engine stalled" (and the exam scored №22) for nothing.
+	e.stall_rpm = 290.0;
 	e.catch_rpm = 330.0;
 	e.limiter_rpm = 3900.0;
 	e.redline_rpm = 3700.0;

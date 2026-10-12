@@ -400,7 +400,11 @@ func _make_car_full(cid: String, colour: Color, light: Array) -> Dictionary:
 			groups["right"].append([mi, off, on_turn])
 	# Far away the light single-mesh version stands in (one draw instead of a
 	# dozen): the full model up to HLOD_RANGE, the light one beyond.
+	# On a phone screen a car 60 m away is a few dozen pixels tall: the light
+	# version is indistinguishable there and saves ~20 draws per car.
 	var hlod := 140.0 if int(Settings.get_value("quality")) >= 2 else 70.0
+	if Settings.is_mobile():
+		hlod = 60.0 if int(Settings.get_value("quality")) >= 2 else 45.0
 	for gi in model.find_children("*", "GeometryInstance3D", true, false):
 		(gi as GeometryInstance3D).visibility_range_end = hlod
 	var parts := _model_parts(light[0])

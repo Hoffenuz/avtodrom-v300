@@ -66,11 +66,12 @@ func _tick(_dt: float, p: CarProbe) -> void:
 		_check_limit(p)
 	match phase:
 		Phase.ENTER:
-			if _in_bay(p):
+			if _in_bay(p) and (p.reversing or p.stopped_time > STABLE_STOP):
 				set_hint("hint.box_fix")
-				if p.stopped_time > STABLE_STOP:
-					phase = Phase.IN_BAY
-					performed = true
+				# Reversed into the bay: the exercise is performed; where the
+				# wheels stood is judged (№17), never "not performed" (№27).
+				performed = true
+				phase = Phase.IN_BAY
 			elif p.reversing:
 				set_hint("hint.box_reverse")
 			else:

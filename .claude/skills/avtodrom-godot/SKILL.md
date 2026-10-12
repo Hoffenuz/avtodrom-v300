@@ -46,7 +46,9 @@ py -m http.server 8060 --directory export/web   # lokal sinov (eksportdan OLDIN 
 ```
 Bitta mashq/imtihon tekshiruvi (headless, tez):
 `(cd game && ../$G --headless --path . res://scenes/drive.tscn --fixed-fps 120 -- --autopilot-test --quit-after-s=600 --car=gazelle --mode=practice --exercise=box --demo) | grep -E "^RESULT|^PENALTY"`
-Kutilgan natija: `RESULT ... penalty=0`.
+Kutilgan natija: `RESULT ... penalty=0` va `EXIT 0`. `--headless` (dummy renderer) menyu/haydash sahnasidan
+keyin engine o'chayotganda segfault (139) beradi — haqiqiy renderer (oyna) va eksport toza chiqadi; shuning
+uchun `run_tests.py` exit kodini emas, `EXIT <kod>` qatorini o'qiydi.
 
 ## Debug bayroqlari (`--` dan keyin)
 `--mode=exam|practice|free --exercise=<id> --demo --car=nexia2|cobalt_at|gentra|gazelle --camera=cockpit|chase|top
@@ -116,12 +118,26 @@ Kutilgan natija: `RESULT ... penalty=0`.
 - Lokal Worker: `export/web-cf` da `npx wrangler@4 dev --port 8787`. TaskStop npx bolalarini o'ldirmaydi — `wrangler` node jarayonlari + `taskkill /F /IM workerd.exe`.
 - Headless sinov: Playwright (scratchpad/webtest/run.js, `channel:'chrome'`, `--use-angle=d3d11`, persistent profile). `--use-angle=gl` NVIDIA drayver keshi tufayli sovuq kompilyatsiyani yashiradi.
 
+## Telefon xotirasi / unumdorlik
+- Telefon crash "Scudo ERROR: internal map failure (Out of memory)" = mmap soni tugadi: har kadrda GPU
+  bufer yaratmang (ImmediateMesh qayta qurish, yangi ArrayMesh/ImageTexture). `RouteGuide` lentasi butun
+  marshrut bitta statik mesh + `route_ribbon.gdshader` (s0/s_end uniform); overlay faqat o'zgarganda.
+- Xotira tekshiruvi: `--perf` (PERF_MEM: static/objects/resources), `--restart-every=S` (sahna qayta
+  yuklanadi), haqiqiy jarayon: scratchpad `rss.ps1` (Godot_v4.7.2-stable_win64.exe — console exe emas!).
+- `--perf` oxirida PERF_GROUP: ko'rinadigan geometriya nom bo'yicha (draw manbalari).
+- Telefonda: harakat mashinalari HLOD 60 m (yuqori)/45 m; avto render masshtabi piksel byudjeti
+  (2.0/1.5/1.0 M px) — 2.7k ekranda 0.85 o'rniga ~0.78.
+
 ## Imtihon parametrlari (imtihon sahifasi)
 - "Yiqitish" = Settings `exam_fail` → `Session.exam_can_fail()`; o'chiq: 100+ ballda ham to'xtamaydi,
   natija `no_fail` → "IMTIHON TUGADI" (hukmsiz).
 - "Yordamchi navigator" = `show_route` → `Session.exam_assist()` (practice/demo da doim true); o'chiq:
   chiziq, mashq kartasi, xabarlar, tayyorgarlik paneli yo'q; start dvigatel + (chap signal yoki ruchnoy
   tushirildi) — faqat dvigatelda boshlansa avtopilot "30 s qimirlamadi" oladi.
+- Pauzada "Qaytadan" imtihonda ham bor (ogohlantirish: bu urinish o'tmagan).
+- Ball tuzatishlari: sariq chiroqda to'xtab bo'lmasa (v*0.8 + v^2/6 > masofa) №24 yo'q; boks/parallelda joyga
+  kirdi = bajarildi (№27 emas, chiziq №17); Gazelle stall_rpm 290 < catch 330 (oldin har startda "o'chdi"
+  + №22). C++ testi: har mashina startda stall_count 0.
 
 ## Mashina vizual tuzoqlari
 - Kabinadan BodyOuter yashirin (LAYER_EXTERIOR). Gazelle'da `cockpit_shell`: kuzov kabinadan ko'rinadi, ichki
@@ -149,12 +165,17 @@ Kutilgan natija: `RESULT ... penalty=0`.
 - G'ildirak ovozi: `AudioSynth.squeal()` 620 Hz, yumshoq modulyatsiya (940 Hz + kuchli overton "hushtak" edi);
   `scrub()` siyrak yumshoq donalar (zich qattiq donalar "taraq-taraq"); `Car._follow` tau 0.09/0.25 (ABS pulslari).
 - Onix farasi: `head_energy` 1.1 (reflektor butun mesh, 5 da oqarib ketadi); orqa klaster ustida `lamp_glass_red`.
-- Gazelle kuzovi: `refine_car.py` `denoise_normals` (spec `"denoise": 0.45`, `max_angle_deg` 12) — 0.14 da
-  menyuda yon panellarda past chastotali dog'lar qolardi; satin bo'yoq (`satin_paint`) ham shu uchun;
+- Gazelle kuzovidagi menyudagi "dog'lar" = Godot import'ining avto-LOD'i (birlashtirilgan normallar yassi
+  panelni yamoq-yamoq soyalaydi; 10 m da yoqiladi, yaqin suratlarda yo'q). `gazelle.glb.import`
+  `meshes/generate_lods=false`. Tekshirish: `lod_bias=100` bilan menyu suratlari. Normal tekislash/qoplama
+  surish (sinab ko'rildi) sabab EMAS edi. Menyuni ko'p burchakdan: `--shot-every=1.25` (aylanma 30 s).
   `inner_shell` + `cockpit_shell` birga: tashqaridan oynalar ichi trim bilan.
-- Cobalt farasi: `headlamp.gdshader` linza meshiga ichini chizadi (obyekt koordinatasi, `bounds`): to'q
-  tutunli korpus, katta proyektor (xrom halqa + qora linza), kichik yuqori nur kosasi, amber, pastki xrom
-  chiziq. Hammasi `disc()` yumshoq chegarali — "g'alati chiziqlar" bo'lmasin. Orqa: alohida mesh qo'shish
+- Cobalt farasi: `headlamp.gdshader` linza qobig'iga korpusni chizadi (`bounds`, to'q tutunli xrom, amber,
+  pastki xrom chiziq); o'yinchi mashinasida (`recessed`) proyektor va uzoq nur kosasi o'rnida teshik
+  (`discard`, part 0 VA 1 — burilish bo'lagi kosa ustida) va orqasida haqiqiy geometriya:
+  `vehicle/headlamp_insides.gd` (xrom konus + qora bezel + gumbaz linza; paraboloid kosa + lampochka; yonganda
+  emissive). Doira markaz/radiuslari shader va skriptda BIR XIL (0.36w/0.28h, 0.79w/0.14h). Lamp_Head'ning
+  2-yuzasi (eski proyektor diski) olib tashlanadi. Harakat ishtirokchilarida eski chizma (arzon). Orqa: alohida mesh qo'shish
   ishlamadi (model ichki qismlari oldida/kuzovdan chiqadi) → `rear_turn_red`: orqa burilish linzasi qizil
   (Lamp_Tail materiali), faqat yonganda amber.
 - O'yinchi mashinasi `lod_bias = 4` (telefonda avto-LOD kuzovda "buklangan" qirralar beradi).

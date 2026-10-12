@@ -1110,9 +1110,9 @@
   "ru": "Готово"
  },
  "pause.warn_exam": {
-  "uz_latn": "Chiqsangiz — imtihon o‘tmagan hisoblanadi",
-  "uz_cyrl": "Чиқсангиз — имтиҳон ўтмаган ҳисобланади",
-  "ru": "Выход — экзамен не сдан"
+  "uz_latn": "Chiqsangiz yoki qaytadan boshlasangiz — bu urinish o‘tmagan hisoblanadi",
+  "uz_cyrl": "Чиқсангиз ёки қайтадан бошласангиз — бу уриниш ўтмаган ҳисобланади",
+  "ru": "Выход или перезапуск — эта попытка не сдана"
  },
  "res.passed": {
   "uz_latn": "O‘TDINGIZ",
