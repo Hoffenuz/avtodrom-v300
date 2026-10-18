@@ -29,10 +29,21 @@ static func hide_3d(tree: SceneTree) -> void:
 static func warm(scene: Node, progress: Callable) -> void:
 	var tree := scene.get_tree()
 	var cam := tree.root.get_camera_3d()
-	tree.root.disable_3d = false
 	if cam == null:
+		tree.root.disable_3d = false
 		return
 	var t0 := Time.get_ticks_msec()
+	# The camera sees only the warm-up quads, and the mirrors nothing, before
+	# 3D is on: one frame of the whole scene compiles every shader at once
+	# (52 s in one frame through Direct3D, the page "not responding").
+	var mask := cam.cull_mask
+	cam.cull_mask = LAYER
+	var subviews: Array[SubViewport] = []
+	_find_subviews(scene, subviews)
+	subviews = subviews.filter(func(vp: SubViewport) -> bool: return not vp.disable_3d)
+	for vp in subviews:
+		vp.disable_3d = true # mirrors: they show the same materials
+	tree.root.disable_3d = false
 	var found := {}
 	# Two frames: the car's lamps alternate between their lit looks (lamp_prewarm).
 	_collect(scene, found)
@@ -40,21 +51,17 @@ static func warm(scene: Node, progress: Callable) -> void:
 	if not is_instance_valid(cam):
 		return
 	_collect(scene, found)
-	var subviews: Array[SubViewport] = []
-	_find_subviews(scene, subviews)
-	subviews = subviews.filter(func(vp: SubViewport) -> bool: return not vp.disable_3d)
-	for vp in subviews:
-		vp.disable_3d = true # mirrors: they show the same materials
-	var mask := cam.cull_mask
-	cam.cull_mask = LAYER
 	var holder := Node3D.new()
 	holder.name = "ShaderWarmup"
 	cam.add_child(holder)
 	var quad := QuadMesh.new()
 	quad.size = Vector2(0.2, 0.2)
 	var keys := found.keys()
+	var parts: Array[Node3D] = []
+	_parts(scene, parts, 0)
+	var total := keys.size() + parts.size()
 	for i in keys.size():
-		progress.call(i, keys.size())
+		progress.call(i, total)
 		var e: Array = found[keys[i]]
 		var gi: GeometryInstance3D
 		if e[1]:
@@ -71,22 +78,44 @@ static func warm(scene: Node, progress: Callable) -> void:
 			gi = mi
 		gi.material_override = e[0]
 		gi.layers = LAYER
-		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Casting a shadow builds the material's shadow-pass shader in the same
+		# step; otherwise the frame that shows the scene built them all at once.
+		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		gi.position = Vector3((i % 5 - 2) * 0.25, (i / 5 % 3 - 1) * 0.25, -2.0)
 		holder.add_child(gi)
+		var ts := Time.get_ticks_msec()
 		await RenderingServer.frame_post_draw
 		if not is_instance_valid(cam):
 			return # the scene went away meanwhile
-	progress.call(keys.size(), keys.size())
+		var took := Time.get_ticks_msec() - ts
+		if took > 250: # the slow ones, for the log (which materials cost the first visit)
+			print("WARM step %d %d ms %s @%s" % [i, took, _describe(e[0]), e[2]])
 	holder.queue_free()
+	# What the quads miss (the shadow map of the whole scene, mesh formats,
+	# second passes) is built when the scene itself is drawn: part by part,
+	# a frame each, rather than in one long frame.
+	for p in parts:
+		p.visible = false
 	cam.cull_mask = mask
+	for i in parts.size():
+		progress.call(keys.size() + i, total)
+		if is_instance_valid(parts[i]):
+			parts[i].visible = true
+		var ts := Time.get_ticks_msec()
+		await RenderingServer.frame_post_draw
+		if not is_instance_valid(cam):
+			return
+		var took := Time.get_ticks_msec() - ts
+		if took > 250:
+			print("WARM part %s %d ms" % [parts[i].name if is_instance_valid(parts[i]) else "?", took])
+	progress.call(total, total)
 	for vp in subviews:
 		if is_instance_valid(vp):
 			vp.disable_3d = false
 	print("WARM %d shaders in %d ms" % [keys.size(), Time.get_ticks_msec() - t0])
 
 
-## Distinct shaders: key -> [material, drawn through a MultiMesh].
+## Distinct shaders: key -> [material, drawn through a MultiMesh, a node with it].
 static func _collect(n: Node, found: Dictionary) -> void:
 	if n is GeometryInstance3D and n.visible:
 		var multi := n is MultiMeshInstance3D
@@ -109,9 +138,23 @@ static func _collect(n: Node, found: Dictionary) -> void:
 		for m in mats:
 			var k := _key(m) + ("|mm" if multi else "")
 			if k != "" and not found.has(k):
-				found[k] = [m, multi]
+				found[k] = [m, multi, n.name]
 	for c in n.get_children():
 		_collect(c, found)
+
+
+## The scene's visible 3D parts, its big groups (the course, the city) split.
+static func _parts(n: Node, out: Array[Node3D], depth: int) -> void:
+	for c in n.get_children():
+		var c3 := c as Node3D
+		if c3 == null or not c3.visible:
+			continue
+		# Only plain groups are opened up: a node with a script (the car, a
+		# traffic light) may show and hide its own parts, so it goes whole.
+		if depth < 2 and c3.get_child_count() > 6 and c3.get_script() == null:
+			_parts(c3, out, depth + 1)
+		else:
+			out.append(c3)
 
 
 static func _find_subviews(n: Node, out: Array[SubViewport]) -> void:
@@ -135,3 +178,13 @@ static func _key(m: Material) -> String:
 			s += "1" if m.get_feature(i) else "0"
 		return s
 	return ""
+
+
+static func _describe(m: Material) -> String:
+	if m is ShaderMaterial and m.shader:
+		return "shader " + m.shader.resource_path.get_file()
+	var b := m as BaseMaterial3D
+	if b == null:
+		return m.get_class()
+	return "%s '%s' transp=%d shading=%d tex=%s normal=%s emis=%s" % [b.get_class(), b.resource_name, b.transparency,
+			b.shading_mode, b.albedo_texture != null, b.normal_enabled, b.emission_enabled]
