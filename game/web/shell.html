@@ -4,7 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0b1f17">
-<title>$GODOT_PROJECT_NAME</title>
+<title>Avtodrom simulyatori onlayn — 3D amaliy imtihon | AvtoSmart</title>
+<meta name="description" content="Avtodrom onlayn: haydovchilik amaliy imtihonining 3D simulyatori. Estakada, boks (garaj), parallel to‘xtash, ilon izi, chorrahalar — haqiqiy avtodrom mashqlari va jarima ballari bilan. Bepul, brauzerda.">
+<meta name="keywords" content="avtodrom, avtodrom simulyatori, avtodrom onlayn, avtodrom o‘yini, amaliy imtihon, haydovchilik imtihoni, prava, YHQ, автодром, симулятор автодрома">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://avtodrom.avtotestu.uz/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AvtoSmart">
+<meta property="og:locale" content="uz_UZ">
+<meta property="og:locale:alternate" content="ru_RU">
+<meta property="og:url" content="https://avtodrom.avtotestu.uz/">
+<meta property="og:title" content="Avtodrom simulyatori onlayn — 3D amaliy imtihon">
+<meta property="og:description" content="Haqiqiy avtodrom mashqlari 3D da: estakada, boks, parallel to‘xtash, chorrahalar va jarima ballari. Bepul, brauzerda.">
+<meta property="og:image" content="https://avtodrom.avtotestu.uz/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Avtodrom simulyatori onlayn — 3D amaliy imtihon">
+<meta name="twitter:description" content="Haqiqiy avtodrom mashqlari 3D da: estakada, boks, parallel to‘xtash, chorrahalar va jarima ballari.">
+<meta name="twitter:image" content="https://avtodrom.avtotestu.uz/og.jpg">
+<script type="application/ld+json">
+{
+	"@context": "https://schema.org",
+	"@type": "WebApplication",
+	"name": "Avtodrom — AvtoSmart",
+	"alternateName": ["Avtodrom simulyatori", "AvtoSmart Avtodrom", "Avtodrom onlayn", "Автодром"],
+	"url": "https://avtodrom.avtotestu.uz/",
+	"description": "Haydovchilik amaliy imtihonining (avtodrom) 3D simulyatori: estakada, boks, parallel to‘xtash, ilon izi, chorrahalar, temir yo‘l kesishmasi — imtihon tartibi va jarima ballari bilan.",
+	"image": "https://avtodrom.avtotestu.uz/og.jpg",
+	"applicationCategory": "EducationalApplication",
+	"applicationSubCategory": "Driving simulator",
+	"operatingSystem": "Web browser, Windows",
+	"browserRequirements": "WebGL 2",
+	"inLanguage": ["uz", "ru"],
+	"isAccessibleForFree": true,
+	"offers": { "@type": "Offer", "price": "0", "priceCurrency": "UZS" },
+	"publisher": { "@type": "Organization", "name": "AvtoSmart", "url": "https://www.avtotestu.uz/", "logo": "https://www.avtotestu.uz/avtosmart-logo.webp" }
+}
+</script>
 <style>
 html, body, #canvas { margin: 0; padding: 0; border: 0; }
 html, body { overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
@@ -18,6 +55,9 @@ body { color: #e8f5ee; background: #0b1f17; overflow: hidden; touch-action: none
 	background: radial-gradient(ellipse at 50% 35%, #1b5a3c 0%, #0f3324 45%, #071811 100%); }
 #status-splash { width: min(72vmin, 560px); max-height: 44vh; object-fit: contain; }
 #status-splash.show-image--false { display: none; }
+#about { width: min(620px, 92vw); text-align: center; }
+#about h1 { margin: 0; font-size: 22px; line-height: 1.25; color: #fff; }
+#about p { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: rgba(232,245,238,.72); }
 #load-box { width: min(560px, 88vw); text-align: center; }
 #load-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.12); overflow: hidden; }
 #load-fill { height: 100%; width: 0; border-radius: 4px; background: #a3e635; transition: width .2s; }
@@ -33,7 +73,9 @@ body { color: #e8f5ee; background: #0b1f17; overflow: hidden; touch-action: none
 	border: 1px solid #9b3943; color: #e0e0e0; text-align: center; }
 @media (max-height: 480px) {
 	#status { gap: 10px; padding: 12px; }
-	#status-splash { max-height: 34vh; }
+	#status-splash { max-height: 26vh; }
+	#about h1 { font-size: 17px; }
+	#about p { display: none; }
 	#app-card { padding: 10px 12px; font-size: 13px; }
 }
 
@@ -55,10 +97,21 @@ $GODOT_HEAD_INCLUDE
 </head>
 <body>
 <canvas id="canvas">Brauzeringiz canvas'ni qo'llamaydi.</canvas>
-<noscript>JavaScript yoqilmagan.</noscript>
+<noscript>
+	<h1>Avtodrom simulyatori onlayn — 3D amaliy imtihon</h1>
+	<p>Haydovchilik guvohnomasi amaliy imtihonining (avtodrom) 3D simulyatori: start, piyodalar o‘tish joyi, estakada,
+	90° burilish, ilon izi, boks (garaj), favqulodda to‘xtash, temir yo‘l kesishmasi, tezlanish, parallel to‘xtash
+	va chorrahalar — imtihon tartibi va jarima ballari bilan. Nexia, Gentra, Cobalt, Onix va Gazelle mashinalari.</p>
+	<p>O‘yin uchun JavaScript va WebGL 2 kerak. Nazariy testlar: <a href="https://www.avtotestu.uz/">avtotestu.uz</a>.</p>
+</noscript>
 
 <div id="status">
-	<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="">
+	<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="AvtoSmart Avtodrom">
+	<div id="about">
+		<h1>Avtodrom simulyatori — 3D amaliy imtihon</h1>
+		<p>Estakada, boks, parallel to‘xtash, ilon izi va chorrahalar — haqiqiy avtodrom mashqlari va jarima ballari
+		bilan. Bepul, ro‘yxatdan o‘tmasdan.</p>
+	</div>
 	<div id="load-box">
 		<div id="load-bar"><div id="load-fill"></div></div>
 		<div id="load-text">Yuklanmoqda…</div>
@@ -74,7 +127,6 @@ $GODOT_HEAD_INCLUDE
 window.AVTODROM = {
 	site: 'https://www.avtotestu.uz/',
 	windows: 'https://pub-ada2d6b89d42476e891d0e3b45ca4777.r2.dev/AvtoSmart-Avtodrom-Setup-1.0.7.exe',
-	android: 'https://pub-ada2d6b89d42476e891d0e3b45ca4777.r2.dev/AvtoSmart-Avtodrom-1.0.7.apk',
 	platform: /android/i.test(navigator.userAgent) ? 'android'
 		: /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ? 'ios'
 		: /windows/i.test(navigator.userAgent) ? 'windows' : 'other',
@@ -194,15 +246,20 @@ window.AVTODROM = {
 	};
 })();
 
-// The app is smoother: say so, with the download for this device.
+// The app is smoother: say so - on Windows with its download; on Android
+// it is not out yet, so only that it comes to Google Play (no link).
 (function () {
 	const A = window.AVTODROM, card = document.getElementById('app-card');
-	const url = A.platform === 'windows' ? A.windows : A.platform === 'android' ? A.android : '';
-	if (!url) return;
-	const what = A.platform === 'windows' ? 'Windows uchun ilova' : 'Android ilova';
-	card.innerHTML = '<div><b>' + what + '</b> — yuklab olinsa yuklanishni kutmaysiz, grafika yuqori'
+	if (A.platform === 'android') {
+		card.innerHTML = '<div><b>Android ilova tez orada Google Play&#8217;da</b> — grafika yuqori, qotishlar'
+			+ ' bo&#8216;lmaydi, internetsiz ishlaydi.</div>';
+		card.style.display = 'flex';
+		return;
+	}
+	if (A.platform !== 'windows') return;
+	card.innerHTML = '<div><b>Windows uchun ilova</b> — yuklab olinsa yuklanishni kutmaysiz, grafika yuqori'
 		+ ' va qotishlar bo&#8216;lmaydi.</div><a target="_blank" rel="noopener"></a>';
-	card.querySelector('a').href = url;
+	card.querySelector('a').href = A.windows;
 	card.querySelector('a').textContent = 'Yuklab olish';
 	card.style.display = 'flex';
 })();

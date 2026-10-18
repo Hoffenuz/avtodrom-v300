@@ -13,8 +13,11 @@ const TYPES = {
   wasm: "application/wasm",
   pck: "application/octet-stream",
   png: "image/png",
+  jpg: "image/jpeg",
   json: "application/manifest+json",
   ico: "image/x-icon",
+  txt: "text/plain; charset=utf-8",
+  xml: "application/xml; charset=utf-8",
 };
 
 export default {

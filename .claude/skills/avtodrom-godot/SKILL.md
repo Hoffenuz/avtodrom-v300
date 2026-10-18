@@ -117,7 +117,10 @@ uchun `run_tests.py` exit kodini emas, `EXIT <kod>` qatorini o'qiydi.
 - **Kesh**: shell fetch o'rami pck/wasm ni Cache API'da saqlaydi (`avtodrom-<build>`, build `package_web` dan `__AVTODROM_BUILD__`); eski build keshlari o'chiriladi. Ikkinchi kirishda tarmoqdan 0 bayt.
 - **Service worker**: Godot Engine o'zi `installServiceWorker()` qilardi (index.html ni ham keshdan berib, yangilanish bir tashrif kechikardi). Endi `GODOT_CONFIG.serviceWorker=''` + eski registratsiyalar unregister; `index.service.worker.js` o'rniga `game/web/service_worker.js` (eski SW bor brauzerlarda keshni o'chirib, o'zini unregister qiladi).
 - WebGL context lost / wasm abort (OOM) → `#stopped` overlay + "Qayta yuklash" (Godot'ning inglizcha alert'i o'rniga).
-- Ekran tugmalari webda: `Settings.web_touch_screen()` (pointer: coarse) — kompyuter brauzerida sichqoncha bilan chiqmaydi.
+- Ekran tugmalari webda kompyuterda ham sukut bo'yicha yoqiq (foydalanuvchi talabi).
+- Android brauzer: APK havolasi yo'q — "Tez orada Google Play'da" (shell karta + menyu "Ilova" oynasi, `WebLinks.app_soon()`); Windows'da installer havolasi qoladi.
+- SEO (avtodrom.avtotestu.uz): shell head'da title/description/canonical/OG/Twitter/JSON-LD (WebApplication), yuklanish ekranida h1 + matn, noscript. `deploy/web/` (robots.txt, sitemap.xml `__LASTMOD__`, og.jpg 1200x630, Google tasdiq fayli) `export_web` da export/web ga ko'chiriladi (game/ ichiga qo'ymang — Godot import qilib pck ga qo'shadi). Asosiy saytdagi /avtodrom "jarima ballari" uchun; bu subdomen "avtodrom simulyatori" so'rovlari uchun.
+- `--no-hud`: HUD'siz kadr (og.jpg: `--camera=chase --no-hud --shots=`).
 - Playwright persistent profil qisqa yo'lda (`VOSSTE~1`) Cache API `UnknownError` beradi — `chromium.launch()+newContext` ishlating.
 - Webda `Engine.max_fps` qo'ymang (60 cap rAF bilan 30 FPS beradi) — `Settings.frame_limit()` webda 0. `--perf` da menyu ham cap qo'ymaydi; URL `?args=--perf` argument uzatadi.
 - Qurilma darajasi: `Settings._detect_web_quality()` (WebGL UNMASKED_RENDERER, deviceMemory, cores) → zaif telefon `lite_scenery` (City/ParkedCar/props yashirin, daraxt 1/4).

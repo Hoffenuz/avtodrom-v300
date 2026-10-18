@@ -104,11 +104,6 @@
   "uz_cyrl": "Компьютер учун илова",
   "ru": "Приложение для компьютера"
  },
- "app.android_title": {
-  "uz_latn": "Android ilova",
-  "uz_cyrl": "Android илова",
-  "ru": "Приложение для Android"
- },
  "app.why": {
   "uz_latn": "Ilovani yuklab olsangiz har safar yuklanishni kutmaysiz: grafika yuqoriroq, qotishlar va ovoz uzilishlari bo‘lmaydi, internetsiz ham ishlaydi.",
   "uz_cyrl": "Иловани юклаб олсангиз ҳар сафар юкланишни кутмайсиз: графика юқорироқ, қотишлар ва овоз узилишлари бўлмайди, интернетсиз ҳам ишлайди.",
@@ -123,6 +118,21 @@
   "uz_latn": "Keyinroq",
   "uz_cyrl": "Кейинроқ",
   "ru": "Позже"
+ },
+ "app.soon_title": {
+  "uz_latn": "Tez orada Google Play’da",
+  "uz_cyrl": "Тез орада Google Play’да",
+  "ru": "Скоро в Google Play"
+ },
+ "app.soon": {
+  "uz_latn": "Avtodrom ilovasi tez orada Google Play orqali chiqadi: grafika yuqoriroq, qotishlar va ovoz uzilishlari bo‘lmaydi, internetsiz ham ishlaydi. Hozircha shu yerda — brauzerda mashq qilavering.",
+  "uz_cyrl": "Автодром иловаси тез орада Google Play орқали чиқади: графика юқорироқ, қотишлар ва овоз узилишлари бўлмайди, интернетсиз ҳам ишлайди. Ҳозирча шу ерда — браузерда машқ қилаверинг.",
+  "ru": "Приложение «Автодром» скоро выйдет в Google Play: графика выше, без подвисаний и прерывания звука, работает без интернета. А пока тренируйтесь здесь, в браузере."
+ },
+ "app.ok": {
+  "uz_latn": "Yaxshi",
+  "uz_cyrl": "Яхши",
+  "ru": "Хорошо"
  },
  "load.shaders": {
   "uz_latn": "Grafika tayyorlanmoqda…",

@@ -40,7 +40,6 @@ S = {
     "menu.site": ("Saytga", "Сайтга", "На сайт"),
     "menu.app": ("Ilova", "Илова", "Приложение"),
     "app.windows_title": ("Kompyuter uchun ilova", "Компьютер учун илова", "Приложение для компьютера"),
-    "app.android_title": ("Android ilova", "Android илова", "Приложение для Android"),
     "app.why": ("Ilovani yuklab olsangiz har safar yuklanishni kutmaysiz: grafika yuqoriroq, qotishlar va ovoz "
                 "uzilishlari bo‘lmaydi, internetsiz ham ishlaydi.",
                 "Иловани юклаб олсангиз ҳар сафар юкланишни кутмайсиз: графика юқорироқ, қотишлар ва овоз "
@@ -49,6 +48,14 @@ S = {
                 "работает без интернета."),
     "app.download": ("Yuklab olish", "Юклаб олиш", "Скачать"),
     "app.later": ("Keyinroq", "Кейинроқ", "Позже"),
+    "app.soon_title": ("Tez orada Google Play’da", "Тез орада Google Play’да", "Скоро в Google Play"),
+    "app.soon": ("Avtodrom ilovasi tez orada Google Play orqali chiqadi: grafika yuqoriroq, qotishlar va ovoz "
+                 "uzilishlari bo‘lmaydi, internetsiz ham ishlaydi. Hozircha shu yerda — brauzerda mashq qilavering.",
+                 "Автодром иловаси тез орада Google Play орқали чиқади: графика юқорироқ, қотишлар ва овоз "
+                 "узилишлари бўлмайди, интернетсиз ҳам ишлайди. Ҳозирча шу ерда — браузерда машқ қилаверинг.",
+                 "Приложение «Автодром» скоро выйдет в Google Play: графика выше, без подвисаний и прерывания "
+                 "звука, работает без интернета. А пока тренируйтесь здесь, в браузере."),
+    "app.ok": ("Yaxshi", "Яхши", "Хорошо"),
     "load.shaders": ("Grafika tayyorlanmoqda…", "Графика тайёрланмоқда…", "Подготовка графики…"),
     "load.menu": ("Menyuga qaytilmoqda…", "Менюга қайтилмоқда…", "Возврат в меню…"),
     "load.tip1": ("Maslahat: yurishdan oldin xavfsizlik kamarini taqing", "Маслаҳат: юришдан олдин хавфсизлик камарини тақинг",

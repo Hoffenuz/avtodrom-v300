@@ -123,6 +123,15 @@ def export_web():
     # The engine's service worker served a stale page; this one removes it
     # from the browsers that have it (see game/web/service_worker.js).
     shutil.copy(GAME / "web" / "service_worker.js", out / "index.service.worker.js")
+    # For search engines and link previews: robots.txt, sitemap.xml (dated
+    # by this build), the preview picture og.jpg, Google's site check file.
+    import time
+    for f in (ROOT / "deploy" / "web").iterdir():
+        if f.name == "sitemap.xml":
+            (out / f.name).write_text(f.read_text(encoding="utf-8").replace("__LASTMOD__", time.strftime("%Y-%m-%d")),
+                                      encoding="utf-8")
+        else:
+            shutil.copy(f, out / f.name)
 
 
 WEB_REPO = "https://github.com/avtodrom/avtodrom-web.git"

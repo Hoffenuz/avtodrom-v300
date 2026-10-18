@@ -109,6 +109,8 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.setup(car, controls, director, data)
+	if "--no-hud" in OS.get_cmdline_user_args():
+		hud.visible = false # clean pictures (the web page's preview image)
 	hud.pause_requested.connect(_pause)
 	hud.camera_requested.connect(_cycle_camera)
 	hud.look_drag.connect(func(d: Vector2, w: float) -> void: rig.drag(d, w))

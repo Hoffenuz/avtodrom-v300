@@ -286,7 +286,7 @@ func _show_home() -> void:
 		# A browser tab cannot close itself: back to the site instead, and
 		# the app for this device (smoother than the browser).
 		items.append(["menu.site", "home", WebLinks.open_site])
-		if WebLinks.app_url() != "":
+		if WebLinks.app_url() != "" or WebLinks.app_soon():
 			items.append(["menu.app", "download", _app_dialog])
 	elif not OS.has_feature("mobile"):
 		items.append(["menu.quit", "exit", func() -> void: get_tree().quit()])
@@ -482,9 +482,9 @@ func _app_dialog() -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
 	p.add_child(v)
-	var android := OS.has_feature("web_android")
-	v.add_child(UITheme.label(Loc.t("app.android_title" if android else "app.windows_title"), 26, UITheme.GO, true))
-	var d := UITheme.label(Loc.t("app.why"), 18, UITheme.TEXT)
+	var soon := WebLinks.app_soon()
+	v.add_child(UITheme.label(Loc.t("app.soon_title" if soon else "app.windows_title"), 26, UITheme.GO, true))
+	var d := UITheme.label(Loc.t("app.soon" if soon else "app.why"), 18, UITheme.TEXT)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	d.custom_minimum_size = Vector2(minf(560.0, _vw() * 0.8), 0)
 	v.add_child(d)
@@ -494,16 +494,17 @@ func _app_dialog() -> void:
 	var close := func() -> void:
 		shade.queue_free()
 		p.queue_free()
-	var later := UITheme.button(Loc.t("app.later"), 19, 56)
+	var later := UITheme.button(Loc.t("app.ok" if soon else "app.later"), 19, 56)
 	later.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	later.pressed.connect(close)
 	row.add_child(later)
-	var get_it := UITheme.button(Loc.t("app.download"), 19, 56)
-	get_it.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	get_it.pressed.connect(func() -> void:
-		OS.shell_open(WebLinks.app_url())
-		close.call())
-	row.add_child(get_it)
+	if not soon:
+		var get_it := UITheme.button(Loc.t("app.download"), 19, 56)
+		get_it.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		get_it.pressed.connect(func() -> void:
+			OS.shell_open(WebLinks.app_url())
+			close.call())
+		row.add_child(get_it)
 	shade.gui_input.connect(func(e: InputEvent) -> void:
 		if e is InputEventMouseButton and e.pressed:
 			close.call())

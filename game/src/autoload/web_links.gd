@@ -5,7 +5,6 @@ class_name WebLinks
 
 const SITE := "https://www.avtotestu.uz/"
 const WINDOWS := "https://pub-ada2d6b89d42476e891d0e3b45ca4777.r2.dev/AvtoSmart-Avtodrom-Setup-1.0.7.exe"
-const ANDROID := "https://pub-ada2d6b89d42476e891d0e3b45ca4777.r2.dev/AvtoSmart-Avtodrom-1.0.7.apk"
 
 
 static func _page(key: String, fallback: String) -> String:
@@ -15,10 +14,15 @@ static func _page(key: String, fallback: String) -> String:
 	return str(v) if v is String and v != "" else fallback
 
 
-## The app for this device ("" where there is none: iPhone, Linux, Mac).
+## The Android app is not out yet: phones get "soon on Google Play", with
+## nothing to download.
+static func app_soon() -> bool:
+	return OS.has_feature("web_android")
+
+
+## The app for this device to download ("" where there is none: phones,
+## Linux, Mac).
 static func app_url() -> String:
-	if OS.has_feature("web_android"):
-		return _page("android", ANDROID)
 	if OS.has_feature("web_windows"):
 		return _page("windows", WINDOWS)
 	return ""

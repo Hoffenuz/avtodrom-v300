@@ -289,25 +289,9 @@ func frame_limit() -> int:
 ## Whether the on-screen driving controls are shown.
 func screen_controls_on() -> bool:
 	var v := int(get_value("screen_controls"))
-	# Browsers by the screen: a phone may report itself as a desktop, a
-	# computer with a mouse drives with the keys (the settings change either).
-	return (is_mobile() or web_touch_screen()) if v < 0 else v == 1
-
-
-var _web_touch := -1
-
-
-## A browser whose main pointer is a finger (a phone or tablet, also one in
-## "desktop site" mode); a computer's mouse, even with a touch screen, is not.
-func web_touch_screen() -> bool:
-	if not OS.has_feature("web"):
-		return false
-	if _web_touch < 0:
-		_web_touch = 1 if JavaScriptBridge.eval("""(function () { try {
-			return matchMedia('(pointer: coarse)').matches
-				|| (navigator.maxTouchPoints > 0 && !matchMedia('(hover: hover)').matches);
-		} catch (x) { return true; } })()""", true) else 0
-	return _web_touch == 1
+	# Browsers show them by default too, on computers as well (a mouse can
+	# drive with them); a keyboard player turns them off in the settings.
+	return (is_mobile() or OS.has_feature("web")) if v < 0 else v == 1
 
 
 func is_mobile() -> bool:

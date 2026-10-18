@@ -1,0 +1,5 @@
+# AvtoSmart Avtodrom (avtodrom.avtotestu.uz)
+User-agent: *
+Allow: /
+
+Sitemap: https://avtodrom.avtotestu.uz/sitemap.xml
