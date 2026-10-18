@@ -115,6 +115,14 @@ def export_web():
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True, exist_ok=True)
     sh([str(GODOT), "--headless", "--path", str(GAME), "--export-release", "Web", str(out / "index.html")], GAME)
+    # Textures come in one GPU format a pack: computers' browsers read S3TC
+    # (index.pck), phones' ETC2 (this one); the page picks the pack the GPU
+    # reads, so nobody downloads (and holds in memory) both.
+    sh([str(GODOT), "--headless", "--path", str(GAME), "--export-pack", "Web Mobile", str(out / "index.mobile.pck")],
+       GAME)
+    # The engine's service worker served a stale page; this one removes it
+    # from the browsers that have it (see game/web/service_worker.js).
+    shutil.copy(GAME / "web" / "service_worker.js", out / "index.service.worker.js")
 
 
 WEB_REPO = "https://github.com/avtodrom/avtodrom-web.git"
@@ -146,7 +154,9 @@ def package_web(out):
     # The page shows the download in real (gzipped) megabytes: it gets every
     # file the engine fetches with its unpacked and packed size.
     sizes = {n: [(src / n).stat().st_size, len(d)] for n, d in packed.items() if n.endswith((".pck", ".wasm"))}
-    html = (src / "index.html").read_text(encoding="utf-8").replace("__AVTODROM_SIZES__", json.dumps(sizes))
+    # The build names the page's own cache of the engine and the pack.
+    html = (src / "index.html").read_text(encoding="utf-8").replace("__AVTODROM_SIZES__", json.dumps(sizes)) \
+        .replace("__AVTODROM_BUILD__", build)
     packed["index.html"] = gzip.compress(html.encode("utf-8"), compresslevel=9, mtime=0)
     for name in sorted(packed):
         f = src / name

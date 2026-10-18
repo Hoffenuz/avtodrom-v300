@@ -42,6 +42,14 @@ body { color: #e8f5ee; background: #0b1f17; overflow: hidden; touch-action: none
 	text-align: center; padding: 24px; }
 #rotate-hint b { font-size: 56px; line-height: 1.2; }
 @media (orientation: portrait) and (pointer: coarse) { #rotate-hint { display: flex; } }
+
+#stopped { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; gap: 18px;
+	align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; text-align: center;
+	background: rgba(7, 24, 17, .94); font-size: 16px; line-height: 1.5; }
+#stopped b { font-size: 22px; color: #a3e635; }
+#stopped small { color: rgba(232,245,238,.6); }
+#stopped button { padding: 12px 28px; border: 0; border-radius: 12px; background: #22c55e; color: #052e16;
+	font: 700 17px system-ui, sans-serif; }
 </style>
 $GODOT_HEAD_INCLUDE
 </head>
@@ -72,6 +80,22 @@ window.AVTODROM = {
 		: /windows/i.test(navigator.userAgent) ? 'windows' : 'other',
 };
 
+// The game pack with the textures in the format the engine will ask for:
+// S3TC where WebGL has it (computers), ETC2 otherwise (phones) - in the
+// browser the engine takes ETC2 as always there and prefers S3TC.
+(function () {
+	let s3tc = true;
+	try {
+		const g = document.createElement('canvas').getContext('webgl2');
+		if (g) {
+			s3tc = !!g.getExtension('WEBGL_compressed_texture_s3tc');
+			const lose = g.getExtension('WEBGL_lose_context');
+			if (lose) lose.loseContext();
+		}
+	} catch (e) { /* no WebGL 2: the engine says so */ }
+	window.AVTODROM.pack = s3tc ? 'index.pck' : 'index.mobile.pck';
+})();
+
 // The canvas follows devicePixelRatio, and every frame the engine copies it
 // to the screen with GPU-stalling state queries: on a 2.6x phone that copy of
 // a 2400x1100 canvas took two thirds of the frame. Phones get at most 1.5x
@@ -88,9 +112,23 @@ window.AVTODROM = {
 // Download progress in megabytes. Each file arrives gzipped; the build step
 // writes every file's size (unpacked, packed) here so the page can show the
 // real traffic. Bytes are counted as the engine reads them.
+//
+// The engine and the game pack are also kept in the page's own storage (Cache
+// API), one cache per build: a phone browser's HTTP cache often drops files
+// this big, and then every visit downloaded 40 MB again.
 (function () {
 	let sizes = null;
 	try { sizes = JSON.parse('__AVTODROM_SIZES__'); } catch (e) { /* local run: no sizes */ }
+	if (sizes) delete sizes[window.AVTODROM.pack === 'index.pck' ? 'index.mobile.pck' : 'index.pck'];
+	const build = '__AVTODROM_BUILD__';
+	const store = build.indexOf('__') !== 0 && window.caches ? 'avtodrom-' + build : '';
+	if (store) {
+		caches.keys().then(function (keys) {
+			keys.forEach(function (k) {
+				if ((k.indexOf('avtodrom-') === 0 && k !== store) || k.indexOf('-sw-cache-') >= 0) caches.delete(k);
+			});
+		}).catch(function () {});
+	}
 	const fill = document.getElementById('load-fill');
 	const text = document.getElementById('load-text');
 	const got = {};
@@ -117,7 +155,26 @@ window.AVTODROM = {
 		const url = typeof input === 'string' ? input : input.url;
 		const name = new URL(url, location.href).pathname.split('/').pop();
 		const counted = sizes ? name in sizes : /\.(pck|wasm)$/.test(name);
-		return realFetch(input, init).then(function (r) {
+		if (!counted || !store || (init && init.method && init.method !== 'GET')) {
+			return realFetch(input, init).then(track);
+		}
+		const key = new URL(name, location.href).href;
+		const type = /\.wasm$/.test(name) ? 'application/wasm' : 'application/octet-stream';
+		const fromNet = function (cache) {
+			return realFetch(input, init).then(function (r) {
+				if (cache && r.ok && r.body) {
+					const copy = r.clone();
+					cache.put(key, new Response(copy.body, { headers: { 'Content-Type': type } })).catch(function () {
+						cache.delete(key).catch(function () {}); // full storage: no half file
+					});
+				}
+				return track(r);
+			});
+		};
+		return caches.open(store).then(function (cache) {
+			return cache.match(key).then(function (hit) { return hit ? track(hit) : fromNet(cache); });
+		}, function () { return fromNet(null); });
+		function track(r) {
 			if (!counted || !r.ok || !r.body) return r;
 			got[name] = 0;
 			const reader = r.body.getReader();
@@ -133,7 +190,7 @@ window.AVTODROM = {
 				cancel(why) { return reader.cancel(why); },
 			});
 			return new Response(body, { status: r.status, statusText: r.statusText, headers: r.headers });
-		});
+		}
 	};
 })();
 
@@ -173,12 +230,53 @@ window.AVTODROM = {
 	addEventListener('keydown', full, true);
 	addEventListener('contextmenu', function (e) { e.preventDefault(); });
 })();
+
+// When the game cannot go on: the phone took the GPU away while the browser
+// was in the background, or the engine stopped (most often out of memory).
+// Instead of a frozen picture (or the engine's English alert box), a note
+// with a button that loads the game again.
+(function () {
+	let shown = false;
+	function stopped(why) {
+		if (shown) return;
+		shown = true;
+		console.error('STOPPED', why);
+		const box = document.createElement('div');
+		box.id = 'stopped';
+		box.innerHTML = '<div><b>O&#8216;yin to&#8216;xtab qoldi</b><br>' + why + '<br><small>Игра остановилась — '
+			+ 'перезагрузите страницу.</small></div><button>Qayta yuklash</button>';
+		box.querySelector('button').onclick = function () { location.reload(); };
+		document.body.appendChild(box);
+	}
+	window.AVTODROM.stopped = stopped;
+	addEventListener('webglcontextlost', function (e) {
+		e.stopImmediatePropagation();
+		stopped('Brauzer grafikani o&#8216;chirib qo&#8216;ydi (boshqa ilovaga o&#8216;tilganda yoki ekran o&#8216;chganda '
+			+ 'shunday bo&#8216;ladi).');
+	}, true);
+	function crash(text) {
+		if (/RuntimeError|Aborted|out of memory|OOM|unreachable|memory access/i.test(String(text))) {
+			stopped('Brauzerda xotira yetmadi. Boshqa tablarni yopib, qayta yuklang.');
+		}
+	}
+	addEventListener('error', function (e) { crash(e.message || (e.error && e.error.message)); });
+	addEventListener('unhandledrejection', function (e) { crash(e.reason && (e.reason.message || e.reason)); });
+})();
 </script>
 
 <script src="$GODOT_URL"></script>
 <script>
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+GODOT_CONFIG.mainPack = window.AVTODROM.pack;
+// No engine service worker (see web/service_worker.js): the page caches the
+// game itself. One left from an earlier visit goes, with its copy.
+GODOT_CONFIG.serviceWorker = '';
+if (navigator.serviceWorker) {
+	navigator.serviceWorker.getRegistrations().then(function (all) {
+		all.forEach(function (r) { r.unregister(); });
+	}).catch(function () {});
+}
 const engine = new Engine(GODOT_CONFIG);
 
 (function () {
