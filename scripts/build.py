@@ -230,6 +230,8 @@ def credentials():
 def export_android():
     out = ROOT / "export" / "android"
     out.mkdir(parents=True, exist_ok=True)
+    if WINDOWS:
+        ensure_sdk_link() # the editor settings point Godot there, also with --no-native
     c = credentials()
     env = dict(os.environ,
                GODOT_ANDROID_KEYSTORE_RELEASE_PATH=str(ROOT / c["keystore"]),
