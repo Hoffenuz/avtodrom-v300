@@ -161,6 +161,40 @@ window.AVTODROM = {
 	} catch (e) { /* read-only here: the full ratio stays */ }
 })();
 
+// Each frame ends with the engine copying its picture to the canvas
+// (Emscripten's blitOffscreenFramebuffer), and before that it asks WebGL for
+// the scissor test and the bound framebuffer. In Chrome each such question
+// waits for the GPU process to answer: a quarter of the game thread on a
+// phone. The page keeps those two values as they are set and answers itself.
+(function () {
+	const P = window.WebGL2RenderingContext && WebGL2RenderingContext.prototype;
+	if (!P) return;
+	const SCISSOR = 0x0C11, FB = 0x8D40, DRAW_FB = 0x8CA9, DRAW_FB_BINDING = 0x8CA6;
+	const known = new WeakMap();
+	function state(gl) {
+		let s = known.get(gl);
+		if (!s) { s = { scissor: false, draw: null }; known.set(gl, s); }
+		return s;
+	}
+	const enable = P.enable, disable = P.disable, bind = P.bindFramebuffer, del = P.deleteFramebuffer, get = P.getParameter;
+	P.enable = function (cap) { if (cap === SCISSOR) state(this).scissor = true; return enable.call(this, cap); };
+	P.disable = function (cap) { if (cap === SCISSOR) state(this).scissor = false; return disable.call(this, cap); };
+	P.bindFramebuffer = function (target, fb) {
+		if (target === FB || target === DRAW_FB) state(this).draw = fb;
+		return bind.call(this, target, fb);
+	};
+	P.deleteFramebuffer = function (fb) {
+		const s = known.get(this);
+		if (s && fb && s.draw === fb) s.draw = null;
+		return del.call(this, fb);
+	};
+	P.getParameter = function (name) {
+		if (name === SCISSOR) return state(this).scissor;
+		if (name === DRAW_FB_BINDING) return state(this).draw;
+		return get.call(this, name);
+	};
+})();
+
 // Download progress in megabytes. Each file arrives gzipped; the build step
 // writes every file's size (unpacked, packed) here so the page can show the
 // real traffic. Bytes are counted as the engine reads them.
@@ -318,6 +352,151 @@ window.AVTODROM = {
 	}
 	addEventListener('error', function (e) { crash(e.message || (e.error && e.error.message)); });
 	addEventListener('unhandledrejection', function (e) { crash(e.reason && (e.reason.message || e.reason)); });
+})();
+
+// The engine's sound on the browser's audio thread. Without threads the
+// engine mixes its sound on the game's own thread: every slow frame left a
+// gap (crackling). The same synthesis as the game's EngineSound (C++) runs
+// here in an AudioWorklet; the game only sends rpm and load each frame
+// (WebEngineSound). Other sounds play as browser samples.
+(function () {
+	const PROC = `
+const TWO_PI = 6.283185307179586, GAIN = [1.0, 0.86, 0.95, 0.9];
+function bp(f, freq, q) {
+	const w = TWO_PI * Math.min(freq, sampleRate * 0.45) / sampleRate, al = Math.sin(w) / (2 * q), a0 = 1 + al;
+	f.b0 = al / a0; f.b2 = -al / a0; f.a1 = -2 * Math.cos(w) / a0; f.a2 = (1 - al) / a0;
+}
+function tick(f, x) {
+	const y = f.b0 * x + f.z1;
+	f.z1 = -f.a1 * y + f.z2;
+	f.z2 = f.b2 * x - f.a2 * y;
+	return y;
+}
+class EngineVoice extends AudioWorkletProcessor {
+	constructor() {
+		super();
+		this.p = { rpm: 0, load: 0, running: false, cranking: false, interior: 1, volume: 0, hold: false };
+		this.rpm = 0; this.load = 0; this.level = 0; this.crank = 0; this.vol = 0;
+		this.phase = 0; this.starter = 0; this.cyl = 0; this.rng = 0x2468ace1;
+		this.res = [0, 1, 2, 3].map(() => ({ b0: 0, b2: 0, a1: 0, a2: 0, z1: 0, z2: 0 }));
+		this.lp = 0; this.dc = 0; this.dcPrev = 0; this.alive = true;
+		this.port.onmessage = (e) => { if (e.data === 'end') this.alive = false; else Object.assign(this.p, e.data); };
+	}
+	noise() {
+		let r = this.rng;
+		r ^= r << 13; r ^= r >>> 17; r ^= r << 5;
+		this.rng = r >>> 0;
+		return this.rng / 2147483648 - 1;
+	}
+	process(inputs, outputs) {
+		const out = outputs[0][0], rate = sampleRate, p = this.p;
+		const smooth = 1 - Math.exp(-1 / (rate * 0.035)), vs = 1 - Math.exp(-1 / (rate * 0.02));
+		const ld = Math.min(1, Math.max(0, p.load)), rpmNow = this.rpm;
+		const target = Math.max(0, p.rpm), level = (p.running || p.cranking) && !p.hold ? 1 : 0;
+		bp(this.res[0], 70 + rpmNow * 0.012, 2.2);
+		bp(this.res[1], 210 + rpmNow * 0.05, 3.0);
+		bp(this.res[2], 620 + rpmNow * 0.09, 4.0);
+		bp(this.res[3], 2100, 1.4);
+		const gInt = 0.35 + 0.65 * ld, gPan = 0.12 + 0.35 * ld;
+		const gNoise = 0.02 + 0.10 * ld * Math.min(1, rpmNow / 3000);
+		const inside = p.interior > 0.5;
+		const cutoff = inside ? 900 + rpmNow * 0.35 + ld * 900 : 2500 + rpmNow * 0.6;
+		const lpA = 1 - Math.exp(-TWO_PI * cutoff / rate);
+		const volume = 0.30 * (inside ? 0.85 : 1) * Math.max(0, p.volume);
+		for (let i = 0; i < out.length; i++) {
+			this.rpm += (target - this.rpm) * smooth;
+			this.load += (ld - this.load) * smooth;
+			this.level += (level - this.level) * smooth * 0.5;
+			this.crank += ((p.cranking ? 1 : 0) - this.crank) * smooth;
+			this.vol += (volume - this.vol) * vs;
+			const prev = this.phase;
+			this.phase += this.rpm / 60 / rate;
+			let ex = 0;
+			if (Math.floor(this.phase * 2) !== Math.floor(prev * 2)) {
+				ex = (0.55 + 0.9 * this.load) * GAIN[this.cyl] * (1 + 0.08 * this.noise());
+				this.cyl = (this.cyl + 1) & 3;
+			}
+			if (this.phase > 1e6) this.phase -= Math.floor(this.phase);
+			const env = 0.5 + 0.5 * Math.cos(TWO_PI * this.phase * 2);
+			const n = this.noise();
+			let s = tick(this.res[0], ex * 3) + gInt * tick(this.res[1], ex * 2)
+				+ gPan * tick(this.res[2], ex + n * 0.03) + gNoise * tick(this.res[3], n * env);
+			if (this.crank > 0.001) {
+				this.starter += 190 / rate;
+				if (this.starter > 1) this.starter -= 1;
+				const whine = Math.sin(TWO_PI * this.starter) * 0.25 + 0.08 * n;
+				s = s * (1 - this.crank) + this.crank * (whine * (0.6 + 0.4 * env) + s * 0.8);
+			}
+			s = Math.tanh(s * 1.6) * this.level;
+			this.lp += (s - this.lp) * lpA;
+			const y = this.lp - this.dcPrev + 0.995 * this.dc;
+			this.dcPrev = this.lp;
+			this.dc = y;
+			out[i] = y * this.vol;
+		}
+		for (let c = 1; c < outputs[0].length; c++) outputs[0][c].set(out);
+		return this.alive;
+	}
+}
+registerProcessor('avtodrom-engine', EngineVoice);
+`;
+	const AC = window.AudioContext || window.webkitAudioContext;
+	if (!AC || !window.AudioWorkletNode) return; // the game's own EngineSound then
+	let ctx = null, ready = null;
+	function context() {
+		if (!ctx) {
+			ctx = new AC({ latencyHint: 'interactive' });
+			const url = URL.createObjectURL(new Blob([PROC], { type: 'application/javascript' }));
+			ready = ctx.audioWorklet.addModule(url).catch(function (e) { console.error('engine sound', e); throw e; });
+		}
+		return ctx;
+	}
+	// Audio starts only after a tap or a key; hidden tabs stay quiet.
+	function wake() {
+		if (ctx && ctx.state !== 'running' && !document.hidden) ctx.resume().catch(function () {});
+	}
+	['pointerdown', 'touchend', 'keydown', 'mousedown'].forEach(function (t) { addEventListener(t, wake, true); });
+	document.addEventListener('visibilitychange', function () {
+		if (!ctx) return;
+		if (document.hidden) ctx.suspend().catch(function () {}); else wake();
+	});
+	let voices = 0;
+	const api = window.avtodromEngine = {
+		// True once the processor is loaded: until then (or if it never loads)
+		// the game uses its own EngineSound.
+		ok: false,
+		// For a look from the console: the audio state and the cars heard.
+		status: function () { return (ctx ? ctx.state : 'none') + ' ' + voices; },
+		// One voice per car: update() each frame, release() when the car goes.
+		create: function () {
+			const c = context();
+			let node = null, last = null, gone = false;
+			ready.then(function () {
+				if (gone) return;
+				node = new AudioWorkletNode(c, 'avtodrom-engine', { numberOfInputs: 0, outputChannelCount: [2] });
+				node.connect(c.destination);
+				voices++;
+				if (last) node.port.postMessage(last);
+				wake();
+			}).catch(function () {});
+			return {
+				update: function (rpm, load, running, cranking, interior, volume, hold) {
+					last = { rpm: rpm, load: load, running: !!running, cranking: !!cranking, interior: interior,
+						volume: volume, hold: !!hold };
+					if (node) node.port.postMessage(last);
+				},
+				release: function () {
+					gone = true;
+					if (node) { node.port.postMessage('end'); node.disconnect(); node = null; voices--; }
+				},
+			};
+		},
+	};
+	// Loaded at once (a context may load modules before it may play).
+	try {
+		context();
+		ready.then(function () { api.ok = true; }, function () {});
+	} catch (e) { console.error('engine sound', e); }
 })();
 </script>
 

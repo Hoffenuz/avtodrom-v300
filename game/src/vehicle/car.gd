@@ -120,7 +120,7 @@ var _lamp_off := {}
 var _tail_lenses: Array = []
 var _tail_lens_off: Material
 var _blink_t := 0.0
-var _engine_sound: EngineSound
+var _engine_sound # EngineSound, or WebEngineSound in a browser (the same setters)
 var _click: AudioStreamPlayer
 var _squeal: AudioStreamPlayer
 var _scrub: AudioStreamPlayer
@@ -913,12 +913,19 @@ func _set_lamp(n: String, on: bool, variant := "") -> void:
 
 # --------------------------------------------------------------------------- audio
 func _setup_audio() -> void:
-	_engine_sound = EngineSound.new()
+	if WebEngineSound.available():
+		# The browser's audio thread synthesises it: no gaps on slow frames.
+		_engine_sound = WebEngineSound.new()
+	else:
+		var es := EngineSound.new()
+		es.bus = "Master"
+		if OS.has_feature("web"):
+			# Mixed on the game's thread there: enough sound ready for a slow
+			# frame, and never as a browser sample (a generator has none).
+			es.buffer_length = 0.25
+			es.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
+		_engine_sound = es
 	_engine_sound.name = "EngineSound"
-	_engine_sound.bus = "Master"
-	if OS.has_feature("web"):
-		# Mixed on the game's thread there: enough sound ready for a slow frame.
-		_engine_sound.buffer_length = 0.25
 	add_child(_engine_sound)
 	_click = AudioStreamPlayer.new()
 	_click.volume_db = -6.0
@@ -961,7 +968,7 @@ func _apply_volumes() -> void:
 
 func set_interior_audio(inside: bool) -> void:
 	if _engine_sound:
-		_engine_sound.interior = 1.0 if inside else 0.0
+		_engine_sound.set_interior(1.0 if inside else 0.0)
 	_interior = inside
 	for n in _cockpit_only:
 		n.visible = inside
@@ -1069,10 +1076,10 @@ func _update_lamps(delta: float) -> void:
 
 
 func _update_audio(delta: float) -> void:
-	_engine_sound.rpm = get_rpm()
-	_engine_sound.load = get_throttle_opening()
-	_engine_sound.running = is_engine_running()
-	_engine_sound.cranking = is_engine_cranking()
+	_engine_sound.set_rpm(get_rpm())
+	_engine_sound.set_load(get_throttle_opening())
+	_engine_sound.set_running(is_engine_running())
+	_engine_sound.set_cranking(is_engine_cranking())
 	var speed := absf(get_forward_speed())
 	_update_tyre_audio(delta, speed)
 	# Seat-belt reminder chime while moving unbelted, like the real car.
@@ -1144,8 +1151,15 @@ func _set_loop(p: AudioStreamPlayer, gain: float, pitch: float) -> void:
 	if not (is_finite(g) and is_finite(pitch)):
 		g = 0.0
 		pitch = 1.0
-	p.volume_db = linear_to_db(g) if g >= 0.003 else -80.0
-	p.pitch_scale = clampf(pitch, 0.5, 2.0)
+	# Only real changes go out: in a browser each one rewrites the sample's
+	# gain nodes, every frame for both loops (most of them silent) was a
+	# seventh of the game thread on a phone.
+	var db := linear_to_db(g) if g >= 0.003 else -80.0
+	if absf(db - p.volume_db) > 0.25:
+		p.volume_db = db
+	pitch = clampf(pitch, 0.5, 2.0)
+	if db > -80.0 and absf(pitch - p.pitch_scale) > 0.004:
+		p.pitch_scale = pitch
 
 
 func _on_body_entered(body: Node) -> void:

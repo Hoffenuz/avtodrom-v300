@@ -318,12 +318,15 @@ func start_autopilot() -> void:
 ## stays under FPS_FLOOR and the player has not picked a quality, one level
 ## lower is saved and applied at once (resolution, shadows, anti-aliasing;
 ## the scenery itself follows on the next load). Checked again afterwards, so
-## a weak device can step down twice.
+## a weak device can step down twice. The typical (median) frame counts, not
+## the average: a one-off hitch (a shader built the first time something is
+## seen) used to drag the average under the floor and lowered the picture
+## for good on phones that run the drive at 60 fps.
 const FPS_FLOOR := 22.0
 const FPS_SETTLE := 1.5 # s ignored after the loading page (pipelines compiling)
 const FPS_WINDOW := 6.0
 var _fps_t := 0.0
-var _fps_frames := 0
+var _fps_deltas: PackedFloat32Array = []
 var _fps_time := 0.0
 
 
@@ -341,12 +344,13 @@ func _watch_frame_rate(delta: float) -> void:
 	_fps_t += delta
 	if _fps_t < FPS_SETTLE:
 		return
-	_fps_frames += 1
+	_fps_deltas.append(delta)
 	_fps_time += delta
 	if _fps_time < FPS_WINDOW:
 		return
-	var fps := _fps_frames / _fps_time
-	_fps_frames = 0
+	_fps_deltas.sort()
+	var fps := 1.0 / maxf(_fps_deltas[_fps_deltas.size() >> 1], 0.001)
+	_fps_deltas.clear()
 	_fps_time = 0.0
 	_fps_t = 0.0
 	if fps >= FPS_FLOOR:

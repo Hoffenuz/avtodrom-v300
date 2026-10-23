@@ -65,8 +65,12 @@ const DEFAULTS := {
 	"quality_user": false,
 	"renderer_checked": false,
 	"web_warm": false,
+	"web_detect": 0, # which browser detection picked the level (WEB_DETECT)
 	"lite_scenery": false, # no city blocks, parked cars or small props, a quarter of the trees # browser: the shaders have been compiled once (the browser keeps them)
 }
+
+## Raised when the browser detection changes: levels it picked are redone.
+const WEB_DETECT := 2
 
 var _values: Dictionary = {}
 
@@ -80,6 +84,12 @@ func _ready() -> void:
 				var v: Variant = cfg.get_value(SECTION, key)
 				if typeof(v) == typeof(DEFAULTS[key]) or (typeof(DEFAULTS[key]) == TYPE_FLOAT and typeof(v) == TYPE_INT):
 					_values[key] = v
+	if OS.has_feature("web") and int(_values["web_detect"]) != WEB_DETECT and not bool(_values["quality_user"]):
+		# An older detection's level (or what the drive stepped it down to)
+		# goes: 1.0.13 and before put 6 GB phones on the lowest picture.
+		_values["quality"] = -1
+		_values["render_scale"] = -1.0
+		_values["web_detect"] = WEB_DETECT
 	if int(_values["quality"]) < 0:
 		_values["quality"] = detect_quality()
 	for arg in OS.get_cmdline_user_args():
@@ -202,8 +212,9 @@ func detect_quality() -> int:
 ## Browsers hide the GPU from the engine ("WebKit WebGL"): the page asks
 ## WebGL for it, with the memory and core count. A browser costs more than
 ## the app, so one level less than the app would pick: computers with a
-## discrete GPU Medium, others Low; phones Low, Medium only with a strong GPU,
-## and weak ones (4 GB, 4 cores, an older GPU) also the lighter scenery.
+## discrete GPU Medium, others Low; phones Medium with a strong GPU, High with
+## the newest ones, Low otherwise, and weak ones (3 GB or less, 4 cores, an
+## older GPU) also the lighter scenery.
 func _detect_web_quality() -> int:
 	var info := str(JavaScriptBridge.eval("""(function () { try {
 		var g = document.createElement('canvas').getContext('webgl2');
@@ -222,20 +233,28 @@ func _detect_web_quality() -> int:
 				or gpu.contains("radeon rx") or gpu.contains("radeon pro") or gpu.contains("arc(tm) a") \
 				or gpu.contains("arc a")
 		return 1 if discrete else 0
-	var adreno := -1
-	var mali := -1
-	var m := RegEx.create_from_string("adreno[^0-9]*([0-9]{3})").search(gpu)
-	if m:
-		adreno = int(m.get_string(1))
-	m = RegEx.create_from_string("mali-g([0-9]{2,3})").search(gpu)
-	if m:
-		mali = int(m.get_string(1))
-	var strong := adreno >= 730 or (mali >= 710 and mali < 1000) or gpu.contains("immortalis") \
-			or gpu.contains("apple")
-	var weak := (mem > 0.0 and mem <= 4.0) or (cores > 0 and cores <= 4) or (adreno >= 0 and adreno < 610) \
-			or (mali >= 0 and mali < 68) or gpu.contains("mali-t") or gpu.contains("powervr")
+	var adreno := _gpu_number(gpu, "adreno[^0-9]*([0-9]{3})")
+	var mali := _gpu_number(gpu, "mali-g([0-9]{2,3})")
+	var xclipse := _gpu_number(gpu, "xclipse[^0-9]*([0-9]{3})")
+	# Browsers round the memory down to a power of two and stop at 8: a 6 GB
+	# phone says 4 (it used to count as weak, and good phones got the lowest
+	# picture), 3 GB says 2.
+	var weak := (mem > 0.0 and mem <= 2.0) or (cores > 0 and cores <= 4) or (adreno >= 0 and adreno < 610) 			or (mali >= 0 and mali < 68) or gpu.contains("mali-t") or gpu.contains("powervr")
 	_values["lite_scenery"] = weak
-	return 1 if strong and not weak and (mem == 0.0 or mem >= 8.0) else 0
+	if weak:
+		return 0
+	# Adreno 640+ (Snapdragon 855 on), Mali-G76..G78 and G610+, Immortalis,
+	# Xclipse (Exynos), Apple: Medium. The newest ones with 8 GB: High.
+	var strong := adreno >= 640 or (mali >= 76 and mali < 100) or (mali >= 610 and mali < 1000) 			or gpu.contains("immortalis") or xclipse >= 0 or gpu.contains("apple")
+	var top := adreno >= 740 or (mali >= 715 and mali < 1000) or gpu.contains("immortalis") or xclipse >= 940
+	if top and mem >= 8.0:
+		return 2
+	return 1 if strong and (mem == 0.0 or mem >= 4.0) else 0
+
+
+static func _gpu_number(gpu: String, pattern: String) -> int:
+	var m := RegEx.create_from_string(pattern).search(gpu)
+	return int(m.get_string(1)) if m else -1
 
 
 ## 3D render resolution as a share of the screen: the setting, or by quality
@@ -250,8 +269,8 @@ func render_scale() -> float:
 		# The page holds phone canvases at 1.5x the CSS pixels (shell.html), not
 		# the screen's 2.5-3x: a larger share of it still means fewer pixels.
 		if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
-			return 0.65
-		return [0.8, 0.9, 1.0][clampi(int(get_value("quality")), 0, 2)]
+			return 0.7
+		return [0.85, 1.0, 1.0][clampi(int(get_value("quality")), 0, 2)]
 	if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
 		return 0.5
 	var q := clampi(int(get_value("quality")), 0, 2)

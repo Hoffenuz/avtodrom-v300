@@ -23,7 +23,7 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 		sky_mat.energy_multiplier = 1.0
 		new_sky.sky_material = sky_mat
 		new_sky.radiance_size = [Sky.RADIANCE_SIZE_64, Sky.RADIANCE_SIZE_128, Sky.RADIANCE_SIZE_256][q]
-		if q == 0 and OS.has_feature("mobile"):
+		if q == 0 and Settings.is_mobile():
 			new_sky.radiance_size = Sky.RADIANCE_SIZE_32 # a quarter of the filtering
 		# The sky never changes: its lighting is computed once, fully, before the
 		# first frame (incremental mode spreads it over frames, and the ground and
@@ -43,7 +43,7 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 	env.fog_light_color = Color(0.72, 0.8, 0.9)
 	env.fog_density = 0.0016
 	env.fog_sky_affect = 0.0
-	var mobile := OS.has_feature("mobile")
+	var mobile := Settings.is_mobile() # phone browsers too
 	# Glow is a full-screen blur chain: on phones only at the top level.
 	env.glow_enabled = quality >= 2 or (quality >= 1 and not mobile)
 	env.glow_intensity = 0.35
@@ -79,7 +79,7 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 
 ## Resolution, anti-aliasing and level of detail for a viewport.
 static func apply_viewport(vp: Viewport, quality: int) -> void:
-	var mobile := OS.has_feature("mobile")
+	var mobile := Settings.is_mobile() # phone browsers too
 	var scale := Settings.render_scale()
 	vp.scaling_3d_scale = scale
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if (scale < 0.99 and quality >= 1) 			else Viewport.SCALING_3D_MODE_BILINEAR
