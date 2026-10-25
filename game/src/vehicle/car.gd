@@ -86,6 +86,10 @@ var indicator: Indicator = Indicator.OFF
 var hazard := false
 var seatbelt := false
 var headlights := false
+## The light the headlamps throw on the road (enable_beam(): after dark).
+## One shadowless spot for both lamps: phones pay per light.
+var beam: SpotLight3D
+var _beam_energy := 0.0
 ## True while the indicator/hazard lamps are lit in the blink cycle.
 var blink_lit := false
 
@@ -1067,6 +1071,10 @@ func _update_lamps(delta: float) -> void:
 	_set_lamp("Lamp_Brake", braking)
 	_set_lamp("Lamp_Tail", braking or (headlights and ignition), "_brake" if braking else "")
 	_set_lamp("Lamp_Head", headlights and ignition)
+	if beam:
+		# Always in the scene, dark when off: a light appearing makes OpenGL
+		# build new shader variants for everything it reaches (a hitch).
+		beam.light_energy = _beam_energy if headlights else 0.0
 	var reversing := ignition and (get_gear() == -1)
 	_set_lamp("Lamp_Reverse", reversing)
 	if lamp_prewarm:
@@ -1174,3 +1182,21 @@ func _on_body_entered(body: Node) -> void:
 	_thump.volume_db = linear_to_db(clampf(speed / 6.0, 0.05, 1.0))
 	_thump.play()
 	obstacle_hit.emit(body, speed)
+
+
+## Lets the headlamps light the road ahead (Weather, evening and night).
+func enable_beam(energy: float) -> void:
+	if beam == null:
+		beam = SpotLight3D.new()
+		beam.name = "HeadlampBeam"
+		beam.position = Vector3(0.0, 0.72, -body_front + 0.15)
+		beam.rotation_degrees = Vector3(-5.0, 0.0, 0.0)
+		beam.spot_range = 42.0
+		beam.spot_angle = 34.0
+		beam.spot_angle_attenuation = 0.6
+		beam.spot_attenuation = 0.8
+		beam.light_color = Color(1.0, 0.95, 0.86)
+		beam.shadow_enabled = false
+		beam.light_specular = 0.4
+		add_child(beam)
+	_beam_energy = energy

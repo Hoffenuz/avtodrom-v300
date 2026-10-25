@@ -205,6 +205,33 @@ static func scrub() -> AudioStreamWAV:
 	return _cache["scrub"]
 
 
+## Rain loop: a soft hiss of drops on everything, a low wash, and close
+## drops ticking on the car.
+static func rain() -> AudioStreamWAV:
+	if _cache.has("rain"):
+		return _cache["rain"]
+	var xf := int(RATE * 0.2)
+	var n := int(RATE * 2.5) + xf
+	var s := PackedFloat32Array()
+	s.resize(n)
+	var r := _rng()
+	var hiss := _Biquad.new()
+	hiss.bandpass(2600.0, 0.5, RATE)
+	var wash := _Biquad.new()
+	wash.bandpass(450.0, 0.7, RATE)
+	var tick := _Biquad.new()
+	tick.bandpass(1800.0, 3.0, RATE)
+	var drop := 0.0
+	for i in n:
+		var x := r.randf_range(-1.0, 1.0)
+		if r.randf() < 14.0 / RATE:
+			drop = r.randf_range(0.4, 1.0)
+		drop *= 0.985
+		s[i] = hiss.tick(x) * 0.55 + wash.tick(x) * 0.5 + tick.tick(x * drop) * 0.9
+	_cache["rain"] = _wav(_seamless(_normalize(s, 0.7), xf), true)
+	return _cache["rain"]
+
+
 ## Scales a buffer so its peak is `peak`.
 static func _normalize(s: PackedFloat32Array, peak: float) -> PackedFloat32Array:
 	var m := 0.0

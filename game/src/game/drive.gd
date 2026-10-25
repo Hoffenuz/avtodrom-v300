@@ -32,7 +32,7 @@ func _ready() -> void:
 	_apply_graphics()
 	Settings.changed.connect(func(_k: String) -> void: _apply_graphics())
 	Loading.stage("environment")
-	var sun := EnvironmentSetup.create(self, quality)
+	var sun := EnvironmentSetup.create(self, quality, EnvironmentSetup.weather())
 	Loading.stage("course")
 	course = CourseBuilder.load_or_build(data, quality, bool(Settings.get_value("lite_scenery")))
 	add_child(course)
@@ -72,6 +72,9 @@ func _ready() -> void:
 		if seed_arg >= 0:
 			director.rng.seed = seed_arg + 1
 		director.finished.connect(_on_finished)
+		var voice := InstructorVoice.new()
+		add_child(voice)
+		voice.listen(director)
 		spawn = director.spawn_point()
 	else:
 		var sp: Dictionary = data.exercise("start")["spawn"]
@@ -100,6 +103,11 @@ func _ready() -> void:
 	guide = RouteGuide.new()
 	add_child(guide)
 	guide.setup(data, director, course)
+
+	var weather := Weather.new()
+	weather.name = "Weather"
+	add_child(weather)
+	weather.setup(EnvironmentSetup.weather(), data, car, quality)
 
 	if "--stall-test" in OS.get_cmdline_user_args():
 		return # checks: the load stops here, the stall message must appear
@@ -229,7 +237,7 @@ func _apply_graphics() -> void:
 	# after the scene has already loaded, not just at EnvironmentSetup.create().
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun:
-		sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows"))
+		sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows")) 				and EnvironmentSetup.sun_shadows(EnvironmentSetup.weather())
 
 
 func _on_setting_changed(key: String) -> void:
@@ -482,4 +490,4 @@ func _on_finished(result: Dictionary) -> void:
 	Session.record_result(result)
 	await get_tree().create_timer(RESULTS_DELAY).timeout
 	if is_inside_tree():
-		results.show_result(result)
+		results.show_result(result, director.data if director else null)

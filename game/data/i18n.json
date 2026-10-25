@@ -1528,5 +1528,55 @@
   "uz_latn": "O‘chiq — avtodromda faqat siz",
   "uz_cyrl": "Ўчиқ — автодромда фақат сиз",
   "ru": "Выкл — на автодроме только вы"
+ },
+ "res.map_hint": {
+  "uz_latn": "Xaritadagi raqamni bosing: xato qayerda bo‘lgani va qoida izohi. Ko‘k chiziq — oldinga, to‘q sariq — orqaga.",
+  "uz_cyrl": "Харитадаги рақамни босинг: хато қаерда бўлгани ва қоида изоҳи. Кўк чизиқ — олдинга, тўқ сариқ — орқага.",
+  "ru": "Нажмите номер на карте: где была ошибка и текст правила. Синяя линия — вперёд, оранжевая — назад."
+ },
+ "res.map_legend": {
+  "uz_latn": "Bosib o‘tilgan yo‘l: ko‘k chiziq — oldinga, to‘q sariq — orqaga.",
+  "uz_cyrl": "Босиб ўтилган йўл: кўк чизиқ — олдинга, тўқ сариқ — орқага.",
+  "ru": "Пройденный путь: синяя линия — вперёд, оранжевая — назад."
+ },
+ "set.weather": {
+  "uz_latn": "Vaqt va ob-havo",
+  "uz_cyrl": "Вақт ва об-ҳаво",
+  "ru": "Время и погода"
+ },
+ "set.weather_desc": {
+  "uz_latn": "Kechqurun va tunda faralar yonadi; yomg‘irda yo‘l sirpanchiqroq",
+  "uz_cyrl": "Кечқурун ва тунда фаралар ёнади; ёмғирда йўл сирпанчиқроқ",
+  "ru": "Вечером и ночью горят фары; в дождь дорога скользче"
+ },
+ "set.w_day": {
+  "uz_latn": "Kunduz",
+  "uz_cyrl": "Кундуз",
+  "ru": "День"
+ },
+ "set.w_evening": {
+  "uz_latn": "Kechqurun",
+  "uz_cyrl": "Кечқурун",
+  "ru": "Вечер"
+ },
+ "set.w_night": {
+  "uz_latn": "Tun",
+  "uz_cyrl": "Тун",
+  "ru": "Ночь"
+ },
+ "set.w_rain": {
+  "uz_latn": "Yomg‘ir",
+  "uz_cyrl": "Ёмғир",
+  "ru": "Дождь"
+ },
+ "set.voice": {
+  "uz_latn": "Instruktor ovozi",
+  "uz_cyrl": "Инструктор овози",
+  "ru": "Голос инструктора"
+ },
+ "set.voice_desc": {
+  "uz_latn": "Mashqlar, xatolar va natijani ovoz bilan aytadi",
+  "uz_cyrl": "Машқлар, хатолар ва натижани овоз билан айтади",
+  "ru": "Озвучивает упражнения, ошибки и результат"
  }
 }

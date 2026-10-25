@@ -44,6 +44,7 @@ const DEFAULTS := {
 	"vol_master": 0.9,
 	"vol_engine": 0.8,
 	"vol_effects": 0.8,
+	"voice": true, # the instructor's recorded lines (InstructorVoice)
 	"left_handed": false,
 	# On-screen wheel with the indicator buttons above it, as one group:
 	# size (1 = standard) and how far it sits from the screen corner, as a
@@ -56,6 +57,7 @@ const DEFAULTS := {
 	"hud_layout": {},
 	"exam_time_limit_min": 25,
 	# Other participants: learner cars driving the route with the player.
+	"weather": "day", # day | evening | night | rain (EnvironmentSetup.LOOKS, Weather)
 	"traffic": false,
 	"traffic_count": 2,
 	# Computers: full screen without a window frame (F11 / Alt+Enter toggle it).

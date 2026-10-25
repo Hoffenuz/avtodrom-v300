@@ -14,6 +14,9 @@ signal state_changed
 signal start_signal
 signal emergency_signal(on: bool)
 signal finished(result: Dictionary)
+## Something the instructor's voice speaks about (InstructorVoice): "start",
+## "ex_<exercise>", "pen_<no>", "done_<milestone>", "emergency", "end_<how>".
+signal cue(key: String)
 
 enum State { PREPARE, RUNNING, FINISHED, FAILED }
 
@@ -27,6 +30,8 @@ const OFF_ROUTE_DISTANCE := 5.5
 const OFF_ROUTE_TIME := 1.5
 const TURN_WINDOW_BEFORE := 14.0
 const TURN_WINDOW_AFTER := 3.0
+const TRACK_STEP := 0.7
+const TRACK_MAX := 8000
 
 var practice := false
 var practice_id := ""
@@ -62,6 +67,10 @@ var _stall_count := 0
 var _turn_idx := 0
 var _turn_seen := false
 var _last_hit := -10.0
+## The way the car went, for the results' map: a point every TRACK_STEP
+## metres, and whether it was reversing there.
+var track := PackedVector2Array()
+var track_rev := PackedByteArray()
 
 
 func setup(p_data: CourseData, p_car: Car, p_traffic: TrafficController, p_practice_id := "") -> void:
@@ -154,6 +163,8 @@ func set_emergency_signal(on: bool) -> void:
 		return
 	emergency_on = on
 	emergency_signal.emit(on)
+	if on:
+		cue.emit("emergency")
 
 
 func current_exercise() -> Exercise:
@@ -180,8 +191,11 @@ func add_penalty(no: int, exercise_id := "", detail := "") -> void:
 		"no": no, "points": pts, "exercise": exercise_id, "detail": detail,
 		"time": snappedf(exam_time, 0.1), "total": total,
 	}
+	if probe:
+		entry["pos"] = [snappedf(probe.pos.x, 0.1), snappedf(probe.pos.y, 0.1)]
 	entries.append(entry)
 	penalty_added.emit(entry)
+	cue.emit("pen_%d" % no)
 	if total >= PenaltyTable.pass_below and not practice and Session.exam_can_fail():
 		_end(State.FAILED)
 
@@ -197,7 +211,16 @@ func _physics_process(dt: float) -> void:
 			_prepare(dt)
 		State.RUNNING:
 			exam_time += dt
+			_record_track()
 			_run(dt)
+
+
+func _record_track() -> void:
+	var n := track.size()
+	if n >= TRACK_MAX or (n > 0 and track[n - 1].distance_squared_to(probe.pos) < TRACK_STEP * TRACK_STEP):
+		return
+	track.append(probe.pos)
+	track_rev.append(1 if probe.speed < -0.05 else 0)
 
 
 func _prepare(dt: float) -> void:
@@ -226,6 +249,7 @@ func _begin_running() -> void:
 	_stall_count = car.get_stall_count()
 	state_changed.emit()
 	start_signal.emit()
+	cue.emit("start")
 
 
 func _run(dt: float) -> void:
@@ -233,6 +257,7 @@ func _run(dt: float) -> void:
 	for ex in exercises:
 		if ex.state == Exercise.State.WAITING and tracker.s >= ex.s0 - 0.01:
 			ex.begin()
+			cue.emit("ex_" + ex.id.rstrip("0123456789"))
 			active.append(ex)
 			exercise_changed.emit()
 	for ex in active.duplicate():
@@ -387,7 +412,14 @@ func _end(s: State) -> void:
 	state = s
 	set_emergency_signal(false)
 	state_changed.emit()
-	finished.emit(result())
+	var r := result()
+	if practice or Session.demo:
+		cue.emit("end_practice")
+	elif r["no_fail"]:
+		cue.emit("end_finished")
+	else:
+		cue.emit("end_passed" if r["passed"] else "end_failed")
+	finished.emit(r)
 
 
 func result() -> Dictionary:
@@ -408,5 +440,7 @@ func result() -> Dictionary:
 		"distance": snappedf(probe.travelled if probe else 0.0, 1.0),
 		"exercises": ex_list,
 		"car": car.preset,
+		"track": track,
+		"track_rev": track_rev,
 		"date": Time.get_datetime_string_from_system(false, true),
 	}

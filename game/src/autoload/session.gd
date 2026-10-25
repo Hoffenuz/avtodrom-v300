@@ -98,7 +98,11 @@ func record_result(result: Dictionary) -> void:
 	last_result = result
 	if mode != Mode.EXAM or demo:
 		return
-	history.push_front(result)
+	# The map's track stays out of the saved history (thousands of points).
+	var kept := result.duplicate()
+	kept.erase("track")
+	kept.erase("track_rev")
+	history.push_front(kept)
 	if history.size() > MAX_HISTORY:
 		history.resize(MAX_HISTORY)
 	_save_history()

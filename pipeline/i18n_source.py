@@ -457,6 +457,24 @@ S = {
     "set.version": ("Versiya {0}", "Версия {0}", "Версия {0}"),
     "menu.traffic_on": ("Yoqilgan · {0} ta mashina", "Ёқилган · {0} та машина", "Вкл · машин: {0}"),
     "menu.traffic_off": ("O‘chiq — avtodromda faqat siz", "Ўчиқ — автодромда фақат сиз", "Выкл — на автодроме только вы"),
+    # Results map (ExamMap) and the instructor's voice.
+    "res.map_hint": ("Xaritadagi raqamni bosing: xato qayerda bo‘lgani va qoida izohi. Ko‘k chiziq — oldinga, to‘q sariq — orqaga.",
+                     "Харитадаги рақамни босинг: хато қаерда бўлгани ва қоида изоҳи. Кўк чизиқ — олдинга, тўқ сариқ — орқага.",
+                     "Нажмите номер на карте: где была ошибка и текст правила. Синяя линия — вперёд, оранжевая — назад."),
+    "res.map_legend": ("Bosib o‘tilgan yo‘l: ko‘k chiziq — oldinga, to‘q sariq — orqaga.",
+                       "Босиб ўтилган йўл: кўк чизиқ — олдинга, тўқ сариқ — орқага.",
+                       "Пройденный путь: синяя линия — вперёд, оранжевая — назад."),
+    "set.weather": ("Vaqt va ob-havo", "Вақт ва об-ҳаво", "Время и погода"),
+    "set.weather_desc": ("Kechqurun va tunda faralar yonadi; yomg‘irda yo‘l sirpanchiqroq",
+                         "Кечқурун ва тунда фаралар ёнади; ёмғирда йўл сирпанчиқроқ",
+                         "Вечером и ночью горят фары; в дождь дорога скользче"),
+    "set.w_day": ("Kunduz", "Кундуз", "День"),
+    "set.w_evening": ("Kechqurun", "Кечқурун", "Вечер"),
+    "set.w_night": ("Tun", "Тун", "Ночь"),
+    "set.w_rain": ("Yomg‘ir", "Ёмғир", "Дождь"),
+    "set.voice": ("Instruktor ovozi", "Инструктор овози", "Голос инструктора"),
+    "set.voice_desc": ("Mashqlar, xatolar va natijani ovoz bilan aytadi", "Машқлар, хатолар ва натижани овоз билан айтади",
+                       "Озвучивает упражнения, ошибки и результат"),
 }
 
 

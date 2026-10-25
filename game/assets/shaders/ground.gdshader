@@ -12,17 +12,22 @@ uniform float macro_scale = 0.071;
 uniform float macro_strength = 0.28;
 uniform float roughness_offset = 0.0;
 uniform float ao_strength = 1.0;
+// 0 dry .. 1 soaked (Weather: rain): darker, glossy, puddles where the macro
+// variation is low.
+global uniform float wetness;
 
 void fragment() {
 	vec3 albedo = texture(albedo_tex, UV).rgb;
 	float macro = texture(albedo_tex, UV * macro_scale + vec2(0.37, 0.11)).g;
 	macro += texture(albedo_tex, UV * macro_scale * 0.31 + vec2(0.71, 0.53)).r;
 	albedo *= mix(1.0, 0.72 + macro * 0.32, macro_strength);
-	ALBEDO = albedo * tint.rgb * COLOR.rgb;
+	float puddle = wetness * smoothstep(0.62, 0.42, macro * 0.5);
+	ALBEDO = albedo * tint.rgb * COLOR.rgb * (1.0 - 0.45 * wetness);
 	vec3 arm = texture(arm_tex, UV).rgb;
 	AO = mix(1.0, arm.r, ao_strength);
 	AO_LIGHT_AFFECT = 0.35;
-	ROUGHNESS = clamp(arm.g + roughness_offset, 0.04, 1.0);
+	float rough = clamp(arm.g + roughness_offset, 0.04, 1.0);
+	ROUGHNESS = mix(rough * (1.0 - 0.55 * wetness), 0.05, puddle);
 	METALLIC = 0.0;
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
 	NORMAL_MAP_DEPTH = normal_strength;

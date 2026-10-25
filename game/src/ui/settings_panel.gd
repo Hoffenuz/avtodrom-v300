@@ -288,6 +288,8 @@ func _build_avtodrom() -> void:
 	if on:
 		_row("set.traffic_count", _segmented("traffic_count", [[1, "1"], [2, "2"], [3, "3"], [4, "4"]]),
 				"set.traffic_count_desc")
+	_row("set.weather", _segmented("weather", [["day", Loc.t("set.w_day")], ["evening", Loc.t("set.w_evening")],
+			["night", Loc.t("set.w_night")], ["rain", Loc.t("set.w_rain")]]), "set.weather_desc")
 	_row("set.route", _toggle("show_route"), "set.route_desc")
 	_row("set.hints", _toggle("show_hints"))
 
@@ -350,6 +352,7 @@ func _build_sound() -> void:
 	_row("set.vol_master", _slider("vol_master", 0.0, 1.0, 0.05))
 	_row("set.vol_engine", _slider("vol_engine", 0.0, 1.0, 0.05))
 	_row("set.vol_effects", _slider("vol_effects", 0.0, 1.0, 0.05))
+	_row("set.voice", _toggle("voice"), "set.voice_desc")
 
 
 func _build_about() -> void:

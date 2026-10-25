@@ -7,21 +7,68 @@ extends RefCounted
 const SUN_ROTATION := Vector3(deg_to_rad(-52.0), deg_to_rad(150.0), 0.0)
 
 
-## One sky for the whole session: its lighting (radiance) is filtered once,
-## not again for the menu and every drive (seconds on a phone's GPU).
-static var _sky: Sky
-static var _sky_q := -1
+## One sky per look for the whole session: its lighting (radiance) is
+## filtered once, not again for the menu and every drive (seconds on a
+## phone's GPU). Key: "<quality>:<weather>".
+static var _skies := {}
+
+## The drive's look (Settings "weather"): sky colours (top, horizon, ground
+## horizon, ground bottom) for the procedural skies, and the sun (or moon).
+const LOOKS := {
+	"evening": {
+		"sky": [Color(0.16, 0.22, 0.4), Color(0.98, 0.6, 0.36), Color(0.5, 0.38, 0.3), Color(0.06, 0.06, 0.07)],
+		"sun_rot": Vector3(-9.0, 235.0, 0.0), "sun_energy": 1.0, "sun_color": Color(1.0, 0.64, 0.4),
+		"fog": Color(0.86, 0.62, 0.48), "fog_density": 0.0022, "exposure": 1.05, "saturation": 1.08,
+	},
+	"night": {
+		"sky": [Color(0.012, 0.018, 0.045), Color(0.1, 0.08, 0.075), Color(0.05, 0.045, 0.045), Color(0.01, 0.01, 0.012)],
+		"sun_rot": Vector3(-38.0, 120.0, 0.0), "sun_energy": 0.12, "sun_color": Color(0.6, 0.7, 1.0),
+		"fog": Color(0.06, 0.06, 0.08), "fog_density": 0.004, "exposure": 1.35, "saturation": 0.95,
+		"ambient": Color(0.18, 0.19, 0.25),
+	},
+	"rain": {
+		"sky": [Color(0.36, 0.39, 0.44), Color(0.56, 0.58, 0.61), Color(0.4, 0.41, 0.42), Color(0.2, 0.2, 0.21)],
+		"sun_rot": Vector3(-52.0, 150.0, 0.0), "sun_energy": 0.45, "sun_color": Color(0.86, 0.89, 0.95),
+		"fog": Color(0.6, 0.62, 0.66), "fog_density": 0.0045, "exposure": 1.0, "saturation": 0.85,
+	},
+}
 
 
-static func create(parent: Node, quality: int) -> DirectionalLight3D:
+## Settings "weather", or "day" for anything unknown.
+static func weather() -> String:
+	var w := str(Settings.get_value("weather"))
+	return w if LOOKS.has(w) else "day"
+
+
+## Whether the sun casts shadows in this look (an overcast sky or the moon:
+## none, which also spares the phone a shadow pass).
+static func sun_shadows(look: String) -> bool:
+	return look == "day" or look == "evening"
+
+
+static func create(parent: Node, quality: int, look := "day") -> DirectionalLight3D:
 	var env := Environment.new()
 	var q := clampi(quality, 0, 2)
-	if _sky == null or _sky_q != q:
+	var spec: Dictionary = LOOKS.get(look, {})
+	var key := "%d:%s" % [q, look]
+	if not _skies.has(key):
 		var new_sky := Sky.new()
-		var sky_mat := PanoramaSkyMaterial.new()
-		sky_mat.panorama = load("res://assets/sky/sky_1k.hdr")
-		sky_mat.energy_multiplier = 1.0
-		new_sky.sky_material = sky_mat
+		if spec.is_empty():
+			var sky_mat := PanoramaSkyMaterial.new()
+			sky_mat.panorama = load("res://assets/sky/sky_1k.hdr")
+			sky_mat.energy_multiplier = 1.0
+			new_sky.sky_material = sky_mat
+		else:
+			var c: Array = spec["sky"]
+			var pm := ProceduralSkyMaterial.new()
+			pm.sky_top_color = c[0]
+			pm.sky_horizon_color = c[1]
+			pm.ground_horizon_color = c[2]
+			pm.ground_bottom_color = c[3]
+			pm.sky_curve = 0.12
+			pm.ground_curve = 0.05
+			pm.sun_angle_max = 8.0 if look == "night" else 30.0
+			new_sky.sky_material = pm
 		new_sky.radiance_size = [Sky.RADIANCE_SIZE_64, Sky.RADIANCE_SIZE_128, Sky.RADIANCE_SIZE_256][q]
 		if q == 0 and Settings.is_mobile():
 			new_sky.radiance_size = Sky.RADIANCE_SIZE_32 # a quarter of the filtering
@@ -29,10 +76,9 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 		# first frame (incremental mode spreads it over frames, and the ground and
 		# the background visibly change brightness while it converges).
 		new_sky.process_mode = Sky.PROCESS_MODE_QUALITY
-		_sky = new_sky
-		_sky_q = q
+		_skies[key] = new_sky
 	env.background_mode = Environment.BG_SKY
-	env.sky = _sky
+	env.sky = _skies[key]
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 1.0
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
@@ -52,6 +98,17 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.06
 	env.adjustment_contrast = 1.04
+	if not spec.is_empty():
+		env.fog_light_color = spec["fog"]
+		env.fog_density = spec["fog_density"]
+		env.tonemap_exposure = spec["exposure"]
+		env.adjustment_saturation = spec["saturation"]
+		if spec.has("ambient"):
+			# The night sky is too dark to light anything: a moonlit fill.
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+			env.ambient_light_color = spec["ambient"]
+	# The wet road (ground.gdshader); every drive and the menu set it.
+	RenderingServer.global_shader_parameter_set("wetness", 1.0 if look == "rain" else 0.0)
 	var we := WorldEnvironment.new()
 	we.name = "WorldEnvironment"
 	we.environment = env
@@ -62,8 +119,13 @@ static func create(parent: Node, quality: int) -> DirectionalLight3D:
 	sun.rotation = SUN_ROTATION
 	sun.light_energy = 1.25
 	sun.light_color = Color(1.0, 0.97, 0.92)
+	if not spec.is_empty():
+		var rot: Vector3 = spec["sun_rot"]
+		sun.rotation = Vector3(deg_to_rad(rot.x), deg_to_rad(rot.y), 0.0)
+		sun.light_energy = spec["sun_energy"]
+		sun.light_color = spec["sun_color"]
 	# Low: no shadows. Medium: one cascade to 35 m on phones. High: more.
-	sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows"))
+	sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows")) and sun_shadows(look)
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.2
 	if quality >= 2:

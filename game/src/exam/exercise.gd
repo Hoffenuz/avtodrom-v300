@@ -75,6 +75,7 @@ func milestone(key: String, args: Array = []) -> void:
 		return
 	_milestones[key] = true
 	director.milestone.emit(Loc.t(key, args))
+	director.cue.emit(key.replace(".", "_"))
 
 
 ## Called when the car has moved past s1 without the exercise finishing
