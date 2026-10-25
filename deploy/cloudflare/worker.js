@@ -34,13 +34,15 @@ export default {
     const entry = manifest.files[path.slice(1)];
     if (!entry) return new Response("Not found", { status: 404 });
 
-    const etag = `"${manifest.build}"`;
+    // Per file: a release leaves the unchanged files' ETags (the 44 MB
+    // engine's above all) as they were, so browsers keep their copies.
+    const etag = `"${entry.hash || manifest.build}"`;
     const headers = {
       "Content-Type": TYPES[path.split(".").pop()] || "application/octet-stream",
       "Content-Encoding": "gzip",
       "Content-Length": String(entry.size),
       // Same URLs on every release: browsers ask again each time and get a
-      // 304 while the build is unchanged.
+      // 304 while the file is unchanged.
       "Cache-Control": "no-cache",
       ETag: etag,
     };

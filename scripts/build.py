@@ -107,6 +107,105 @@ def native_web():
        NATIVE, emsdk_env())
 
 
+# Textures the phones' pack carries smaller (size limit, pixels): the ground's
+# normal and roughness maps (fine detail a phone's screen hardly shows) and
+# the road-sign atlas. The colour maps and the sky stay as they are.
+MOBILE_SMALL = {
+    **{"assets/textures/%s/%s.jpg" % (g, m): 512 for g in ("asphalt", "concrete", "grass") for m in ("normal", "arm")},
+    "assets/signs/atlas.png": 1024,
+}
+MOBILE_TEX = "_mobile_tex" # in game/, left out of every pack (export_presets.cfg)
+
+
+def _import_remap(path):
+    """The [remap] values of a .import file."""
+    out = {}
+    section = ""
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("["):
+            section = line.strip("[]")
+        elif section == "remap" and "=" in line:
+            k, v = line.split("=", 1)
+            out[k] = v.strip('"')
+    return out
+
+
+def mobile_textures():
+    """Copies of the MOBILE_SMALL textures, imported at their phone size.
+    Returns {pack path of an original's ETC2 file: the smaller copy's bytes}."""
+    import shutil
+    tmp = GAME / MOBILE_TEX
+    tmp.mkdir(exist_ok=True)
+    for src, limit in MOBILE_SMALL.items():
+        copy = tmp / src.replace("/", "_")
+        if not copy.exists() or copy.stat().st_mtime < (GAME / src).stat().st_mtime:
+            shutil.copy2(GAME / src, copy)
+        # The original's import settings, the size limit lowered; Godot fills
+        # in the rest (uid, imported paths) when it imports the copy.
+        params = (GAME / (src + ".import")).read_text(encoding="utf-8").split("[params]", 1)[1]
+        params = "\n".join("process/size_limit=%d" % limit if l.startswith("process/size_limit=") else l
+                           for l in params.splitlines())
+        want = '[remap]\n\nimporter="texture"\ntype="CompressedTexture2D"\n\n[params]' + params
+        imp = Path(str(copy) + ".import")
+        if not imp.exists() or "process/size_limit=%d" % limit not in imp.read_text(encoding="utf-8"):
+            imp.write_text(want, encoding="utf-8")
+    sh([str(GODOT), "--headless", "--path", str(GAME), "--import"], GAME)
+    swap = {}
+    for src in MOBILE_SMALL:
+        orig = _import_remap(GAME / (src + ".import")).get("path.etc2", "")
+        small = _import_remap(Path(str(tmp / src.replace("/", "_")) + ".import")).get("path.etc2", "")
+        if not orig or not small:
+            sys.exit("no ETC2 import for %s" % src)
+        swap[orig.replace("res://", "")] = (GAME / small.replace("res://", "")).read_bytes()
+    return swap
+
+
+def patch_pack(pck, swap):
+    """Rewrites a .pck (format 3+, offsets from the file base) with the
+    contents of some of its files replaced: {path in the pack: new bytes}."""
+    import hashlib
+    import struct
+    data = pck.read_bytes()
+    magic, ver = struct.unpack_from("<II", data, 0)
+    flags, base, diroff = struct.unpack_from("<IQQ", data, 20)
+    if magic != 0x43504447 or ver < 3 or not flags & 2:
+        sys.exit("unexpected pack format in %s" % pck)
+    count, = struct.unpack_from("<I", data, diroff)
+    pos = diroff + 4
+    entries = []
+    for _ in range(count):
+        plen, = struct.unpack_from("<I", data, pos)
+        raw_path = data[pos + 4:pos + 4 + plen]
+        off, size = struct.unpack_from("<QQ", data, pos + 4 + plen)
+        efl, = struct.unpack_from("<I", data, pos + 4 + plen + 32)
+        entries.append([raw_path, off, size, efl])
+        pos += 4 + plen + 36
+    tail = data[pos:]
+    body = bytearray()
+    done = set()
+    for e in sorted(entries, key=lambda e: e[1]):
+        path = e[0].rstrip(b"\0").decode()
+        content = swap[path] if path in swap else data[base + e[1]:base + e[1] + e[2]]
+        if path in swap:
+            done.add(path)
+        body += b"\0" * ((-(base + len(body))) % 16)
+        e[1] = len(body)
+        e[2] = len(content)
+        e.append(hashlib.md5(content).digest())
+        body += content
+    if done != set(swap):
+        sys.exit("not in %s: %s" % (pck.name, sorted(set(swap) - done)))
+    body += b"\0" * ((-(base + len(body))) % 16)
+    out = bytearray(data[:base])
+    struct.pack_into("<Q", out, 32, base + len(body))
+    out += body
+    out += struct.pack("<I", count)
+    for raw_path, off, size, efl, md5 in entries:
+        out += struct.pack("<I", len(raw_path)) + raw_path + struct.pack("<QQ", off, size) + md5 + struct.pack("<I", efl)
+    out += tail
+    pck.write_bytes(bytes(out))
+
+
 def export_web():
     """Browser build: no threads, so any static host serves it (no COOP/COEP
     headers needed)."""
@@ -120,6 +219,9 @@ def export_web():
     # reads, so nobody downloads (and holds in memory) both.
     sh([str(GODOT), "--headless", "--path", str(GAME), "--export-pack", "Web Mobile", str(out / "index.mobile.pck")],
        GAME)
+    before = (out / "index.mobile.pck").stat().st_size
+    patch_pack(out / "index.mobile.pck", mobile_textures())
+    print("phones' pack: %.1f -> %.1f MB" % (before / 1e6, (out / "index.mobile.pck").stat().st_size / 1e6))
     # The engine's service worker served a stale page; this one removes it
     # from the browsers that have it (see game/web/service_worker.js).
     shutil.copy(GAME / "web" / "service_worker.js", out / "index.service.worker.js")
@@ -140,8 +242,11 @@ WEB_REPO = "https://github.com/avtodrom/avtodrom-web.git"
 def package_web(out):
     """export/web -> a Cloudflare Worker project in `out` (worker.js,
     wrangler.toml, public/): every file gzipped, the ones over the 25 MiB
-    static-asset limit split into parts that the Worker joins again."""
+    static-asset limit split into parts that the Worker joins again. Each
+    file carries a hash of its content: its ETag, and the page's cache key,
+    so a release re-downloads only the files it changed."""
     import gzip
+    import hashlib
     import json
     import shutil
     import time
@@ -157,16 +262,22 @@ def package_web(out):
     build = "%s-%s" % (version(), time.strftime("%Y%m%d%H%M%S"))
     files = {}
     packed = {}
+    hashes = {}
     for f in sorted(src.iterdir()):
         if f.is_file() and f.suffix != ".gz" and f.name != "index.html":
-            packed[f.name] = gzip.compress(f.read_bytes(), compresslevel=9, mtime=0)
+            raw = f.read_bytes()
+            packed[f.name] = gzip.compress(raw, compresslevel=9, mtime=0)
+            hashes[f.name] = hashlib.sha256(raw).hexdigest()[:16]
     # The page shows the download in real (gzipped) megabytes: it gets every
-    # file the engine fetches with its unpacked and packed size.
-    sizes = {n: [(src / n).stat().st_size, len(d)] for n, d in packed.items() if n.endswith((".pck", ".wasm"))}
+    # file the engine fetches with its unpacked and packed size, and the hash
+    # it keeps the file under.
+    sizes = {n: [(src / n).stat().st_size, len(d), hashes[n]] for n, d in packed.items()
+             if n.endswith((".pck", ".wasm"))}
     # The build names the page's own cache of the engine and the pack.
     html = (src / "index.html").read_text(encoding="utf-8").replace("__AVTODROM_SIZES__", json.dumps(sizes)) \
         .replace("__AVTODROM_BUILD__", build)
     packed["index.html"] = gzip.compress(html.encode("utf-8"), compresslevel=9, mtime=0)
+    hashes["index.html"] = hashlib.sha256(html.encode("utf-8")).hexdigest()[:16]
     for name in sorted(packed):
         f = src / name
         data = packed[name]
@@ -175,7 +286,7 @@ def package_web(out):
             part = "%s.gz.%d" % (f.name, len(parts))
             (pub / part).write_bytes(data[i:i + part_max])
             parts.append(part)
-        files[f.name] = {"size": len(data), "parts": parts}
+        files[f.name] = {"size": len(data), "parts": parts, "hash": hashes[name]}
     (pub / "_manifest.json").write_text(json.dumps({"build": build, "files": files}, indent=1), encoding="utf-8")
     cf = ROOT / "deploy" / "cloudflare"
     for name in ("worker.js", "wrangler.toml", "README.md"):

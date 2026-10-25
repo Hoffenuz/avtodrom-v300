@@ -26,6 +26,15 @@ func _ready() -> void:
 
 func listen(director: ExamDirector) -> void:
 	director.cue.connect(say)
+	# Read now, behind the loading page, not from the pack mid-drive.
+	var keys := ["start", "emergency", "end_passed", "end_failed", "end_finished", "end_practice",
+			"done_hold", "done_box_parked", "done_parallel_parked", "done_exercise"]
+	for ex in director.exercises:
+		keys.append("ex_" + ex.id.rstrip("0123456789"))
+	for no in range(1, 33):
+		keys.append("pen_%d" % no)
+	for k in keys:
+		_stream(k)
 
 
 func say(key: String) -> void:

@@ -200,20 +200,36 @@ window.AVTODROM = {
 // real traffic. Bytes are counted as the engine reads them.
 //
 // The engine and the game pack are also kept in the page's own storage (Cache
-// API), one cache per build: a phone browser's HTTP cache often drops files
-// this big, and then every visit downloaded 40 MB again.
+// API): a phone browser's HTTP cache often drops files this big, and then
+// every visit downloaded 40 MB again. Each file is kept under the hash of its
+// content (from the build step), so a release downloads only what it changed:
+// mostly the pack, not the 44 MB engine. The page asks for the storage to be
+// kept (persist): otherwise the browser may clear it when space runs low.
 (function () {
 	let sizes = null;
 	try { sizes = JSON.parse('__AVTODROM_SIZES__'); } catch (e) { /* local run: no sizes */ }
 	if (sizes) delete sizes[window.AVTODROM.pack === 'index.pck' ? 'index.mobile.pck' : 'index.pck'];
 	const build = '__AVTODROM_BUILD__';
-	const store = build.indexOf('__') !== 0 && window.caches ? 'avtodrom-' + build : '';
+	const store = sizes && build.indexOf('__') !== 0 && window.caches ? 'avtodrom-files' : '';
+	function keyOf(name) {
+		return new URL(name, location.href).href + '?v=' + sizes[name][2];
+	}
 	if (store) {
 		caches.keys().then(function (keys) {
+			// Caches of earlier page versions (one per build) and of the old
+			// service worker.
 			keys.forEach(function (k) {
 				if ((k.indexOf('avtodrom-') === 0 && k !== store) || k.indexOf('-sw-cache-') >= 0) caches.delete(k);
 			});
 		}).catch(function () {});
+		const wanted = {};
+		for (const n in sizes) wanted[keyOf(n)] = true;
+		caches.open(store).then(function (cache) {
+			return cache.keys().then(function (reqs) {
+				reqs.forEach(function (r) { if (!(r.url in wanted)) cache.delete(r).catch(function () {}); });
+			});
+		}).catch(function () {});
+		if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
 	}
 	const fill = document.getElementById('load-fill');
 	const text = document.getElementById('load-text');
@@ -244,7 +260,7 @@ window.AVTODROM = {
 		if (!counted || !store || (init && init.method && init.method !== 'GET')) {
 			return realFetch(input, init).then(track);
 		}
-		const key = new URL(name, location.href).href;
+		const key = keyOf(name);
 		const type = /\.wasm$/.test(name) ? 'application/wasm' : 'application/octet-stream';
 		const fromNet = function (cache) {
 			return realFetch(input, init).then(function (r) {
