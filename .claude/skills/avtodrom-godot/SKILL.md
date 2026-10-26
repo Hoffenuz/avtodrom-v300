@@ -40,6 +40,7 @@ python pipeline/i18n_source.py               # matnlar (3 til) -> game/data/i18n
 python scripts/build.py --installer          # bake + Windows EXE + Inno Setup o'rnatuvchi
 python scripts/build.py --android            # APK + debug APK + AAB (imzolangan)
 py scripts/build.py --web [--no-native]      # wasm (emsdk C:/emsdk, 4.0.11) + export/web (threadsiz, dlink)
+py scripts/build.py --web-engine             # qisqartirilgan web dvigatel (C:/gsrc/godot-4.7.2-stable, GODOT_SRC) → tools/web_template; --web uni avtomatik ishlatadi
 py scripts/build.py --publish-web            # github.com/avtodrom/avtodrom-web ga bitta commit (force); Cloudflare Workers Builds joylaydi
 py -m http.server 8060 --directory export/web   # lokal sinov (eksportdan OLDIN serverni to'xtating — papka band bo'ladi)
 (cd native && python -m SCons -j12 target=template_release)  # C++ o'zgarsa; Android: platform=android arch=arm64 ndk_version=28.2.13676358
@@ -105,6 +106,7 @@ uchun `run_tests.py` exit kodini emas, `EXIT <kod>` qatorini o'qiydi.
 
 ## Web (brauzer) versiyasi
 - Renderer faqat WebGL2 = gl_compatibility, telefon bilan bir xil yo'l. `OS.has_feature("web")`; Android brauzer `web_android` → `Settings.is_mobile()` true.
+- **Qisqartirilgan web dvigatel (2026-10-26):** `scripts/web_engine_profile.py` (SCons profili: ~45 modul o'chiq, 2D fizika/navigatsiya/XR yo'q, text_server_fb) + `build.py --web-engine` (platform/target/threads/dlink/optimize=size/lto=full buyruq qatorida — profil faylidan `target` o'qilmaydi). `index.side.wasm` 44.1 → 31.5 MB (gz 10.5 → 7.4). `export_web` `tools/web_template/web_dlink_nothreads_release.zip` bo'lsa preset "Web" ning `custom_template/release` ini vaqtincha unga qo'yadi (fayl baytlari bilan tiklanadi — CRLF saqlanadi). Tuzoqlar: `deprecated=no` bo'lmaydi (godot-cpp `get_godot_version`, skriptlarda `Image.create()`); `vhacd` kerak (car.gd `create_convex_shape(true, true)`); svg kerak (standart tema ikonkalari); OptionButton/PopupMenu ishlatilgani uchun `disable_advanced_gui` bo'lmaydi. Dvigatel emsdk 4.0.11 bilan (rasmiy shablon 4.0.20 edi). Muvaffaqiyatsiz yuklanish profilda "safe graphics" belgisini qoldiradi — perf sinovini toza profil bilan qiling.
 - Godot web shablonlari: `%APPDATA%/Godot/export_templates/4.7.2.stable/web_dlink_nothreads_*.zip` (tpz dan ochilgan). Preset "Web": extensions_support=true, thread_support=false (COOP/COEP kerak emas).
 - **Ovoz (2026-10-23):** threadsiz webda Godot mikseri asosiy oqimda — har sekin kadr ovozda uzilish edi. Dvigatel ovozi endi `WebEngineSound` (GDScript) → shell.html `window.avtodromEngine` AudioWorklet (EngineSound C++ sintezining JS nusxasi, brauzer audio oqimida); boshqa ovozlar `default_playback_type.web=1` (Sample, brauzerning o'zi). Worklet yo'q bo'lsa eski EngineSound `playback_type=STREAM` bilan. EngineSound sintezini o'zgartirsangiz shell.html dagi `PROC` ni ham o'zgartiring.
 - project.godot web overridelari: `audio/general/default_playback_type.web=1` (Sample), `window/size/mode.web=0`, `limits/opengl/max_*lights*.web=2` (omni/spot yo'q; D3D kompilyatsiyasi ~20% tezroq).

@@ -14,6 +14,7 @@ Builds everything that ships:
     python scripts/build.py --windows     # only the Windows export (no C++ build)
     python scripts/build.py --installer   # the Windows export and its Setup .exe (Inno Setup 6)
     python scripts/build.py --web         # the wasm module and the browser export (export/web)
+    python scripts/build.py --web-engine  # the slim web engine the Web export then uses (see web_engine())
     python scripts/build.py --publish-web # export/web to github.com/avtodrom/avtodrom-web (Cloudflare deploys it)
     python scripts/build.py --deploy-web  # export/web straight to Cloudflare (wrangler login)
 
@@ -105,6 +106,39 @@ def emsdk_env():
 def native_web():
     sh([sys.executable, "-m", "SCons", "-j12", "platform=web", "target=template_release", "threads=no"],
        NATIVE, emsdk_env())
+
+
+# The slim web engine (--web-engine): Godot's source of the bundled version
+# (GODOT_SRC, else C:/gsrc/godot-4.7.2-stable: a short path, SCons on Windows
+# trips over long ones) built with scripts/web_engine_profile.py. The Web
+# export uses it when it is there, the stock template otherwise.
+WEB_TEMPLATE = ROOT / "tools" / "web_template" / "web_dlink_nothreads_release.zip"
+
+
+def web_engine():
+    import shutil
+    src = Path(os.environ.get("GODOT_SRC", "C:/gsrc/godot-4.7.2-stable"))
+    if not (src / "SConstruct").exists():
+        sys.exit(f"Godot source not found in {src} (godot-4.7.2-stable.tar.xz from the GitHub release)")
+    sh([sys.executable, "-m", "SCons", "-j12", "platform=web", "target=template_release", "threads=no",
+        "dlink_enabled=yes", "optimize=size", "lto=full",
+        "profile=" + str(ROOT / "scripts" / "web_engine_profile.py")],
+       src, emsdk_env())
+    WEB_TEMPLATE.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(src / "bin" / "godot.web.template_release.wasm32.nothreads.dlink.zip", WEB_TEMPLATE)
+
+
+def web_preset_template(path):
+    """Points the Web preset's release template at [path] ("" for the stock
+    one) in export_presets.cfg; returns the file's text before."""
+    cfg = GAME / "export_presets.cfg"
+    text = cfg.read_bytes().decode("utf-8")
+    head, sep, rest = text.partition('[preset.3.options]')
+    if 'name="Web"' not in head.rsplit("[preset.3]", 1)[-1]:
+        sys.exit("export_presets.cfg: preset 3 is not Web")
+    rest = rest.replace('custom_template/release=""', 'custom_template/release="%s"' % path, 1)
+    cfg.write_bytes((head + sep + rest).encode("utf-8"))
+    return text
 
 
 # Textures the phones' pack carries smaller (size limit, pixels): the ground's
@@ -213,7 +247,16 @@ def export_web():
     out = ROOT / "export" / "web"
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True, exist_ok=True)
-    sh([str(GODOT), "--headless", "--path", str(GAME), "--export-release", "Web", str(out / "index.html")], GAME)
+    if WEB_TEMPLATE.exists():
+        presets = web_preset_template(WEB_TEMPLATE.as_posix())
+        try:
+            sh([str(GODOT), "--headless", "--path", str(GAME), "--export-release", "Web", str(out / "index.html")],
+               GAME)
+        finally:
+            (GAME / "export_presets.cfg").write_bytes(presets.encode("utf-8"))
+    else:
+        print("no slim web engine (--web-engine): exporting with the stock template")
+        sh([str(GODOT), "--headless", "--path", str(GAME), "--export-release", "Web", str(out / "index.html")], GAME)
     # Textures come in one GPU format a pack: computers' browsers read S3TC
     # (index.pck), phones' ETC2 (this one); the page picks the pack the GPU
     # reads, so nobody downloads (and holds in memory) both.
@@ -392,6 +435,8 @@ def build_installer():
 def main():
     args = sys.argv[1:]
     only_android = "--android" in args
+    if "--web-engine" in args:
+        web_engine()
     if "--web" in args or "--deploy-web" in args or "--publish-web" in args:
         if "--web" in args:
             if "--no-native" not in args:
