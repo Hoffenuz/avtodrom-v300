@@ -145,3 +145,31 @@ Kichikroq (har kadr allokatsiya):
 Yaxshi holatda (tegmaslik): kurs bake, material bo'yicha birlashtirilgan manzara, daraxt MultiMesh 4 sektor,
 HLOD, ShaderWarmup, lamp prewarm, FPS kuzatuvchi (median), RouteGuide statik lenta, AudioSynth kesh,
 ko'zgular faqat orqaga yurishda, change-gated setterlar (pedal, gauge, lamps, hint).
+
+## 5. Nima tuzatildi (commit'lar bo'yicha, 2026-10-28)
+| Commit | Nima | Topilma |
+|--------|------|---------|
+| ca8cb1f | Avariya to'xtashida ishorasiz jo'nab ketish → №20; finish o'lik kod; zona poligonlari va parallel cho'ntagi bir marta hisoblanadi; 4 yangi C++ test (92 → 110 check, 0 xato) | B1, B2, B3, B4, B8, P11, C3 |
+| 5db3526 | Til almashtirishda Sozlamalar ochiq qoladi (freed node xatosi yo'q); Escape = orqaga (desktop/web); yuklanishda Back chiqmaydi; pauza menyusi tarjimasi; "Qaytadan" imtihonda №26 bilan yoziladi; natija kechikishi await o'rniga one-shot signal; "OK" → `app.ok` | U1, U2, U3, U4, U5 (qisman), T1 |
+| 0d6c18a | Sozlamalar: sifatda "Avto", ekran boshqaruvida "Avto", Onix qutisi/avto-mufta faqat tegishli mashinada, tavsiflar; matnlar: bir atama, grammatika (pen.6/14/16/25/30), ruscha ko'plik/kelishik, 17 o'lik kalit o'chirildi | U6 (qisman), T5, T6, T7, T8 |
+| 184fdcf | Rul vidjeti harakatsiz bo'lsa chizilmaydi; `is_mobile()` kesh; HUD ball/vaqt/burilish satrlari faqat o'zgarganda; grafika qayta qo'llash faqat grafika kalitlarida; kamera so'rov obyekti qayta ishlatiladi | P6, P7, P8, P10, P12, G1 |
+| 7fcb8b9 | Natija → "Mashq qilish: <eng ko'p ball yo'qotilgan mashq>", mashqdan keyin "Keyingi mashq"; qator bosilsa qoida matni (xaritasiz ham); oldingi eng yaxshi natija; mashq progressi (`user://progress.json`) kartalarda; imtihonda qolgan vaqt; erkin haydashda sensorli start ko'rsatmasi | U9, U11 (qisman), ROADMAP 1–4 |
+
+## 6. Nima qoldi va nima uchun
+- **O'lchov yo'q.** Bu muhitda Godot binarisi yo'q (yuklab olish ruxsat etilmadi) va `godot-cpp` submoduli bo'sh →
+  Godot headless testlari (vehicle_test, e2e autopilot, fault, namuna) va kadr vaqti o'lchovlari ishlatilmadi.
+  Barcha GDScript o'zgarishlar kod o'qish bilan tekshirilgan, ishga tushirilmagan. **Push'dan oldin Windows'da:**
+  `py scripts/run_tests.py --quick`, keyin to'liq `python scripts/run_tests.py` (ex_emergency №20 o'zgarishi
+  avtopilot namunasiga ta'sir qilmasligi kerak — avtopilot avval ishorani yoqib keyin jo'naydi; tekshirish shart).
+- P1 (Surroundings har yuklashda qayta qurilishi), P2 (lite'da qurib keyin yashirish), P3 (minimap har kadr
+  triangulyatsiya), P4 (harakat mashinalari 2 nur/tik), P5 (ko'zgu SubViewport sifati) — o'rta/katta o'zgarishlar,
+  faqat `LOAD step`/`--perf` o'lchovi bilan qilinishi kerak. Tavsiya tartibi: P1 → P3 → P4 → P5 → P2.
+- C1 (`avto_vehicle.cpp` har tikda query obyekti) — godot-cpp sarlavhalari yo'qligi uchun kompilyatsiya qilib
+  tekshirib bo'lmadi, tegilmadi.
+- T4 shell.html matnlari (brauzer, Godot'dan oldin) — tarjima mexanizmi yo'q; `navigator.language` bo'yicha 3 tilli
+  lug'at qo'shish mumkin (O).
+- U5 qoldiq: Android back Home'dagi dialoglarni (rang/ilova) yopmaydi; layout muharririda "bekor" yo'q.
+- U6 qoldiq: `abs` o'lik kalit (tegilmadi — saqlangan sozlamalarga zarar yo'q), `exam_fail` faqat imtihon sahifasida.
+- U7: OpenGL tugmasi va "Standart holat" tasdiqsiz. U8: GDExtension yo'q holatida ekran xabari.
+- U10: faralar uchun ekran tugmasi, sensorli yo'riqnoma (ROADMAP 12). B6: №6+№31 ikki yozuv izohi.
+- `claude/project-thread-ovh43k` branchida main'ga kirmagan foydali ish yo'q (faqat eski merge commit).

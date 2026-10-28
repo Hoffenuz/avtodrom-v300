@@ -200,3 +200,11 @@ uchun `run_tests.py` exit kodini emas, `EXIT <kod>` qatorini o'qiydi.
 - O'yinchi mashinasi `lod_bias = 4` (telefonda avto-LOD kuzovda "buklangan" qirralar beradi).
 - Osmon (`EnvironmentSetup._sky`) sessiyada bitta: radiance bir marta filtrlanadi. Jurnalda
   `LOAD uncovered ... after N ms` — sahifa yopilgan payt (telefondan jurnal so'rang).
+
+## 2026-10-28 audit/yangiliklar (docs/AUDIT.md, docs/ROADMAP.md)
+- Mashq progressi `Session.progress` → `user://progress.json` (`exercise_progress(id)`), mashq kartalarida subtitle;
+  namuna hisoblanmaydi. Natija paneli `practice_requested(id)` → `Session.start(PRACTICE, id)`.
+- HUD imtihonda qolgan vaqtni ko'rsatadi (`director.time_limit`), mashq/namunada o'tgan vaqt.
+- Sozlamalar: sifat "Avto" = `quality_user=false` + `detect_quality()`; `screen_controls` -1/0/1.
+- Til almashtirishda MainMenu `_rebuild_ui` ochiq SettingsPanel'ni saqlab qoladi (panel o'zi qayta quriladi).
+- Audit muhiti Linux edi (Godot yo'q): GDScript o'zgarishlar ishga tushirilmagan — `run_tests.py` bilan tekshiring.
