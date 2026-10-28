@@ -16,6 +16,10 @@ const MAX_ANGLE := 35.0
 
 var phase: Phase = Phase.APPROACH
 var pocket := PackedVector2Array()
+## The pocket grown by the tolerance used for "in" and for "left", computed
+## once (Geometry2D.offset_polygon ran every physics tick before).
+var _pocket_in := PackedVector2Array()
+var _pocket_out := PackedVector2Array()
 var fix_line: Dictionary
 var fix_touch := 0.0
 var last_on_line := false
@@ -24,6 +28,8 @@ var judged := false
 
 func _on_begin() -> void:
 	pocket = CourseData.poly(def["pocket"])
+	_pocket_in = _grown(pocket, 0.35)
+	_pocket_out = _grown(pocket, 1.0)
 	fix_line = def["fixation_line"]
 	fix_touch = float(def.get("fixation_width", 0.12)) * 0.5 + TYRE_HALF
 	highlight = [fix_line]
@@ -34,6 +40,13 @@ func allows_reverse() -> bool:
 	return true
 
 
+## `poly` grown by `margin` m; empty when the offset fails (then nothing is
+## "inside", as CarProbe.inside() with a margin behaved).
+static func _grown(poly: PackedVector2Array, margin: float) -> PackedVector2Array:
+	var g := Geometry2D.offset_polygon(poly, margin)
+	return g[0] if not g.is_empty() else PackedVector2Array()
+
+
 func _right_wheels_on_line(p: CarProbe) -> bool:
 	for i in [1, 3]:
 		if Geo.line_distance(fix_line, p.wheels[i]) > fix_touch:
@@ -42,7 +55,7 @@ func _right_wheels_on_line(p: CarProbe) -> bool:
 
 
 func _tick(_dt: float, p: CarProbe) -> void:
-	var inside := p.inside(pocket, 0.35)
+	var inside := p.inside(_pocket_in)
 	var aligned := p.heading_error_deg(float(def["park_heading"])) < MAX_ANGLE
 	match phase:
 		Phase.APPROACH:
@@ -61,7 +74,7 @@ func _tick(_dt: float, p: CarProbe) -> void:
 				set_hint("hint.parallel_leave" if last_on_line else "hint.parallel_fix")
 				if last_on_line:
 					milestone("done.parallel_parked")
-			if not p.inside(pocket, 1.0) and p.speed > 0.2:
+			if not p.inside(_pocket_out) and p.speed > 0.2:
 				_judge(p)
 				phase = Phase.LEAVING
 		Phase.LEAVING:

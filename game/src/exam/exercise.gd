@@ -30,6 +30,7 @@ const HINT_HOLD := 0.4
 var _pending_key := ""
 var _pending_args: Array = []
 var _pending_t := 0.0
+var _free_polys: Array = []
 
 
 func _init(p_def: Dictionary, p_director: ExamDirector) -> void:
@@ -128,6 +129,14 @@ func suspends_speed_limit() -> bool:
 ## Free manoeuvring area (route deviation is not "leaving the route" here).
 func free_area() -> Array:
 	return def.get("zone", [])
+
+
+## The same zones as polygons, converted once (the director asks every tick).
+func free_polys() -> Array:
+	if _free_polys.is_empty():
+		for zone in free_area():
+			_free_polys.append(CourseData.poly(zone))
+	return _free_polys
 
 
 func _on_begin() -> void:

@@ -533,6 +533,83 @@ int main() {
 					r.run(5.0);
 					check(r.forward_speed() < -0.5, "moving backwards (m/s)", r.forward_speed());
 				} },
+		{ "Automatic: P and R are refused while rolling, accepted once stopped",
+				[&] {
+					auto h = make(cobalt, true);
+					h.sim.request_gear(static_cast<int>(AutoSelector::Drive), 0.0);
+					h.input.throttle = 0.4;
+					h.run(6.0);
+					check(h.forward_speed() > 1.2, "rolling faster than 1.2 m/s", h.forward_speed());
+					check(!h.sim.request_gear(static_cast<int>(AutoSelector::Park), 0.0), "P refused while rolling", 0.0);
+					check(!h.sim.request_gear(static_cast<int>(AutoSelector::Reverse), 0.0), "R refused while rolling", 0.0);
+					check(h.sim.telemetry().selector == static_cast<int>(AutoSelector::Drive), "selector still D",
+							h.sim.telemetry().selector);
+					h.input.throttle = 0.0;
+					h.input.brake = 1.0;
+					h.run(8.0);
+					check_range(h.speed(), 0.0, 0.3, "stopped on the brake (m/s)");
+					check(h.sim.request_gear(static_cast<int>(AutoSelector::Park), 0.0), "P accepted at rest", 1.0);
+					h.step(1.0 / 120.0); // the telemetry follows at the next tick
+					check(h.sim.telemetry().selector == static_cast<int>(AutoSelector::Park), "selector P",
+							h.sim.telemetry().selector);
+				} },
+		{ "Manual: reverse is refused above 1.5 m/s and counts as a grind",
+				[&] {
+					auto h = make(nexia, true);
+					h.input.auto_clutch = true;
+					h.sim.request_gear(1, 0.0, true);
+					h.input.throttle = 0.5;
+					h.run(5.0);
+					check(h.forward_speed() > 1.5, "rolling faster than 1.5 m/s", h.forward_speed());
+					const uint32_t grinds = h.sim.telemetry().grind_count;
+					check(!h.sim.request_gear(-1, 1.0, false), "R refused while rolling (clutch down)", 0.0);
+					check(h.sim.telemetry().grind_count == grinds + 1, "one grind counted", h.sim.telemetry().grind_count);
+					check(h.sim.telemetry().gear == 1, "still in 1st", h.sim.telemetry().gear);
+					// Into neutral never needs the clutch, at any speed.
+					check(h.sim.request_gear(0, 0.0, false), "N accepted without the clutch", 1.0);
+				} },
+		{ "ABS: a hard stop from 40 km/h pulses the brakes and keeps the wheels turning",
+				[&] {
+					auto h = make(nexia, true);
+					h.input.auto_clutch = true;
+					h.sim.request_gear(1, 0.0, true);
+					h.input.throttle = 1.0;
+					while (h.forward_speed() * 3.6 < 40.0) {
+						h.step(1.0 / 120.0);
+						if (h.sim.telemetry().gear < 2 && h.sim.telemetry().rpm > 3500.0) {
+							h.sim.request_gear(2, 0.0, true);
+						}
+					}
+					h.input.throttle = 0.0;
+					h.input.brake = 1.0;
+					bool abs_seen = false;
+					double min_omega = 1e9;
+					while (h.forward_speed() > 3.0) {
+						h.step(1.0 / 120.0);
+						abs_seen = abs_seen || h.sim.telemetry().abs_active;
+						for (int i = 0; i < 4; ++i) {
+							min_omega = std::min(min_omega, h.sim.wheels()[static_cast<size_t>(i)].omega);
+						}
+					}
+					check(abs_seen, "ABS was active during the stop", abs_seen ? 1.0 : 0.0);
+					check(min_omega > 0.5, "no wheel locked solid (min rad/s)", min_omega);
+				} },
+		{ "Key off is not a stall",
+				[&] {
+					auto h = make(nexia, true);
+					h.run(1.0);
+					h.input.ignition = false;
+					h.run(2.0);
+					check(!h.sim.telemetry().engine_running, "engine off", 0.0);
+					check(h.sim.telemetry().stall_count == 0, "stall count stays 0", h.sim.telemetry().stall_count);
+					// Key back on: the starter brings it back, still without a stall.
+					h.input.ignition = true;
+					h.input.starter = true;
+					h.run(2.0);
+					h.input.starter = false;
+					check(h.sim.telemetry().engine_running, "engine running again", 1.0);
+					check(h.sim.telemetry().stall_count == 0, "stall count still 0", h.sim.telemetry().stall_count);
+				} },
 	};
 
 	for (const Test &t : tests) {

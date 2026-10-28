@@ -16,7 +16,6 @@ func _on_begin() -> void:
 
 
 func _tick(dt: float, p: CarProbe) -> void:
-	var travel := director.data.route_dir(director.tracker.s)
 	if not crossed:
 		if Geo.past(line, Vector2(1, 0), p.front) > 0.0:
 			crossed = true
@@ -37,7 +36,6 @@ func _tick(dt: float, p: CarProbe) -> void:
 		set_hint("hint.finish_belt")
 	if (parked and not car.is_engine_running() and not car.seatbelt) or after_t > 40.0:
 		finish()
-	var _unused := travel
 
 
 func passed_without_finish() -> void:

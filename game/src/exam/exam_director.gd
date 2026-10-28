@@ -284,13 +284,13 @@ func _general_rules(dt: float) -> void:
 	for ex in active:
 		suspend_speed = suspend_speed or ex.suspends_speed_limit()
 		reverse_ok = reverse_ok or ex.allows_reverse()
-		for zone in ex.free_area():
-			if Geometry2D.is_point_in_polygon(probe.pos, CourseData.poly(zone)):
+		for poly in ex.free_polys():
+			if Geometry2D.is_point_in_polygon(probe.pos, poly):
 				free_zone = true
 	var kmh := probe.speed_kmh
 
-	# №1 seat belt: checked when the car first moves, and whenever it is
-	# unfastened on the move.
+	# №1 seat belt: checked when the car first moves (once per exam, as the
+	# table counts it).
 	if not _belt_flagged and not car.seatbelt and probe.travelled > 0.5 and absf(probe.speed) > 0.5:
 		_belt_flagged = true
 		add_penalty(1)

@@ -61,8 +61,12 @@ func _tick(dt: float, p: CarProbe) -> void:
 				director.set_emergency_signal(false)
 				phase = Phase.RELEASED
 				release_t = 0.0
-			if not p.stopped and p.travelled > 0.0 and absf(p.speed) > 0.5:
-				# Drove off during the signal.
+			if not p.stopped and absf(p.speed) > 0.5:
+				# Drove off during the signal: the hazards never came on in
+				# time (№20), and the signal is over.
+				if not hazard_ok and not hazard_flagged:
+					hazard_flagged = true
+					penalize(20)
 				director.set_emergency_signal(false)
 				phase = Phase.RELEASED
 		Phase.RELEASED:
