@@ -146,6 +146,7 @@ func _ready() -> void:
 	add_child(results)
 	results.retry.connect(_restart)
 	results.menu.connect(func() -> void: Session.back_to_menu())
+	results.practice_requested.connect(func(id: String) -> void: Session.start(Session.Mode.PRACTICE, id))
 	if Session.demo and director:
 		# Demonstration: the autopilot performs the exercise; the player watches.
 		start_autopilot()

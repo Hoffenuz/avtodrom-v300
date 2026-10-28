@@ -807,7 +807,7 @@ func _show_practice() -> void:
 		var cell := HBoxContainer.new()
 		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.add_theme_constant_override("separation", 4)
-		var b := MenuCard.new(Loc.pick(e["name"]), str(n), accents[(n - 1) % accents.size()])
+		var b := MenuCard.new(Loc.pick(e["name"]), str(n), accents[(n - 1) % accents.size()], false, _progress_line(id))
 		b.custom_minimum_size = Vector2(0, 84)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var ex_id := id
@@ -818,6 +818,16 @@ func _show_practice() -> void:
 		demo.pressed.connect(func() -> void: _start(Session.Mode.PRACTICE, ex_id, true))
 		cell.add_child(demo)
 		grid.add_child(cell)
+
+
+## Under a practice card: best score and attempts so far ("" before the first).
+func _progress_line(exercise: String) -> String:
+	var p := Session.exercise_progress(exercise)
+	if p.is_empty() or int(p.get("runs", 0)) <= 0:
+		return ""
+	if int(p.get("best", -1)) == 0:
+		return Loc.t("menu.progress_clean", [int(p["runs"])])
+	return Loc.t("menu.progress", [int(p["best"]), int(p["runs"])])
 
 
 func _show_rules() -> void:

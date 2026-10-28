@@ -1514,6 +1514,41 @@
   "uz_cyrl": "Инструктор овози",
   "ru": "Голос инструктора"
  },
+ "res.practice_this": {
+  "uz_latn": "Mashq qilish: {0}",
+  "uz_cyrl": "Машқ қилиш: {0}",
+  "ru": "Отработать: {0}"
+ },
+ "res.next_exercise": {
+  "uz_latn": "Keyingi mashq: {0}",
+  "uz_cyrl": "Кейинги машқ: {0}",
+  "ru": "Следующее упражнение: {0}"
+ },
+ "res.prev_best": {
+  "uz_latn": "Oldingi eng yaxshi natija: {0} ball",
+  "uz_cyrl": "Олдинги энг яхши натижа: {0} балл",
+  "ru": "Лучший прежний результат: {0} баллов"
+ },
+ "res.tap_row": {
+  "uz_latn": "Qatorni bosing — qoidaning to‘liq matni ko‘rinadi",
+  "uz_cyrl": "Қаторни босинг — қоиданинг тўлиқ матни кўринади",
+  "ru": "Нажмите строку — покажется полный текст правила"
+ },
+ "menu.progress": {
+  "uz_latn": "Eng yaxshi: {0} ball · {1} urinish",
+  "uz_cyrl": "Энг яхши: {0} балл · {1} уриниш",
+  "ru": "Лучший: {0} баллов · попыток: {1}"
+ },
+ "menu.progress_clean": {
+  "uz_latn": "Xatosiz bajarilgan · {0} urinish",
+  "uz_cyrl": "Хатосиз бажарилган · {0} уриниш",
+  "ru": "Выполнено без ошибок · попыток: {0}"
+ },
+ "hud.free_start": {
+  "uz_latn": "Erkin haydash: kalit tugmasi bilan dvigatelni yoqing, uzatmani qo‘shing va gaz bering",
+  "uz_cyrl": "Эркин ҳайдаш: калит тугмаси билан двигателни ёқинг, узатмани қўшинг ва газ беринг",
+  "ru": "Свободная езда: включите двигатель кнопкой ключа, выберите передачу и нажмите газ"
+ },
  "set.voice_desc": {
   "uz_latn": "Mashqlar, xatolar va natijani ovoz bilan aytadi",
   "uz_cyrl": "Машқлар, хатолар ва натижани овоз билан айтади",

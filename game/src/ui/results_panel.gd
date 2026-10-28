@@ -6,6 +6,8 @@ extends CanvasLayer
 
 signal retry
 signal menu
+## "Practise this" / "Next exercise": start that practice exercise.
+signal practice_requested(exercise_id: String)
 
 var _box: VBoxContainer
 var _rows: Array[Control] = []
@@ -26,6 +28,8 @@ func show_result(r: Dictionary, course: CourseData = null) -> void:
 	for c in get_children():
 		c.queue_free()
 	_rows.clear()
+	_map = null
+	_note = null
 	_entries = r.get("entries", [])
 	var with_map: bool = course != null and r.get("track", PackedVector2Array()).size() > 1
 	visible = true
@@ -78,6 +82,17 @@ func show_result(r: Dictionary, course: CourseData = null) -> void:
 				UITheme.TEXT_DIM)
 		rule.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		outer.add_child(rule)
+		# How this compares with the attempts before (this one is history[0]).
+		var prev_best := -1
+		for i in range(1, Session.history.size()):
+			var h: Dictionary = Session.history[i]
+			if h.get("completed", false) and (prev_best < 0 or int(h.get("penalty", 0)) < prev_best):
+				prev_best = int(h.get("penalty", 0))
+		if prev_best >= 0:
+			var pb := UITheme.label(Loc.t("res.prev_best", [prev_best]), 16,
+					UITheme.GO if total < prev_best else UITheme.TEXT_DIM)
+			pb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			outer.add_child(pb)
 
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 250)
@@ -106,6 +121,12 @@ func show_result(r: Dictionary, course: CourseData = null) -> void:
 		body.add_child(scroll)
 	else:
 		outer.add_child(scroll)
+		if not _entries.is_empty():
+			# No map: the rule's full wording goes under the list when a row is tapped.
+			_note = UITheme.label(Loc.t("res.tap_row"), 16, UITheme.TEXT_DIM)
+			_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			_note.custom_minimum_size = Vector2(0, 46)
+			outer.add_child(_note)
 	_box = VBoxContainer.new()
 	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_box.add_theme_constant_override("separation", 6)
@@ -115,7 +136,7 @@ func show_result(r: Dictionary, course: CourseData = null) -> void:
 	else:
 		_box.add_child(UITheme.label(Loc.t("res.errors"), 18, UITheme.TEXT_DIM, true))
 		for i in _entries.size():
-			var row := _entry_row(_entries[i], i if with_map else -1)
+			var row := _entry_row(_entries[i], i, with_map)
 			_rows.append(row)
 			_box.add_child(row)
 	if not practice:
@@ -129,6 +150,15 @@ func show_result(r: Dictionary, course: CourseData = null) -> void:
 			var l := UITheme.label("\n".join(missed), 18, UITheme.STOP)
 			_box.add_child(l)
 
+	# Straight on to the practice that helps: the exercise that cost the most
+	# after an exam, the next exercise after a practice run.
+	var link := _practice_link(r, course)
+	if not link.is_empty():
+		var b_link := UITheme.button(Loc.t(link["key"], [Loc.pick(link["name"])]), 20, 56)
+		b_link.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var ex_id: String = link["id"]
+		b_link.pressed.connect(func() -> void: practice_requested.emit(ex_id))
+		outer.add_child(b_link)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	outer.add_child(buttons)
@@ -151,8 +181,35 @@ func show_result(r: Dictionary, course: CourseData = null) -> void:
 	tw.tween_property(margin, "position:y", 0.0, 0.38).set_delay(0.08)
 
 
+## The practice exercise to offer: {"id", "name", "key"} or {}.
+func _practice_link(r: Dictionary, course: CourseData) -> Dictionary:
+	if course == null or Session.demo:
+		return {}
+	var ids: Array = []
+	for e in course.exercises:
+		ids.append(str(e["id"]))
+	if r.get("practice", false):
+		var cur := ids.find(str(r.get("exercise", "")))
+		if cur < 0 or cur + 1 >= ids.size():
+			return {}
+		var next_id: String = ids[cur + 1]
+		return {"id": next_id, "name": course.exercise(next_id).get("name", {}), "key": "res.next_exercise"}
+	var points := {}
+	for e in r.get("entries", []):
+		var ex := str(e.get("exercise", ""))
+		if ex != "" and ex in ids:
+			points[ex] = int(points.get(ex, 0)) + int(e.get("points", 0))
+	var worst := ""
+	for ex in points:
+		if worst == "" or int(points[ex]) > int(points[worst]):
+			worst = ex
+	if worst == "" or worst == "start" or worst == "finish":
+		return {}
+	return {"id": worst, "name": course.exercise(worst).get("name", {}), "key": "res.practice_this"}
+
+
 ## A mark on the map or its row picked: the row lit and in view, the rule's
-## full wording under the map.
+## full wording under the map (or under the list).
 func _pick(i: int) -> void:
 	if _map:
 		_map.select(i)
@@ -171,8 +228,8 @@ func _row_box(lit: bool) -> StyleBoxFlat:
 	return UITheme.box(Color(1, 1, 1, 0.12 if lit else 0.04), 10, 2 if lit else 0, UITheme.INFO, 12)
 
 
-## [param index]: its number on the map (-1: no map).
-func _entry_row(e: Dictionary, index := -1) -> Control:
+## [param index]: its number in the list; [param numbered]: the map shows it.
+func _entry_row(e: Dictionary, index: int, numbered: bool) -> Control:
 	var p := PanelContainer.new()
 	var pts := int(e["points"])
 	var col := UITheme.CAUTION if pts < 20 else (UITheme.STOP if pts >= 50 else Color(1.0, 0.55, 0.2))
@@ -180,7 +237,7 @@ func _entry_row(e: Dictionary, index := -1) -> Control:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 12)
 	p.add_child(h)
-	if index >= 0 and e.has("pos"):
+	if numbered and e.has("pos"):
 		var num := UITheme.label(str(index + 1), 16, Color(0.06, 0.06, 0.07), true)
 		num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -191,10 +248,10 @@ func _entry_row(e: Dictionary, index := -1) -> Control:
 		num.add_theme_stylebox_override("normal", dot)
 		num.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(num)
-		p.mouse_filter = Control.MOUSE_FILTER_PASS
-		p.gui_input.connect(func(ev: InputEvent) -> void:
-			if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
-				_pick(index))
+	p.mouse_filter = Control.MOUSE_FILTER_PASS
+	p.gui_input.connect(func(ev: InputEvent) -> void:
+		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			_pick(index))
 	var badge := UITheme.label("+%d" % pts, 20, col, true)
 	badge.custom_minimum_size = Vector2(56, 0)
 	h.add_child(badge)

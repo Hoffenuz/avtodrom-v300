@@ -112,6 +112,9 @@ func setup(p_car: Car, p_controls: DriverControls, p_director: ExamDirector, p_d
 			_layout())
 	_relabel()
 	_layout()
+	if director == null and touch_mode and not car.is_engine_running():
+		# Free drive on a touch screen: nothing else says how to get going.
+		show_center.call_deferred(Loc.t("hud.free_start"), UITheme.INFO, 6.0)
 	if "--keys-sheet" in OS.get_cmdline_user_args():
 		toggle_keys_sheet.call_deferred() # checks: the sheet's screenshot
 	elif not Settings.is_mobile() and not _keys_hint_shown:
@@ -625,10 +628,18 @@ func _process(delta: float) -> void:
 			status_penalty.text = "%s %d" % [Loc.t("hud.penalty"), director.total]
 			_font_color(status_penalty,
 					UITheme.GO if director.total == 0 else (UITheme.CAUTION if director.total < 50 else UITheme.STOP))
-		var sec := int(director.exam_time)
+		# The exam counts down what is left of the time limit (№32); practice
+		# and the demonstrations show the time taken.
+		var t := director.exam_time
+		var countdown := not director.practice and not Session.demo and director.time_limit > 0.0
+		if countdown:
+			t = maxf(director.time_limit - director.exam_time, 0.0)
+		var sec := int(t)
 		if sec != _shown_sec:
 			_shown_sec = sec
-			status_time.text = UITheme.clock(director.exam_time)
+			status_time.text = UITheme.clock(t)
+			if countdown and t < 180.0:
+				_font_color(status_time, UITheme.CAUTION)
 		_update_signal_badge()
 		_update_prepare()
 		_update_turn()

@@ -2,11 +2,13 @@ extends Node
 ## What the player chose in the menu, and the saved history of exam attempts.
 
 signal history_changed
+signal progress_changed
 
 enum Mode { EXAM, PRACTICE, FREE }
 
 const HISTORY_PATH := "user://history.json"
 const MAX_HISTORY := 50
+const PROGRESS_PATH := "user://progress.json"
 
 var mode: Mode = Mode.EXAM
 ## Exercise id for PRACTICE mode (see data/course.json "exercises").
@@ -17,10 +19,14 @@ var demo := false
 var car_override := ""
 var last_result: Dictionary = {}
 var history: Array = []
+## Practice progress per exercise id: {"runs", "clean", "best", "last"}
+## (the demonstrations do not count).
+var progress: Dictionary = {}
 
 
 func _ready() -> void:
 	_load_history()
+	_load_progress()
 	# Automated checks can open the drive scene directly:
 	#   -- --mode=practice --exercise=<id> --demo --car=cobalt_at
 	for arg in OS.get_cmdline_user_args():
@@ -96,7 +102,12 @@ func car_id() -> String:
 
 func record_result(result: Dictionary) -> void:
 	last_result = result
-	if mode != Mode.EXAM or demo:
+	if demo:
+		return
+	if mode == Mode.PRACTICE:
+		_record_practice(str(result.get("exercise", "")), int(result.get("penalty", 0)))
+		return
+	if mode != Mode.EXAM:
 		return
 	# The map's track stays out of the saved history (thousands of points).
 	var kept := result.duplicate()
@@ -125,6 +136,36 @@ func pass_count() -> int:
 		if r.get("passed", false):
 			n += 1
 	return n
+
+
+func _record_practice(exercise: String, penalty: int) -> void:
+	if exercise == "":
+		return
+	var p: Dictionary = progress.get(exercise, {"runs": 0, "clean": 0, "best": -1, "last": 0})
+	p["runs"] = int(p["runs"]) + 1
+	p["last"] = penalty
+	if penalty == 0:
+		p["clean"] = int(p["clean"]) + 1
+	if int(p["best"]) < 0 or penalty < int(p["best"]):
+		p["best"] = penalty
+	progress[exercise] = p
+	var f := FileAccess.open(PROGRESS_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(progress))
+	progress_changed.emit()
+
+
+## Progress of one exercise ({} when never practised).
+func exercise_progress(exercise: String) -> Dictionary:
+	return progress.get(exercise, {})
+
+
+func _load_progress() -> void:
+	if not FileAccess.file_exists(PROGRESS_PATH):
+		return
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(PROGRESS_PATH))
+	if data is Dictionary:
+		progress = data
 
 
 func _load_history() -> void:
