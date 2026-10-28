@@ -44,11 +44,6 @@
   "uz_cyrl": "Машина",
   "ru": "Машина"
  },
- "menu.back": {
-  "uz_latn": "Orqaga",
-  "uz_cyrl": "Орқага",
-  "ru": "Назад"
- },
  "menu.start": {
   "uz_latn": "Boshlash",
   "uz_cyrl": "Бошлаш",
@@ -58,11 +53,6 @@
   "uz_latn": "Chiqish",
   "uz_cyrl": "Чиқиш",
   "ru": "Выход"
- },
- "menu.loading": {
-  "uz_latn": "Yuklanmoqda…",
-  "uz_cyrl": "Юкланмоқда…",
-  "ru": "Загрузка…"
  },
  "load.world": {
   "uz_latn": "Avtodrom tayyorlanmoqda…",
@@ -160,8 +150,8 @@
   "ru": "Совет: положение руля и кнопок меняется в Настройках"
  },
  "load.tip4": {
-  "uz_latn": "Maslahat: stop chizig‘i oldida to‘liq to‘xtang",
-  "uz_cyrl": "Маслаҳат: стоп чизиғи олдида тўлиқ тўхтанг",
+  "uz_latn": "Maslahat: STOP chizig‘i oldida to‘liq to‘xtang",
+  "uz_cyrl": "Маслаҳат: STOP чизиғи олдида тўлиқ тўхтанг",
   "ru": "Совет: останавливайтесь полностью перед стоп-линией"
  },
  "menu.no_history": {
@@ -178,16 +168,6 @@
   "uz_latn": "Namuna",
   "uz_cyrl": "Намуна",
   "ru": "Образец"
- },
- "menu.demo_exam": {
-  "uz_latn": "To‘liq imtihon namunasi",
-  "uz_cyrl": "Тўлиқ имтиҳон намунаси",
-  "ru": "Весь экзамен — образец"
- },
- "menu.try": {
-  "uz_latn": "Mashq",
-  "uz_cyrl": "Машқ",
-  "ru": "Пробовать"
  },
  "car.nexia2": {
   "uz_latn": "Nexia 2",
@@ -217,32 +197,32 @@
  "car.gazelle": {
   "uz_latn": "Gazelle NEXT",
   "uz_cyrl": "Gazelle NEXT",
-  "ru": "Газель NEXT"
+  "ru": "Gazelle NEXT"
  },
  "car.nexia2_desc": {
   "uz_latn": "B toifa · mexanika",
   "uz_cyrl": "B тоифа · механика",
-  "ru": "кат. B · механика"
+  "ru": "Кат. B · механика"
  },
  "car.cobalt_at_desc": {
   "uz_latn": "B toifa · avtomat",
   "uz_cyrl": "B тоифа · автомат",
-  "ru": "кат. B · автомат"
+  "ru": "Кат. B · автомат"
  },
  "car.gentra_desc": {
   "uz_latn": "B toifa · mexanika",
   "uz_cyrl": "B тоифа · механика",
-  "ru": "кат. B · механика"
+  "ru": "Кат. B · механика"
  },
  "car.onix_desc": {
   "uz_latn": "B toifa · mexanika",
   "uz_cyrl": "B тоифа · механика",
-  "ru": "кат. B · механика"
+  "ru": "Кат. B · механика"
  },
  "car.onix_at_desc": {
   "uz_latn": "B toifa · avtomat",
   "uz_cyrl": "B тоифа · автомат",
-  "ru": "кат. B · автомат"
+  "ru": "Кат. B · автомат"
  },
  "car.options": {
   "uz_latn": "Rang va uzatma",
@@ -317,7 +297,7 @@
  "car.gazelle_desc": {
   "uz_latn": "BC toifa · mexanika, furgon",
   "uz_cyrl": "BC тоифа · механика, фургон",
-  "ru": "кат. BC · механика, фургон"
+  "ru": "Кат. BC · механика, фургон"
  },
  "exam.title": {
   "uz_latn": "Imtihon",
@@ -330,9 +310,9 @@
   "ru": "12 упражнений на одном маршруте"
  },
  "exam.opt_fail": {
-  "uz_latn": "Yiqitish",
-  "uz_cyrl": "Йиқитиш",
-  "ru": "Провал при 100 баллах"
+  "uz_latn": "100 ballda to‘xtatish",
+  "uz_cyrl": "100 баллда тўхтатиш",
+  "ru": "Стоп при 100 баллах"
  },
  "exam.opt_fail_desc": {
   "uz_latn": "100 ball to‘planganda imtihon to‘xtaydi",
@@ -385,19 +365,19 @@
   "ru": "Управление"
  },
  "set.steering": {
-  "uz_latn": "Rul",
-  "uz_cyrl": "Рул",
-  "ru": "Руль"
+  "uz_latn": "Boshqarish usuli",
+  "uz_cyrl": "Бошқариш усули",
+  "ru": "Способ управления"
  },
  "set.steer_wheel": {
-  "uz_latn": "Rul",
-  "uz_cyrl": "Рул",
-  "ru": "Руль"
+  "uz_latn": "Ekrandagi rul",
+  "uz_cyrl": "Экрандаги рул",
+  "ru": "Руль на экране"
  },
  "set.steer_buttons": {
-  "uz_latn": "Strelkalar",
-  "uz_cyrl": "Стрелкалар",
-  "ru": "Стрелки"
+  "uz_latn": "Tugmalar",
+  "uz_cyrl": "Тугмалар",
+  "ru": "Кнопки"
  },
  "set.screen_controls": {
   "uz_latn": "Ekrandagi rul va pedallar",
@@ -405,8 +385,8 @@
   "ru": "Экранный руль и педали"
  },
  "set.on": {
-  "uz_latn": "Yoqilgan",
-  "uz_cyrl": "Ёқилган",
+  "uz_latn": "Yoqiq",
+  "uz_cyrl": "Ёқиқ",
   "ru": "Вкл"
  },
  "set.auto": {
@@ -435,9 +415,9 @@
   "ru": "Отпущенный руль возвращается в центр"
  },
  "set.wheel_scale": {
-  "uz_latn": "Rul va strelkalar kattaligi",
-  "uz_cyrl": "Рул ва стрелкалар катталиги",
-  "ru": "Размер руля и поворотников"
+  "uz_latn": "Rul va burilish tugmalari kattaligi",
+  "uz_cyrl": "Рул ва бурилиш тугмалари катталиги",
+  "ru": "Размер руля и кнопок поворотников"
  },
  "set.wheel_group_desc": {
   "uz_latn": "Rul va uning ustidagi burilish tugmalari birga o‘zgaradi",
@@ -465,9 +445,9 @@
   "ru": "Педали слева"
  },
  "set.route": {
-  "uz_latn": "Imtihonda marshrut chizig‘i",
-  "uz_cyrl": "Имтиҳонда маршрут чизиғи",
-  "ru": "Линия маршрута на экзамене"
+  "uz_latn": "Yordamchi navigator (imtihon)",
+  "uz_cyrl": "Ёрдамчи навигатор (имтиҳон)",
+  "ru": "Помощник-навигатор (экзамен)"
  },
  "set.graphics": {
   "uz_latn": "Grafika",
@@ -495,9 +475,9 @@
   "ru": "Высокое"
  },
  "set.quality_desc": {
-  "uz_latn": "Keyingi haydashdan boshlab qo‘llanadi",
-  "uz_cyrl": "Кейинги ҳайдашдан бошлаб қўлланади",
-  "ru": "Применяется со следующей поездки"
+  "uz_latn": "Avto — qurilmaga qarab tanlanadi va kadr tezligi past bo‘lsa o‘zi pasayadi. Keyingi haydashdan boshlab qo‘llaniladi",
+  "uz_cyrl": "Авто — қурилмага қараб танланади ва кадр тезлиги паст бўлса ўзи пасаяди. Кейинги ҳайдашдан бошлаб қўлланилади",
+  "ru": "Авто — по устройству, снижается само при низкой частоте кадров. Применяется со следующей поездки"
  },
  "set.render_scale": {
   "uz_latn": "Aniqlik",
@@ -537,7 +517,7 @@
  "set.reset": {
   "uz_latn": "Standart holat",
   "uz_cyrl": "Стандарт ҳолат",
-  "ru": "Сбросить"
+  "ru": "Стандартные"
  },
  "set.keys": {
   "uz_latn": "Klaviatura",
@@ -632,7 +612,7 @@
  "keys.gear_step": {
   "uz_latn": "Uzatmani bittaga oshirish / tushirish",
   "uz_cyrl": "Узатмани биттага ошириш / тушириш",
-  "ru": "Передачу выше / ниже"
+  "ru": "Передача выше / ниже"
  },
  "keys.auto": {
   "uz_latn": "Avtomat qutida: P turish, R orqaga, N neytral, G yurish (D)",
@@ -694,75 +674,10 @@
   "uz_cyrl": "Пауза",
   "ru": "Пауза"
  },
- "key.drive": {
-  "uz_latn": "Gaz / tormoz / rul",
-  "uz_cyrl": "Газ / тормоз / рул",
-  "ru": "Газ / тормоз / руль"
- },
- "key.clutch": {
-  "uz_latn": "Mufta",
-  "uz_cyrl": "Муфта",
-  "ru": "Сцепление"
- },
- "key.gears": {
-  "uz_latn": "Uzatmalar",
-  "uz_cyrl": "Узатмалар",
-  "ru": "Передачи"
- },
- "key.auto": {
-  "uz_latn": "Avtomat: P R N D",
-  "uz_cyrl": "Автомат: P R N D",
-  "ru": "Автомат: P R N D"
- },
- "key.indicators": {
-  "uz_latn": "Burilish chiroqlari",
-  "uz_cyrl": "Бурилиш чироқлари",
-  "ru": "Поворотники"
- },
- "key.hazard": {
-  "uz_latn": "Avariya chirog‘i",
-  "uz_cyrl": "Авария чироғи",
-  "ru": "Аварийка"
- },
- "key.belt": {
-  "uz_latn": "Kamar",
-  "uz_cyrl": "Камар",
-  "ru": "Ремень"
- },
- "key.key": {
-  "uz_latn": "Kalit (bir bosish — o‘t oldirish / o‘chirish)",
-  "uz_cyrl": "Калит (бир босиш — ўт олдириш / ўчириш)",
-  "ru": "Ключ (нажатие — запуск / выключение)"
- },
- "key.handbrake": {
-  "uz_latn": "Qo‘l tormozi",
-  "uz_cyrl": "Қўл тормози",
-  "ru": "Ручник"
- },
- "key.camera": {
-  "uz_latn": "Kamera",
-  "uz_cyrl": "Камера",
-  "ru": "Камера"
- },
- "key.pause": {
-  "uz_latn": "Pauza",
-  "uz_cyrl": "Пауза",
-  "ru": "Пауза"
- },
- "key.mouse": {
-  "uz_latn": "Sichqoncha",
-  "uz_cyrl": "Сичқонча",
-  "ru": "Мышь"
- },
  "key.space": {
   "uz_latn": "Probel",
   "uz_cyrl": "Пробел",
   "ru": "Пробел"
- },
- "key.look": {
-  "uz_latn": "Surish — kamerani aylantirish, g‘ildirak — yaqinlashtirish",
-  "uz_cyrl": "Суриш — камерани айлантириш, ғилдирак — яқинлаштириш",
-  "ru": "Перетаскивание — поворот камеры, колесо — зум"
  },
  "hud.kmh": {
   "uz_latn": "km/soat",
@@ -777,7 +692,7 @@
  "hud.points": {
   "uz_latn": "ball",
   "uz_cyrl": "балл",
-  "ru": "балл."
+  "ru": "баллов"
  },
  "hud.next": {
   "uz_latn": "Keyingi",
@@ -847,7 +762,7 @@
  "hud.clutch": {
   "uz_latn": "Mufta",
   "uz_cyrl": "Муфта",
-  "ru": "Сцепл."
+  "ru": "Сцепление"
  },
  "hud.demo": {
   "uz_latn": "NAMUNA",
@@ -885,8 +800,8 @@
   "ru": "Выключите левый поворотник"
  },
  "hint.stopline": {
-  "uz_latn": "Chiziqdan oldin to‘xtang (1 m gacha)",
-  "uz_cyrl": "Чизиқдан олдин тўхтанг (1 м гача)",
+  "uz_latn": "STOP chizig‘idan oldin to‘xtang (1 m gacha)",
+  "uz_cyrl": "STOP чизиғидан олдин тўхтанг (1 м гача)",
   "ru": "Остановитесь перед линией (до 1 м)"
  },
  "done.box_parked": {
@@ -977,7 +892,7 @@
  "hint.box_fix": {
   "uz_latn": "Ikkala orqa g‘ildirak oq chiziqda, sariqqa tegmang",
   "uz_cyrl": "Иккала орқа ғилдирак оқ чизиқда, сариққа тегманг",
-  "ru": "Оба задних колеса на белой линии, жёлтую не задевать"
+  "ru": "Оба задних колеса на белую линию, жёлтую не задевайте"
  },
  "hint.box_leave": {
   "uz_latn": "Boksdan chiqing",
@@ -1157,7 +1072,7 @@
  "res.total": {
   "uz_latn": "{0} ball",
   "uz_cyrl": "{0} балл",
-  "ru": "{0} балл."
+  "ru": "{0} баллов"
  },
  "res.rule": {
   "uz_latn": "O‘tish uchun 100 balldan kam bo‘lishi kerak",
@@ -1225,8 +1140,8 @@
   "ru": "Не включён поворотник"
  },
  "pen.6": {
-  "uz_latn": "4.7 / 3.24 belgisi buzildi",
-  "uz_cyrl": "4.7 / 3.24 белгиси бузилди",
+  "uz_latn": "4.7 / 3.24 belgilari buzildi",
+  "uz_cyrl": "4.7 / 3.24 белгилари бузилди",
   "ru": "Нарушены знаки 4.7 / 3.24"
  },
  "pen.7": {
@@ -1250,8 +1165,8 @@
   "ru": "Не тронулся 30 с после старта"
  },
  "pen.11": {
-  "uz_latn": "To‘xtash chizig‘ida to‘xtamadi",
-  "uz_cyrl": "Тўхташ чизиғида тўхтамади",
+  "uz_latn": "STOP chizig‘ida to‘xtamadi",
+  "uz_cyrl": "STOP чизиғида тўхтамади",
   "ru": "Не остановился у стоп-линии"
  },
  "pen.12": {
@@ -1265,8 +1180,8 @@
   "ru": "Не тронулся на эстакаде 30 с"
  },
  "pen.14": {
-  "uz_latn": "Estakadada 0,3 m orqaga ketdi",
-  "uz_cyrl": "Эстакадада 0,3 м орқага кетди",
+  "uz_latn": "Estakadada 0,3 m dan ko‘p orqaga ketdi",
+  "uz_cyrl": "Эстакадада 0,3 м дан кўп орқага кетди",
   "ru": "Откат на эстакаде > 0,3 м"
  },
  "pen.15": {
@@ -1275,8 +1190,8 @@
   "ru": "Наезд на контрольную линию"
  },
  "pen.16": {
-  "uz_latn": "Mashqqa 2 daqiqadan ko‘p",
-  "uz_cyrl": "Машққа 2 дақиқадан кўп",
+  "uz_latn": "Mashqqa 2 daqiqadan ko‘p ketdi",
+  "uz_cyrl": "Машққа 2 дақиқадан кўп кетди",
   "ru": "Упражнение дольше 2 мин"
  },
  "pen.17": {
@@ -1320,8 +1235,8 @@
   "ru": "Проезд на красный"
  },
  "pen.25": {
-  "uz_latn": "Temir yo‘lda to‘xtamadi",
-  "uz_cyrl": "Темир йўлда тўхтамади",
+  "uz_latn": "Temir yo‘l kesishmasida to‘xtamadi",
+  "uz_cyrl": "Темир йўл кесишмасида тўхтамади",
   "ru": "Без остановки у переезда"
  },
  "pen.26": {
@@ -1345,9 +1260,9 @@
   "ru": "Задний ход вне упражнения"
  },
  "pen.30": {
-  "uz_latn": "To‘siqqa urildi",
-  "uz_cyrl": "Тўсиққа урилди",
-  "ru": "Наезд на препятствие"
+  "uz_latn": "To‘qnashuv yoki to‘siqqa urilish",
+  "uz_cyrl": "Тўқнашув ёки тўсиққа урилиш",
+  "ru": "Столкновение или наезд на препятствие"
  },
  "pen.31": {
   "uz_latn": "Tezlik 40 km/soatdan oshdi",
@@ -1390,14 +1305,39 @@
   "ru": "Со следующей поездки"
  },
  "set.route_desc": {
-  "uz_latn": "Imtihonda ko‘k yo‘nalish chizig‘i ko‘rinadi",
-  "uz_cyrl": "Имтиҳонда кўк йўналиш чизиғи кўринади",
-  "ru": "На экзамене видна синяя линия маршрута"
+  "uz_latn": "Imtihonda yo‘nalish chizig‘i, mashq kartasi, xabarlar va start ko‘rsatmasi ko‘rinadi",
+  "uz_cyrl": "Имтиҳонда йўналиш чизиғи, машқ картаси, хабарлар ва старт кўрсатмаси кўринади",
+  "ru": "На экзамене видны линия маршрута, карточка упражнения, сообщения и подсказка на старте"
  },
  "set.hints": {
   "uz_latn": "Mashqlarda ko‘rsatmalar",
   "uz_cyrl": "Машқларда кўрсатмалар",
   "ru": "Подсказки в упражнениях"
+ },
+ "set.hints_desc": {
+  "uz_latn": "Mashq kartasi va sariq chiziqlar nima qilish kerakligini ko‘rsatadi (namunada doim)",
+  "uz_cyrl": "Машқ картаси ва сариқ чизиқлар нима қилиш кераклигини кўрсатади (намунада доим)",
+  "ru": "Карточка упражнения и жёлтые линии показывают, что делать (в образце всегда)"
+ },
+ "set.shadows_desc": {
+  "uz_latn": "Past sifatda doim o‘chiq",
+  "uz_cyrl": "Паст сифатда доим ўчиқ",
+  "ru": "При низком качестве всегда выключены"
+ },
+ "set.render_scale_desc": {
+  "uz_latn": "3D tasvir aniqligi; pastroq — tezroq",
+  "uz_cyrl": "3D тасвир аниқлиги; пастроқ — тезроқ",
+  "ru": "Разрешение 3D-картинки; ниже — быстрее"
+ },
+ "set.auto_clutch_at": {
+  "uz_latn": "Tanlangan mashina avtomat — mufta kerak emas",
+  "uz_cyrl": "Танланган машина автомат — муфта керак эмас",
+  "ru": "Выбранная машина с автоматом — сцепление не нужно"
+ },
+ "set.screen_controls_desc": {
+  "uz_latn": "Avto: telefon va planshetda yoqiq, kompyuterda o‘chiq",
+  "uz_cyrl": "Авто: телефон ва планшетда ёқиқ, компьютерда ўчиқ",
+  "ru": "Авто: на телефоне и планшете включены, на компьютере выключены"
  },
  "set.car_desc": {
   "uz_latn": "Imtihonni qaysi mashinada topshirasiz",
@@ -1460,9 +1400,9 @@
   "ru": "Безопасный режим графики"
  },
  "safe.opengl": {
-  "uz_latn": "Oldingi safar ilova yuklanishda qotib qoldi. Grafika OpenGL (moslik) rejimiga o‘tkazildi va sifat pasaytirildi. Sozlamalar → Grafika’da qaytarish mumkin.",
-  "uz_cyrl": "Олдинги сафар илова юкланишда қотиб қолди. Графика OpenGL (мослик) режимига ўтказилди ва сифат пасайтирилди. Созламалар → Графика’да қайтариш мумкин.",
-  "ru": "В прошлый раз приложение зависло при загрузке. Графика переключена на OpenGL (совместимость), качество снижено. Вернуть можно в Настройки → Графика."
+  "uz_latn": "Oldingi safar ilova yuklanishda qotib qoldi. Grafika OpenGL (moslik) rejimiga o‘tkazildi va sifat pasaytirildi. Sozlamalar → Grafikada qaytarish mumkin.",
+  "uz_cyrl": "Олдинги сафар илова юкланишда қотиб қолди. Графика OpenGL (мослик) режимига ўтказилди ва сифат пасайтирилди. Созламалар → Графикада қайтариш мумкин.",
+  "ru": "В прошлый раз приложение зависло при загрузке. Графика переключена на OpenGL (совместимость), качество снижено. Вернуть можно в Настройках → Графика."
  },
  "safe.low": {
   "uz_latn": "Oldingi safar ilova yuklanishda qotib qoldi. Grafika sifati eng past darajaga tushirildi. Muammo takrorlansa, jurnalni nusxalab ishlab chiquvchiga yuboring.",
@@ -1470,9 +1410,9 @@
   "ru": "В прошлый раз приложение зависло при загрузке. Качество графики снижено до минимума. Если повторится, скопируйте журнал и отправьте разработчику."
  },
  "safe.auto": {
-  "uz_latn": "Yuklash vaqtida grafika drayveri javob bermay qoldi. O‘yin o‘zi OpenGL (moslik) rejimiga o‘tdi, sifatni pasaytirdi va qayta ishga tushdi. Sozlamalar → Grafika’da qaytarish mumkin.",
-  "uz_cyrl": "Юклаш вақтида графика драйвери жавоб бермай қолди. Ўйин ўзи OpenGL (мослик) режимига ўтди, сифатни пасайтирди ва қайта ишга тушди. Созламалар → Графика’да қайтариш мумкин.",
-  "ru": "Во время загрузки графический драйвер перестал отвечать. Игра сама переключилась на OpenGL (совместимость), снизила качество и перезапустилась. Вернуть можно в Настройки → Графика."
+  "uz_latn": "Yuklash vaqtida grafika drayveri javob bermay qoldi. O‘yin o‘zi OpenGL (moslik) rejimiga o‘tdi, sifatni pasaytirdi va qayta ishga tushdi. Sozlamalar → Grafikada qaytarish mumkin.",
+  "uz_cyrl": "Юклаш вақтида графика драйвери жавоб бермай қолди. Ўйин ўзи OpenGL (мослик) режимига ўтди, сифатни пасайтирди ва қайта ишга тушди. Созламалар → Графикада қайтариш мумкин.",
+  "ru": "Во время загрузки графический драйвер перестал отвечать. Игра сама переключилась на OpenGL (совместимость), снизила качество и перезапустилась. Вернуть можно в Настройках → Графика."
  },
  "safe.reopen": {
   "uz_latn": "Yopish va qayta ochish",

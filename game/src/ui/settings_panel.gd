@@ -17,6 +17,8 @@ const TABS := [
 ]
 ## The section shown when the screen opens again.
 static var _last_tab := "general"
+## Presets with an automatic gearbox: no clutch, so no auto-clutch row.
+const AUTOMATIC := ["cobalt_at", "onix_at"]
 
 var _list: VBoxContainer
 var _tabs: VBoxContainer
@@ -269,9 +271,10 @@ func _build_general() -> void:
 	var cars := []
 	for cid in Car.IDS:
 		cars.append([cid, Loc.t("car." + cid)])
-	_row("menu.car", _segmented("car", cars), "set.car_desc")
-	_row("car.gearbox", _segmented("onix_gearbox", [["manual", Loc.t("car.manual")], ["auto", Loc.t("car.auto")]]),
-			"car.gearbox_desc")
+	_row("menu.car", _segmented("car", cars, true), "set.car_desc")
+	if str(Settings.get_value("car")) == "onix": # the only car that comes with either gearbox
+		_row("car.gearbox", _segmented("onix_gearbox", [["manual", Loc.t("car.manual")], ["auto", Loc.t("car.auto")]]),
+				"car.gearbox_desc")
 	var reset := UITheme.button(Loc.t("set.reset"), 19, 56)
 	reset.custom_minimum_size.x = 220
 	reset.pressed.connect(func() -> void:
@@ -297,9 +300,14 @@ func _build_avtodrom() -> void:
 func _build_controls() -> void:
 	var touch := Settings.screen_controls_on()
 	if not Settings.is_mobile():
-		_row("set.screen_controls", _segmented_int("screen_controls", [[0, Loc.t("set.off")], [1, Loc.t("set.on")]],
-				1 if touch else 0))
-	_row("set.auto_clutch", _toggle("auto_clutch"), "set.auto_clutch_desc")
+		_row("set.screen_controls", _segmented_int("screen_controls", [[-1, Loc.t("set.auto")], [0, Loc.t("set.off")],
+				[1, Loc.t("set.on")]], int(Settings.get_value("screen_controls"))), "set.screen_controls_desc")
+	if Session.car_id() in AUTOMATIC:
+		var note := UITheme.label(Loc.t("set.auto_clutch_at"), 16, UITheme.TEXT_DIM)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_list.add_child(note)
+	else:
+		_row("set.auto_clutch", _toggle("auto_clutch"), "set.auto_clutch_desc")
 	if touch:
 		var modes := [["wheel", Loc.t("set.steer_wheel")], ["buttons", Loc.t("set.steer_buttons")]]
 		if Settings.is_mobile():
@@ -338,14 +346,39 @@ func _build_renderer_row() -> void:
 
 
 func _build_quality_rows() -> void:
-	_row("set.quality", _segmented("quality", [[0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]),
-			"set.quality_desc")
+	_row("set.quality", _quality_row(), "set.quality_desc")
 	_row("set.render_scale", _segmented("render_scale", [[-1.0, Loc.t("set.auto")], [0.6, "60%"], [0.75, "75%"],
-			[1.0, "100%"]]))
+			[1.0, "100%"]]), "set.render_scale_desc")
 	_row("set.fps", _segmented("fps_limit", [[30, "30"], [60, "60"]]))
-	_row("set.shadows", _toggle("shadows"))
+	_row("set.shadows", _toggle("shadows"), "set.shadows_desc" if int(Settings.get_value("quality")) <= 0 else "")
 	_row("set.lite", _toggle("lite_scenery"), "set.lite_desc")
 	_row("set.mirrors", _toggle("mirrors"))
+
+
+## Quality with an "Auto" choice: the device picks the level and the drive may
+## lower it (quality_user off); a level of one's own is kept for good.
+func _quality_row() -> Control:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	var group := ButtonGroup.new()
+	var current := int(Settings.get_value("quality")) if bool(Settings.get_value("quality_user")) else -1
+	for opt in [[-1, Loc.t("set.auto")], [0, Loc.t("set.q0")], [1, Loc.t("set.q1")], [2, Loc.t("set.q2")]]:
+		var b := UITheme.button(str(opt[1]), 19, 56)
+		b.toggle_mode = true
+		b.button_group = group
+		b.custom_minimum_size.x = 104
+		b.button_pressed = current == int(opt[0])
+		var value: int = opt[0]
+		b.pressed.connect(func() -> void:
+			if value < 0:
+				Settings.set_value("quality_user", false)
+				Settings.set_value("quality", Settings.detect_quality())
+			else:
+				Settings.set_value("quality_user", true)
+				Settings.set_value("quality", value)
+			_refill())
+		h.add_child(b)
+	return h
 
 
 func _build_sound() -> void:
