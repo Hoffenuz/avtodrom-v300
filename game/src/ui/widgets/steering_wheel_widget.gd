@@ -72,7 +72,10 @@ func _process(delta: float) -> void:
 
 
 func set_angle(deg: float) -> void:
-	angle_deg = clampf(deg, -lock_deg, lock_deg)
+	var a := clampf(deg, -lock_deg, lock_deg)
+	if absf(a - angle_deg) < 0.2:
+		return # the HUD asks every frame; a still wheel is not redrawn
+	angle_deg = a
 	queue_redraw()
 
 

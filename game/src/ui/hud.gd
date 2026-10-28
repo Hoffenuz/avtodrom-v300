@@ -381,7 +381,16 @@ func release_touch() -> void:
 
 
 ## Settings that move or hide touch controls changed during the drive.
+## What the status labels last showed (see _process).
+var _shown_total := -1
+var _shown_sec := -1
+var _turn_shown := ""
+
+
 func relayout() -> void:
+	_shown_total = -1
+	_shown_sec = -1
+	_turn_shown = ""
 	_layout()
 
 
@@ -610,10 +619,16 @@ func _process(delta: float) -> void:
 	gears.set_current(car.get_selector() if car.is_automatic() else car.get_gear())
 	# Status.
 	if director:
-		status_penalty.text = "%s %d" % [Loc.t("hud.penalty"), director.total]
-		_font_color(status_penalty,
-				UITheme.GO if director.total == 0 else (UITheme.CAUTION if director.total < 50 else UITheme.STOP))
-		status_time.text = UITheme.clock(director.exam_time)
+		# The texts are rebuilt only when what they say changes.
+		if director.total != _shown_total:
+			_shown_total = director.total
+			status_penalty.text = "%s %d" % [Loc.t("hud.penalty"), director.total]
+			_font_color(status_penalty,
+					UITheme.GO if director.total == 0 else (UITheme.CAUTION if director.total < 50 else UITheme.STOP))
+		var sec := int(director.exam_time)
+		if sec != _shown_sec:
+			_shown_sec = sec
+			status_time.text = UITheme.clock(director.exam_time)
 		_update_signal_badge()
 		_update_prepare()
 		_update_turn()
@@ -682,9 +697,13 @@ func _update_turn() -> void:
 	var t := director.next_turn()
 	var show := not t.is_empty() and float(t["distance"]) <= 45.0
 	if show:
-		var arrow := "←  " if t["dir"] == "left" else "→  "
-		var dir_txt := Loc.t("hud.turn_left") if t["dir"] == "left" else Loc.t("hud.turn_right")
-		card_turn.text = arrow + dir_txt + "  ·  " + Loc.t("hud.in_m", [maxi(int(t["distance"]), 0)])
+		var m := maxi(int(t["distance"]), 0)
+		var key := str(t["dir"]) + str(m)
+		if key != _turn_shown:
+			_turn_shown = key
+			var arrow := "←  " if t["dir"] == "left" else "→  "
+			var dir_txt := Loc.t("hud.turn_left") if t["dir"] == "left" else Loc.t("hud.turn_right")
+			card_turn.text = arrow + dir_txt + "  ·  " + Loc.t("hud.in_m", [m])
 	if card_turn.visible != show:
 		card_turn.visible = show
 		card.reset_size()

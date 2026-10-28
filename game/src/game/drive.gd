@@ -3,6 +3,8 @@ extends Node3D
 ## spawns the car, wires the controls to it and runs the exam director.
 
 const RESULTS_DELAY := 1.8
+## Settings that change the viewport, the sun or the frame cap.
+const GRAPHICS_KEYS := ["quality", "quality_user", "render_scale", "shadows", "fps_limit", "weather", "mirrors"]
 
 var data: CourseData
 var course: CourseBuilder
@@ -30,7 +32,9 @@ func _ready() -> void:
 	data = CourseData.for_vehicle(Session.car_id())
 	quality = int(Settings.get_value("quality"))
 	_apply_graphics()
-	Settings.changed.connect(func(_k: String) -> void: _apply_graphics())
+	Settings.changed.connect(func(k: String) -> void:
+		if k in GRAPHICS_KEYS: # not for every slider tick or camera change
+			_apply_graphics())
 	Loading.stage("environment")
 	var sun := EnvironmentSetup.create(self, quality, EnvironmentSetup.weather())
 	Loading.stage("course")

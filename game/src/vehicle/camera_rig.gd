@@ -40,6 +40,7 @@ var _dodge := 0.0 # sideways step while a post stands behind the car
 var _dodge_target := 0.0
 var _free_cache := 1.0
 var _probe := SphereShape3D.new()
+var _query: PhysicsShapeQueryParameters3D # reused by _free_share
 
 
 func _init(p_car: Car) -> void:
@@ -209,12 +210,14 @@ func _free_share(from: Vector3, to: Vector3) -> float:
 	if space == null:
 		return 1.0
 	_probe.radius = 0.35
-	var q := PhysicsShapeQueryParameters3D.new()
-	q.shape = _probe
+	if _query == null: # one query object for the whole drive (asked every other frame)
+		_query = PhysicsShapeQueryParameters3D.new()
+		_query.shape = _probe
+		_query.collision_mask = 1 | 4
+		_query.exclude = [car.get_rid()]
+	var q := _query
 	q.transform = Transform3D(Basis(), from)
 	q.motion = to - from
-	q.collision_mask = 1 | 4
-	q.exclude = [car.get_rid()]
 	var r := space.cast_motion(q)
 	return clampf(r[0], 0.2, 1.0) if r.size() > 0 else 1.0
 

@@ -315,7 +315,13 @@ func screen_controls_on() -> bool:
 	return (is_mobile() or OS.has_feature("web")) if v < 0 else v == 1
 
 
+var _mobile := -1 # cached: asked every frame by the HUD and the controls
+
+
 func is_mobile() -> bool:
-	# "--touch" (after "--") previews the phone layout on a desktop.
-	var forced := "--touch" in OS.get_cmdline_user_args()
-	return forced or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
+	if _mobile < 0:
+		# "--touch" (after "--") previews the phone layout on a desktop.
+		var forced := "--touch" in OS.get_cmdline_user_args()
+		_mobile = 1 if forced or OS.has_feature("mobile") or OS.has_feature("web_android") \
+				or OS.has_feature("web_ios") else 0
+	return _mobile == 1
