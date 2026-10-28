@@ -198,8 +198,12 @@ func _build_ui() -> void:
 
 
 func _rebuild_ui() -> void:
+	# The Settings page rebuilds itself in the new language: keep it on top.
+	var keep: SettingsPanel = _settings_panel if _settings_panel and is_instance_valid(_settings_panel) else null
+	_settings_panel = keep
 	for c in _ui.get_children():
-		c.queue_free()
+		if c != keep:
+			c.queue_free()
 	# Dark on the menu side, clear over the car.
 	var grad := Gradient.new()
 	grad.set_color(0, Color(0.02, 0.03, 0.05, 0.82))
@@ -226,6 +230,9 @@ func _rebuild_ui() -> void:
 	_ui.add_child(margin)
 	_content = margin
 	_show_home()
+	if keep:
+		_on_home = false
+		_ui.move_child(keep, _ui.get_child_count() - 1)
 
 
 func _clear_content() -> void:
@@ -459,7 +466,7 @@ func _safe_mode_dialog(text: String) -> void:
 		copy.text = Loc.t("load.copied"))
 	row.add_child(copy)
 	var ok := UITheme.button(Loc.t("safe.reopen") if OS.has_feature("mobile") and not Loading.opengl_mode() \
-			else "OK", 19, 56)
+			else Loc.t("app.ok"), 19, 56)
 	ok.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ok.pressed.connect(func() -> void:
 		if OS.has_feature("mobile") and not Loading.opengl_mode():
@@ -931,9 +938,28 @@ func _show_settings() -> void:
 func _notification(what: int) -> void:
 	if what != NOTIFICATION_WM_GO_BACK_REQUEST or _content == null:
 		return
-	if _settings_panel:
+	if Loading.is_covering():
+		return # a drive is loading: nothing to go back to
+	if _settings_panel and is_instance_valid(_settings_panel):
 		_settings_panel.closed.emit()
 	elif not _on_home:
 		_show_home()
 	else:
 		get_tree().quit()
+
+
+## Escape on a computer or in the browser: the same as the back chevron
+## (a sub-page returns home; on the home page nothing happens).
+func _unhandled_input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if k == null or not k.pressed or k.echo or k.keycode != KEY_ESCAPE or _content == null:
+		return
+	if Loading.is_covering():
+		return
+	if _settings_panel and is_instance_valid(_settings_panel):
+		_settings_panel.closed.emit()
+	elif not _on_home:
+		_show_home()
+	else:
+		return
+	get_viewport().set_input_as_handled()

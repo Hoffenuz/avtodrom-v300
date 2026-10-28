@@ -465,6 +465,8 @@ func _resume() -> void:
 
 
 func _restart() -> void:
+	if _exam_running():
+		director.abandon() # recorded as №26, as the pause menu's note says
 	Session.restart_drive()
 
 
@@ -488,6 +490,11 @@ func _on_finished(result: Dictionary) -> void:
 		get_tree().quit(code)
 		return
 	Session.record_result(result)
-	await get_tree().create_timer(RESULTS_DELAY).timeout
-	if is_inside_tree():
+	# A one-shot connection, not an await: leaving or restarting right after
+	# the end frees this scene, and an await would resume on the freed node.
+	get_tree().create_timer(RESULTS_DELAY).timeout.connect(_show_results.bind(result), CONNECT_ONE_SHOT)
+
+
+func _show_results(result: Dictionary) -> void:
+	if is_inside_tree() and results:
 		results.show_result(result, director.data if director else null)

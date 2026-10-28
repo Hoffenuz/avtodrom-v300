@@ -13,6 +13,8 @@ var _warn: Label
 var _restart: Button
 var _layout_btn: Button
 var _settings: SettingsPanel
+var _exam_running := false
+var _touch_controls := false
 
 
 func _init() -> void:
@@ -22,6 +24,22 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	_build()
+	Loc.language_changed.connect(func() -> void:
+		var was_open := _settings
+		_settings = null
+		for c in get_children():
+			if c != was_open:
+				c.queue_free()
+		_build()
+		if was_open:
+			# Settings stays up (it rebuilds itself); the panel waits behind it.
+			_settings = was_open
+			_panel.visible = false
+			move_child(was_open, get_child_count() - 1))
+
+
+func _build() -> void:
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.55)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -59,12 +77,16 @@ func _ready() -> void:
 	_warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_warn)
+	_warn.visible = _exam_running
+	_layout_btn.visible = _touch_controls
 
 
 ## "Start again" is always there; during a real exam the note says that
 ## leaving (or starting over) counts as a failed attempt (№26).
 func open(exam_running: bool, touch_controls := false) -> void:
 	visible = true
+	_exam_running = exam_running
+	_touch_controls = touch_controls
 	_warn.visible = exam_running
 	_layout_btn.visible = touch_controls
 	_panel.visible = true
@@ -114,4 +136,5 @@ func _open_settings() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
-		resume.emit()
+		if not back():
+			resume.emit()
