@@ -40,7 +40,11 @@ func setup(p_car: Car, hud_root: Control, p_quality: int, sun: DirectionalLight3
 		main_camera: Camera3D = null) -> void:
 	car = p_car
 	quality = p_quality
-	if sun and main_camera:
+	# Only a sun with shadows is worth splitting: the copy lights the mirrors
+	# differently, and OpenGL then compiles every material a second time for
+	# them at the first reverse gear (seconds on a phone's browser). Without
+	# shadows the mirrors share the sun and need nothing new.
+	if sun and main_camera and sun.shadow_enabled:
 		_split_sun(sun, main_camera)
 	for side in 2:
 		var vp := SubViewport.new()

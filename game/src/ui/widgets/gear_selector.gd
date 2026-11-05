@@ -62,6 +62,10 @@ func release_touch() -> void:
 	_touch = -1
 
 
+func is_held() -> bool:
+	return _touch >= 0
+
+
 func reject() -> void:
 	reject_flash = 0.6
 	queue_redraw()

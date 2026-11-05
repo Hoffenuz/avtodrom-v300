@@ -132,6 +132,39 @@ uchun `run_tests.py` exit kodini emas, `EXIT <kod>` qatorini o'qiydi.
 - Lokal Worker: `export/web-cf` da `npx wrangler@4 dev --port 8787`. TaskStop npx bolalarini o'ldirmaydi — `wrangler` node jarayonlari + `taskkill /F /IM workerd.exe`.
 - Headless sinov: Playwright (scratchpad/webtest/run.js, `channel:'chrome'`, `--use-angle=d3d11`, persistent profile). `--use-angle=gl` NVIDIA drayver keshi tufayli sovuq kompilyatsiyani yashiradi.
 
+## Telefon brauzerida qotish (2026-11-05 tashxis va tuzatishlar)
+- O'lchov usuli: telefon Chrome'ini `adb forward tcp:9222 localabstract:chrome_devtools_remote` bilan ochib,
+  Playwright `connectOverCDP` orqali konsolni o'qish (scratchpad `webtest/phone_console.js`, `phone_ab.js`,
+  `phone_glspy3.js` — WebGL `linkProgram`/`getProgramParameter` o'ramlari har dasturni vaqti va
+  MaterialUniforms nomlari bilan yozadi). URL `?args=--perf --start=exam --autopilot --quit-after-s=75`.
+- Topilma: haydash o'zi 60 fps (Adreno 710, p99 17 ms, sifat 0/1/2 farqi yo'q). "Qotish" = shader kompilyatsiyasi:
+  Chrome Android (ANGLE GLES, Adreno) **dastur keshini saqlamaydi** — har kirishda, hatto bitta sessiyada qayta
+  yuklaganda ham, hammasi qayta kompilyatsiya bo'ladi (material ~0.45 s, 25 material → 13–17 s yuklash).
+- Sabab 1 (dvigatel): `ShaderGLES3::_initialize_version` har material uchun 4 variantni (color, color+instancing,
+  depth, depth+instancing) standart spetsializatsiya bilan kompilyatsiya qilardi — ularning birortasi sahnada
+  bog'lanmaydi (haqiqiy spetsializatsiya keyin alohida kompilyatsiya bo'ladi). Material uchun 6 dastur / ~480 ms,
+  shundan ~350 ms bekor. Yamoq: `C:/gsrc/godot-4.7.2-stable/drivers/gles3/shader_gles3.cpp` (`#ifndef WEB_ENABLED`
+  atrofida, asl nusxa `shader_gles3.cpp.orig`) → `py scripts/build.py --web-engine`. Linker (lto=full) 6–8 GB
+  xotira so'raydi: `LLVM ERROR: out of memory` bo'lsa Gradle demoni (`gradlew --stop`) va boshqa og'ir jarayonlarni
+  to'xtatib qayta ishga tushiring.
+- Sabab 2 (o'yin): warm-up kvadratlari ko'rmagan narsalar haydash paytida kompilyatsiya bo'lardi (0.5–1.2 s qotish):
+  svetofor "yongan" materiallari (hech kim ushlab turmaydi), Label3D matnlari, kamera ko'rmagan tomondagi
+  belgilar, MultiMesh `use_custom_data` varianti, ko'zgular uchun soyasiz quyosh nusxasi (birinchi orqa
+  yurishda hamma material qayta). Tuzatish: `ShaderWarmup.register(material)` (svetofor), kvadratlarda
+  MultiMesh rang/custom-data bayroqlari, sahna qismlari **tepadan ortografik kamera** bilan ko'rsatiladi
+  (`_overhead_camera`), `CourseBuilder`/`Surroundings` bolalari alohida kadrlarda (bitta 3–4 s kadr o'rniga),
+  `MirrorViews._split_sun` faqat quyosh soyali bo'lsa.
+- Telefon brauzerida sifat ≤1 da quyosh soyasi o'chiq (`EnvironmentSetup.sun_shadows_at`): OpenGL soyali
+  quyoshni **additiv o'tish** bilan chizadi (har yoritilgan obyekt ikki marta + soya xaritasi + har materialga
+  yana bitta dastur); mashinaning o'z soyasi (`car_shadow.gdshader`) qoladi.
+- Daraxtlar: telefonda sifat ≤1 da 2 sektor va bitta toj shakli (`TREE_SECTORS_PHONE`, `_on_phone()`) — 60+ draw
+  o'rniga ~20 (telefon brauzerida har draw asosiy oqimga qimmat).
+- Hang guard webda o'chiq (`_guard_enabled`): yuklash paytida tab yopilsa "oxirgi safar qotgan" deb eng past
+  sifatga tushirardi. Menyuda webda `max_fps=30` yo'q.
+- shell.html: `?lang=uz_lat|uz_cyr|ru` → `--lang=` (saqlanmaydi), `?src=app` → ilova ichida (app-card va
+  "Ilova" oynasi yo'q, `WebLinks.in_app()`). Mobil ilova (`avtodrom_sim_screen.dart`) shu parametrlarni beradi.
+- Telefon tip matni `load.first_web_phone` ("10–20 soniya") — "faqat bir marta" telefonda rost emas.
+
 ## 1.0.15 yangiliklari
 - Natija xaritasi `ExamMap` (results panelda): yuqoridan ortho kamera, `SubViewport` UPDATE_ONCE, drive dunyosidan; `ExamDirector.track/track_rev` (0.7 m qadam), har jarimaga `pos`. Tarixga track yozilmaydi (`Session.record_result`).
 - Instruktor ovozi `InstructorVoice`: `ExamDirector.cue(key)` → `res://audio/voice/<uz|ru>/<key>.ogg|wav`, fayl yo'q bo'lsa jim. Ro'yxat `docs/VOICE_LINES.md` (foydalanuvchi o'zi yozdiradi). Sozlama `voice`.

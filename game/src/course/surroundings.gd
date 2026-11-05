@@ -15,8 +15,13 @@ const RING_Y := 0.04
 const PAINT_LIFT := 0.04
 const HEDGE_OFFSET := 6.0
 # Tree scatters are split into this many sectors around the field so the ones
-# behind the camera are culled.
+# behind the camera are culled. Phones (and phone browsers) below the top
+# level take two: every sector is a draw per crown shape and kind, and on a
+# phone's browser each draw costs the main thread more than the triangles
+# it saves (sixty-odd tree draws a frame went down to twenty).
 const TREE_SECTORS := 4
+const TREE_SECTORS_PHONE := 2
+var _sectors := TREE_SECTORS
 const FOLIAGE_SHADER := preload("res://assets/shaders/foliage.gdshader")
 const BLOB_SHADER := preload("res://assets/shaders/blob_shadow.gdshader")
 const FLAG_SHADER := preload("res://assets/shaders/flag.gdshader")
@@ -44,6 +49,7 @@ func build(p_fence: Rect2, p_quality: int, p_mat: Dictionary) -> void:
 	quality = p_quality
 	mat = p_mat
 	_rng.seed = 7202609
+	_sectors = TREE_SECTORS_PHONE if quality <= 1 and _on_phone() else TREE_SECTORS
 	_facade = ShaderMaterial.new()
 	_facade.shader = load("res://assets/shaders/facade.gdshader")
 	_build_ring_road()
@@ -903,7 +909,7 @@ func _scatter(label: String, pts: Array[Vector2], trunk: Mesh, crowns: Array, sh
 		turned: Array) -> void:
 	if pts.is_empty():
 		return
-	if quality == 0:
+	if quality == 0 or (quality == 1 and _on_phone()):
 		# One crown shape per kind: a third of the draws (the colours and
 		# sizes still vary per tree).
 		crowns = crowns.slice(0, 1)
@@ -918,11 +924,11 @@ func _scatter(label: String, pts: Array[Vector2], trunk: Mesh, crowns: Array, sh
 		(crown as ArrayMesh).surface_set_material(0, cm)
 	var trunks: Array = []
 	var crown_sets: Array = [] # [variant][sector] -> [[xform, colour]]
-	for k in TREE_SECTORS:
+	for k in _sectors:
 		trunks.append([])
 	for v in crowns.size():
 		var per := []
-		for k in TREE_SECTORS:
+		for k in _sectors:
 			per.append([])
 		crown_sets.append(per)
 	var centre := fence.get_center()
@@ -943,7 +949,7 @@ func _scatter(label: String, pts: Array[Vector2], trunk: Mesh, crowns: Array, sh
 		crown_sets[_rng.randi() % crowns.size()][k].append([Transform3D(cb, crown_pos), col])
 	var shadow := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if quality >= 1 \
 			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	for k in TREE_SECTORS:
+	for k in _sectors:
 		if trunk and not trunks[k].is_empty():
 			var tmm := MultiMesh.new()
 			tmm.transform_format = MultiMesh.TRANSFORM_3D
@@ -976,10 +982,16 @@ func _add_mm(node_name: String, mm: MultiMesh, shadow: GeometryInstance3D.Shadow
 	add_child(mmi)
 
 
-## Sector (0 .. TREE_SECTORS-1) of a direction from the field centre.
-static func _sector(d: Vector2) -> int:
-	var a := fposmod(d.angle() + PI / TREE_SECTORS, TAU)
-	return mini(int(a / TAU * TREE_SECTORS), TREE_SECTORS - 1)
+## Sector (0 .. _sectors-1) of a direction from the field centre.
+func _sector(d: Vector2) -> int:
+	var a := fposmod(d.angle() + PI / _sectors, TAU)
+	return mini(int(a / TAU * _sectors), _sectors - 1)
+
+
+## A phone or a phone's browser. No autoload here: the course is also built
+## by the headless bake, where there are none (and no phone either).
+static func _on_phone() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 
 
 # --------------------------------------------------------------------------- city

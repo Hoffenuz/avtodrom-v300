@@ -46,6 +46,21 @@ static func sun_shadows(look: String) -> bool:
 	return look == "day" or look == "evening"
 
 
+## Whether the sun casts shadows at all at this quality level, with the
+## player's "shadows" setting and the look: Medium and up, except in phones'
+## browsers below High. There OpenGL draws every lit object twice for a
+## shadowed sun (the light goes in an additive pass), renders the shadow map
+## and compiles one more program per material; the car keeps its own ground
+## shadow (car_shadow.gdshader), and the trees' and posts' shadows are off
+## below High anyway, so only the buildings and kerbs lose theirs.
+static func sun_shadows_at(quality: int, look: String) -> bool:
+	if quality < 1 or not bool(Settings.get_value("shadows")) or not sun_shadows(look):
+		return false
+	if OS.has_feature("web") and Settings.is_mobile() and quality < 2:
+		return false
+	return true
+
+
 static func create(parent: Node, quality: int, look := "day") -> DirectionalLight3D:
 	var env := Environment.new()
 	var q := clampi(quality, 0, 2)
@@ -125,7 +140,7 @@ static func create(parent: Node, quality: int, look := "day") -> DirectionalLigh
 		sun.light_energy = spec["sun_energy"]
 		sun.light_color = spec["sun_color"]
 	# Low: no shadows. Medium: one cascade to 35 m on phones. High: more.
-	sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows")) and sun_shadows(look)
+	sun.shadow_enabled = sun_shadows_at(quality, look)
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.2
 	if quality >= 2:

@@ -33,6 +33,10 @@ S = {
     "load.first_web": ("Birinchi kirish: grafika tayyorlanmoqda, bu bir oz vaqt oladi (faqat bir marta)",
                        "Биринчи кириш: графика тайёрланмоқда, бу бир оз вақт олади (фақат бир марта)",
                        "Первый запуск: подготовка графики займёт немного времени (только один раз)"),
+    # Phones' browsers keep no compiled shaders: every visit builds them.
+    "load.first_web_phone": ("Grafika tayyorlanmoqda — telefonda bu 10–20 soniya oladi, o‘yin keyin ravon yuradi",
+                             "Графика тайёрланмоқда — телефонда бу 10–20 сония олади, ўйин кейин равон юради",
+                             "Подготовка графики — на телефоне это займёт 10–20 секунд, дальше игра идёт плавно"),
     "set.lite": ("Yengil manzara", "Енгил манзара", "Облегчённое окружение"),
     "set.lite_desc": ("Binolar, mashinalar va bezaklarsiz — kuchsiz telefonlar uchun (keyingi haydashdan)",
                       "Бинолар, машиналар ва безакларсиз — кучсиз телефонлар учун (кейинги ҳайдашдан)",

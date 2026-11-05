@@ -335,6 +335,10 @@ func _build_touch() -> void:
 	gears.automatic = car.is_automatic()
 	gears.gear_requested.connect(func(g: int) -> void: controls.gear_requested.emit(g))
 	root.add_child(gears)
+	# While a hand is on the wheel, a pedal, the lever or a steering button,
+	# other fingers do not turn the camera (LookPad).
+	look_pad.hold_check = func() -> bool:
+		return wheel.is_held() or gas.is_held() or brake_pedal.is_held() or clutch_pedal.is_held() 				or gears.is_held() or _steer_dir != 0
 
 	b_ind_left = IconButton.new("left", 76)
 	b_ind_left.lit_color = UITheme.INDICATOR

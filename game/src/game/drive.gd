@@ -237,7 +237,7 @@ func _apply_graphics() -> void:
 	# after the scene has already loaded, not just at EnvironmentSetup.create().
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun:
-		sun.shadow_enabled = quality >= 1 and bool(Settings.get_value("shadows")) 				and EnvironmentSetup.sun_shadows(EnvironmentSetup.weather())
+		sun.shadow_enabled = EnvironmentSetup.sun_shadows_at(quality, EnvironmentSetup.weather())
 
 
 func _on_setting_changed(key: String) -> void:

@@ -130,6 +130,12 @@ window.AVTODROM = {
 	platform: /android/i.test(navigator.userAgent) ? 'android'
 		: /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ? 'ios'
 		: /windows/i.test(navigator.userAgent) ? 'windows' : 'other',
+	// From the URL: ?lang=uz_lat|uz_cyr|ru (the site's and the app's codes)
+	// opens the game in that language; ?src=app says the page runs inside
+	// the AvtoSmart mobile app (no "the app is coming", no "back to the site").
+	lang: ({ uz_lat: 'uz_latn', uz_latn: 'uz_latn', uz: 'uz_latn', uz_cyr: 'uz_cyrl', uz_cyrl: 'uz_cyrl', ru: 'ru' })[
+		(new URLSearchParams(location.search).get('lang') || '').toLowerCase()] || '',
+	src: new URLSearchParams(location.search).get('src') || '',
 };
 
 // The game pack with the textures in the format the engine will ask for:
@@ -300,6 +306,7 @@ window.AVTODROM = {
 // it is not out yet, so only that it comes to Google Play (no link).
 (function () {
 	const A = window.AVTODROM, card = document.getElementById('app-card');
+	if (A.src === 'app') return;
 	if (A.platform === 'android') {
 		card.innerHTML = '<div><b>Android ilova tez orada Google Play&#8217;da</b> — grafika yuqori, qotishlar'
 			+ ' bo&#8216;lmaydi, internetsiz ishlaydi.</div>';
@@ -549,10 +556,13 @@ const engine = new Engine(GODOT_CONFIG);
 		fail('brauzerda kerakli imkoniyatlar yo‘q (' + missing.join(', ') + '). Chrome yoki Edge’ning yangi versiyasida oching.');
 		return;
 	}
-	// ?args=--perf (debugging): extra command-line arguments for the game.
+	// ?args=--perf (debugging): extra command-line arguments for the game;
+	// ?lang= picks the language for this visit (Loc reads --lang=).
 	const extra = new URLSearchParams(location.search).get('args');
+	const args = extra ? extra.split(' ') : [];
+	if (window.AVTODROM.lang) args.push('--lang=' + window.AVTODROM.lang);
 	engine.startGame({
-		args: extra ? ['--'].concat(extra.split(' ')) : [],
+		args: args.length ? ['--'].concat(args) : [],
 		onProgress: function () { window.AVTODROM.progressShow(); },
 	}).then(function () { status.remove(); }, fail);
 }());

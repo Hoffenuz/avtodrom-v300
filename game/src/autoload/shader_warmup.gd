@@ -10,13 +10,40 @@ class_name ShaderWarmup
 ## each frame, under the same sun and sky, so the frame where the scene shows
 ## has nothing left to build. Once the shaders are cached (the browser and
 ## Godot keep them), each step takes a frame.
+##
+## Two things the quads cannot cover are handled after them:
+## - materials nothing holds yet (a traffic light's lit lenses, a lamp's lit
+##   look): scripts hand them in with register(), and they get a quad too;
+## - what only the real scene builds (the shadow map, a Label3D's text, the
+##   signs seen from behind): the scene is shown part by part from a camera
+##   high above the site looking down, so everything on it is in view at
+##   once - not when the drive first turns towards it, a second-long freeze
+##   on a phone's browser.
 
 const LAYER := 1 << 19
+## Height of the overhead camera and the width of the site it takes in (m).
+const OVERHEAD_HEIGHT := 70.0
+const OVERHEAD_SIZE := 520.0
+## The surroundings' far ring of city blocks is one mesh hundreds of metres
+## across; it is drawn anyway (always in view from the site).
+const BOUNDS_MAX_SIDE := 320.0
+## Scripted groups whose children may still be shown one by one.
+const OPEN_GROUPS := ["CourseBuilder", "Surroundings"]
+
+## Materials nothing in the scene holds at load time (see register()).
+static var extra: Array[Material] = []
 
 
 ## Whether this renderer compiles shaders on first draw (OpenGL).
 static func enabled() -> bool:
 	return RenderingServer.get_current_rendering_method() == "gl_compatibility"
+
+
+## A material that will appear later (a lit traffic-light lens, a lamp's "on"
+## look): compiled with the rest, in a quad of its own.
+static func register(m: Material) -> void:
+	if m and not extra.has(m):
+		extra.append(m)
 
 
 ## Hidden from the 3D camera until warm() shows it (the loading page covers it).
@@ -51,6 +78,10 @@ static func warm(scene: Node, progress: Callable) -> void:
 	if not is_instance_valid(cam):
 		return
 	_collect(scene, found)
+	for m in extra:
+		var k := _key(m)
+		if k != "" and not found.has(k):
+			found[k] = [m, 0, "registered"]
 	var holder := Node3D.new()
 	holder.name = "ShaderWarmup"
 	cam.add_child(holder)
@@ -59,14 +90,19 @@ static func warm(scene: Node, progress: Callable) -> void:
 	var keys := found.keys()
 	var parts: Array[Node3D] = []
 	_parts(scene, parts, 0)
-	var total := keys.size() + parts.size()
+	var total := keys.size() + parts.size() + 1
 	for i in keys.size():
 		progress.call(i, total)
 		var e: Array = found[keys[i]]
 		var gi: GeometryInstance3D
-		if e[1]:
+		var mm_flags := int(e[1])
+		if mm_flags:
+			# A MultiMesh with per-instance colours or custom data is another
+			# shader variant: the quad carries the same.
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = mm_flags & 2 != 0
+			mm.use_custom_data = mm_flags & 4 != 0
 			mm.mesh = quad
 			mm.instance_count = 1
 			var mmi := MultiMeshInstance3D.new()
@@ -92,11 +128,15 @@ static func warm(scene: Node, progress: Callable) -> void:
 			print("WARM step %d %d ms %s @%s" % [i, took, _describe(e[0]), e[2]])
 	holder.queue_free()
 	# What the quads miss (the shadow map of the whole scene, mesh formats,
-	# second passes) is built when the scene itself is drawn: part by part,
-	# a frame each, rather than in one long frame.
+	# second passes, Label3D text) is built when the scene itself is drawn:
+	# part by part, a frame each, from high above the site so that nothing is
+	# left outside the view to be built later, during the drive.
 	for p in parts:
 		p.visible = false
 	cam.cull_mask = mask
+	var overhead := _overhead_camera(scene, parts, mask)
+	if overhead:
+		overhead.current = true
 	for i in parts.size():
 		progress.call(keys.size() + i, total)
 		if is_instance_valid(parts[i]):
@@ -108,6 +148,17 @@ static func warm(scene: Node, progress: Callable) -> void:
 		var took := Time.get_ticks_msec() - ts
 		if took > 250:
 			print("WARM part %s %d ms" % [parts[i].name if is_instance_valid(parts[i]) else "?", took])
+	# One frame from the real camera before the page lifts.
+	if overhead:
+		cam.current = true
+		overhead.queue_free()
+	progress.call(total - 1, total)
+	var ts := Time.get_ticks_msec()
+	await RenderingServer.frame_post_draw
+	if not is_instance_valid(cam):
+		return
+	if Time.get_ticks_msec() - ts > 250:
+		print("WARM view %d ms" % (Time.get_ticks_msec() - ts))
 	progress.call(total, total)
 	for vp in subviews:
 		if is_instance_valid(vp):
@@ -115,10 +166,48 @@ static func warm(scene: Node, progress: Callable) -> void:
 	print("WARM %d shaders in %d ms" % [keys.size(), Time.get_ticks_msec() - t0])
 
 
-## Distinct shaders: key -> [material, drawn through a MultiMesh, a node with it].
+## An orthographic camera over the middle of the scene's visible parts,
+## looking straight down, wide enough for the whole site. Null when there is
+## nothing to measure (the menu's turntable goes through the plain frame).
+static func _overhead_camera(scene: Node, parts: Array[Node3D], mask: int) -> Camera3D:
+	var bounds := AABB()
+	var first := true
+	for p in parts:
+		if not is_instance_valid(p):
+			continue
+		var nodes: Array[Node] = [p]
+		nodes.append_array(p.find_children("*", "VisualInstance3D", true, false))
+		for n in nodes:
+			var vi := n as VisualInstance3D
+			if vi == null:
+				continue
+			var box := vi.global_transform * vi.get_aabb()
+			if box.get_longest_axis_size() > BOUNDS_MAX_SIDE or box.size == Vector3.ZERO:
+				continue
+			bounds = box if first else bounds.merge(box)
+			first = false
+	if first or bounds.get_longest_axis_size() < 40.0:
+		return null
+	var c := bounds.get_center()
+	var over := Camera3D.new()
+	over.name = "WarmupOverhead"
+	over.projection = Camera3D.PROJECTION_ORTHOGONAL
+	over.size = maxf(OVERHEAD_SIZE, bounds.get_longest_axis_size() + 60.0)
+	over.near = 1.0
+	over.far = OVERHEAD_HEIGHT + 40.0
+	over.cull_mask = mask
+	over.position = Vector3(c.x, bounds.position.y + OVERHEAD_HEIGHT, c.z)
+	over.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
+	scene.add_child(over)
+	return over
+
+
+## Distinct shaders: key -> [material, MultiMesh flags (1 instanced, 2 colours,
+## 4 custom data; 0 = a plain mesh), a node with it].
 static func _collect(n: Node, found: Dictionary) -> void:
 	if n is GeometryInstance3D and n.visible:
 		var multi := n is MultiMeshInstance3D
+		var mm_flags := 0
 		var mats: Array[Material] = []
 		if n.material_override:
 			mats.append(n.material_override)
@@ -135,10 +224,12 @@ static func _collect(n: Node, found: Dictionary) -> void:
 						m = mesh.surface_get_material(i)
 					if m:
 						mats.append(m)
+		if multi and n.multimesh:
+			mm_flags = 1 | (2 if n.multimesh.use_colors else 0) | (4 if n.multimesh.use_custom_data else 0)
 		for m in mats:
-			var k := _key(m) + ("|mm" if multi else "")
+			var k := _key(m) + ("|mm%d" % mm_flags if mm_flags else "")
 			if k != "" and not found.has(k):
-				found[k] = [m, multi, n.name]
+				found[k] = [m, mm_flags, n.name]
 	for c in n.get_children():
 		_collect(c, found)
 
@@ -151,7 +242,13 @@ static func _parts(n: Node, out: Array[Node3D], depth: int) -> void:
 			continue
 		# Only plain groups are opened up: a node with a script (the car, a
 		# traffic light) may show and hide its own parts, so it goes whole.
-		if depth < 2 and c3.get_child_count() > 6 and c3.get_script() == null:
+		# The course and its surroundings are built once and never toggle
+		# their children; whole, the course was one 3-4 s frame on a phone.
+		var cls: String = c3.get_script().get_global_name() if c3.get_script() else ""
+		# A plain group of dozens of small things (the signs) goes whole: a
+		# frame each would be a frame wasted, they share a material or two.
+		var count := c3.get_child_count()
+		if depth < 2 and count > 6 and (cls in OPEN_GROUPS or (cls == "" and count <= 24)):
 			_parts(c3, out, depth + 1)
 		else:
 			out.append(c3)
@@ -170,8 +267,9 @@ static func _key(m: Material) -> String:
 	if m is ShaderMaterial:
 		return "s%d" % m.shader.get_rid().get_id() if m.shader else ""
 	if m is BaseMaterial3D:
-		var s := "b%d.%d.%d.%d.%d.%d.%d.%d.%d" % [m.transparency, m.shading_mode, m.cull_mode, m.depth_draw_mode,
-				m.diffuse_mode, m.specular_mode, m.blend_mode, m.texture_filter, m.billboard_mode]
+		var s := "b%d.%d.%d.%d.%d.%d.%d.%d.%d.%d" % [m.transparency, m.shading_mode, m.cull_mode, m.depth_draw_mode,
+				m.diffuse_mode, m.specular_mode, m.blend_mode, m.texture_filter, m.billboard_mode,
+				m.alpha_antialiasing_mode]
 		for i in BaseMaterial3D.FLAG_MAX:
 			s += "1" if m.get_flag(i) else "0"
 		for i in BaseMaterial3D.FEATURE_MAX:

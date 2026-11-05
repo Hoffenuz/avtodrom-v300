@@ -177,6 +177,10 @@ static func _make_materials() -> void:
 		off.roughness = 0.12
 		off.metallic_specular = 0.8
 		_off_mats.append(off)
+		# Nothing holds a lit lens until a light changes: without this the
+		# first green of the drive compiled its shader (a freeze on phones).
+		ShaderWarmup.register(on)
+		ShaderWarmup.register(off)
 
 
 func set_aspect(a: Aspect) -> void:

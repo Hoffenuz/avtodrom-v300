@@ -146,7 +146,12 @@ func _show(status_key: String) -> void:
 	_status_key = status_key
 	_warm_text = ""
 	ShaderWarmup.hide_3d(get_tree())
-	if OS.has_feature("web") and not Settings.get_value("web_warm"):
+	if OS.has_feature("web_android") or OS.has_feature("web_ios"):
+		# Phones' browsers keep no compiled programs (Chrome on Adreno: every
+		# visit compiled the same shaders again, 0.4 s a material): say how
+		# long, not "only once".
+		_tip_key = "load.first_web_phone"
+	elif OS.has_feature("web") and not Settings.get_value("web_warm"):
 		# The browser compiles every shader on the first visit (tens of
 		# seconds on Windows, where WebGL runs through Direct3D); it keeps
 		# them, so later visits load in a second or two.
@@ -222,6 +227,8 @@ func guard_begin(tag: String) -> void:
 ## The work is done: the guard goes once GUARD_FRAMES frames have been drawn
 ## (the first frames of a new scene are where the GPU builds its pipelines).
 func guard_end() -> void:
+	if not _guard_enabled():
+		return
 	_guard_frames = GUARD_FRAMES
 
 
@@ -340,6 +347,11 @@ func _exit_tree() -> void:
 ## automated checks are cut off mid-load all the time.
 static func _guard_enabled() -> bool:
 	if DisplayServer.get_name() == "headless":
+		return false
+	if OS.has_feature("web"):
+		# A tab closed while the page loads (half a minute on a phone's first
+		# visit) is not a freeze; a page a browser really kills comes back
+		# fresh anyway. The mark put every such visitor on the lowest picture.
 		return false
 	return not OS.is_debug_build() or "--guard-test" in OS.get_cmdline_user_args()
 

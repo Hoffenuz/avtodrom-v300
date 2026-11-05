@@ -89,7 +89,7 @@ func _build_world() -> void:
 	EnvironmentSetup.apply_viewport(get_viewport(), q)
 	# The menu background is a slow orbit: 30 fps is plenty and keeps the phone
 	# cool (the drive scene sets its own limit from the settings).
-	if not DebugShots.perf:
+	if not DebugShots.perf and not OS.has_feature("web"):
 		Engine.max_fps = 30
 
 

@@ -15,9 +15,14 @@ static func _page(key: String, fallback: String) -> String:
 
 
 ## The Android app is not out yet: phones get "soon on Google Play", with
-## nothing to download.
+## nothing to download. Not inside the AvtoSmart app's own window (?src=app).
 static func app_soon() -> bool:
-	return OS.has_feature("web_android")
+	return OS.has_feature("web_android") and not in_app()
+
+
+## The page runs inside the AvtoSmart mobile app (opened with ?src=app).
+static func in_app() -> bool:
+	return _page("src", "") == "app"
 
 
 ## The app for this device to download ("" where there is none: phones,
