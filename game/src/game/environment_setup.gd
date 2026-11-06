@@ -162,6 +162,8 @@ static func apply_viewport(vp: Viewport, quality: int) -> void:
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if (scale < 0.99 and quality >= 1) 			else Viewport.SCALING_3D_MODE_BILINEAR
 	var q := clampi(quality, 0, 2)
 	var msaa := [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_2X] if mobile 			else [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X]
+	if mobile and OS.has_feature("web") and q == 0:
+		msaa[q] = Viewport.MSAA_2X # smooth edges on the low level too (a tile GPU resolves 2x almost for free)
 	vp.msaa_3d = msaa[q]
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
 	# Switch meshes to their lighter automatic LODs earlier on phones.

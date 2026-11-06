@@ -157,10 +157,14 @@ window.AVTODROM = {
 // The canvas follows devicePixelRatio, and every frame the engine copies it
 // to the screen with GPU-stalling state queries: on a 2.6x phone that copy of
 // a 2400x1100 canvas took two thirds of the frame. Phones get at most 1.5x
-// (the game raises its 3D resolution to match), computers 2x.
+// (the game raises its 3D resolution to match), computers 2x. Measured in the
+// app's WebView on an Adreno 710 (2026-11-06): 1.5x 12.7 ms a frame, 2x 20 ms
+// - the copy, not the shading, so the canvas stays at 1.5x and the 3D picture
+// is sharpened by MSAA instead. `?dpr=2` overrides it, for measuring.
 (function () {
 	const real = window.devicePixelRatio || 1;
-	const cap = matchMedia('(pointer:coarse)').matches ? 1.5 : 2;
+	const asked = parseFloat(new URLSearchParams(location.search).get('dpr') || '');
+	const cap = asked > 0 ? asked : (matchMedia('(pointer:coarse)').matches ? 1.5 : 2);
 	window.AVTODROM.pixelRatio = Math.min(real, cap);
 	try {
 		Object.defineProperty(window, 'devicePixelRatio', { get: function () { return window.AVTODROM.pixelRatio; } });

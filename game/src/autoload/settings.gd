@@ -72,7 +72,7 @@ const DEFAULTS := {
 }
 
 ## Raised when the browser detection changes: levels it picked are redone.
-const WEB_DETECT := 2
+const WEB_DETECT := 3 # 3: phones always lite (2026-11-06)
 
 var _values: Dictionary = {}
 
@@ -242,7 +242,11 @@ func _detect_web_quality() -> int:
 	# phone says 4 (it used to count as weak, and good phones got the lowest
 	# picture), 3 GB says 2.
 	var weak := (mem > 0.0 and mem <= 2.0) or (cores > 0 and cores <= 4) or (adreno >= 0 and adreno < 610) 			or (mali >= 0 and mali < 68) or gpu.contains("mali-t") or gpu.contains("powervr")
-	_values["lite_scenery"] = weak
+	# Every phone in a browser gets the lighter scenery (no city ring, parked
+	# cars, props; a quarter of the trees) and the decimated car (Car MODELS
+	# "phone"): in the app's WebView 15.3 -> 12.7 ms a frame. The avtodrom
+	# itself and the exam are the same.
+	_values["lite_scenery"] = true
 	if weak:
 		return 0
 	# Adreno 640+ (Snapdragon 855 on), Mali-G76..G78 and G610+, Immortalis,
@@ -270,9 +274,9 @@ func render_scale() -> float:
 	if OS.has_feature("web"):
 		# The page holds phone canvases at 1.5x the CSS pixels (shell.html), not
 		# the screen's 2.5-3x: a larger share of it still means fewer pixels.
-		if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
-			return 0.7
-		return [0.85, 1.0, 1.0][clampi(int(get_value("quality")), 0, 2)]
+		# Phone browsers: the full canvas on medium and high; the lighter
+		# scenery and car leave the budget for it (2026-11-06).
+		return [0.8, 1.0, 1.0][clampi(int(get_value("quality")), 0, 2)]
 	if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
 		return 0.5
 	var q := clampi(int(get_value("quality")), 0, 2)
