@@ -86,11 +86,16 @@ func _ready() -> void:
 				var v: Variant = cfg.get_value(SECTION, key)
 				if typeof(v) == typeof(DEFAULTS[key]) or (typeof(DEFAULTS[key]) == TYPE_FLOAT and typeof(v) == TYPE_INT):
 					_values[key] = v
-	if OS.has_feature("web") and int(_values["web_detect"]) != WEB_DETECT and not bool(_values["quality_user"]):
-		# An older detection's level (or what the drive stepped it down to)
-		# goes: 1.0.13 and before put 6 GB phones on the lowest picture.
-		_values["quality"] = -1
-		_values["render_scale"] = -1.0
+	if OS.has_feature("web") and int(_values["web_detect"]) != WEB_DETECT:
+		# Phones in a browser: the lighter scenery, whatever the saved level
+		# (a profile that had picked its quality kept the full city, 2026-11-06).
+		if is_mobile():
+			_values["lite_scenery"] = true
+		if not bool(_values["quality_user"]):
+			# An older detection's level (or what the drive stepped it down to)
+			# goes: 1.0.13 and before put 6 GB phones on the lowest picture.
+			_values["quality"] = -1
+			_values["render_scale"] = -1.0
 		_values["web_detect"] = WEB_DETECT
 	if int(_values["quality"]) < 0:
 		_values["quality"] = detect_quality()
