@@ -122,6 +122,12 @@ static func create(parent: Node, quality: int, look := "day") -> DirectionalLigh
 			# The night sky is too dark to light anything: a moonlit fill.
 			env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 			env.ambient_light_color = spec["ambient"]
+	if mobile and OS.has_feature("web"):
+		# Phone browsers: no glow and a 1.5x canvas leave the picture dull on
+		# a bright screen (the owner, 2026-11-06) - a little more exposure and
+		# ambient fill, the sky and sun unchanged.
+		env.tonemap_exposure *= 1.18
+		env.ambient_light_energy *= 1.2
 	# The wet road (ground.gdshader); every drive and the menu set it.
 	RenderingServer.global_shader_parameter_set("wetness", 1.0 if look == "rain" else 0.0)
 	var we := WorldEnvironment.new()
