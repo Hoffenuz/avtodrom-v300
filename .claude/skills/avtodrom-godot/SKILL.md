@@ -233,3 +233,24 @@ uchun `run_tests.py` exit kodini emas, `EXIT <kod>` qatorini o'qiydi.
 - O'yinchi mashinasi `lod_bias = 4` (telefonda avto-LOD kuzovda "buklangan" qirralar beradi).
 - Osmon (`EnvironmentSetup._sky`) sessiyada bitta: radiance bir marta filtrlanadi. Jurnalda
   `LOAD uncovered ... after N ms` — sahifa yopilgan payt (telefondan jurnal so'rang).
+
+## Web telefon profili va ilova WebView'i (2026-11-06)
+
+- **Production'ga eski dvigatel chiqib ketgan edi**: egasining checkout'ida `tools/` gitignore'da,
+  shuning uchun yamalgan web shablon yo'q edi va export rasmiy dvigatel bilan ketdi (184 dastur, 14 s
+  warm-up, haydashda qotish). Endi `tools/web_template/web_dlink_nothreads_release.zip` git'da
+  (`git add -f`), istalgan checkout'dan `py scripts/build.py --web --no-native --publish-web` to'g'ri
+  dvigatel bilan chiqaradi. Tekshiruv: `phone_glspy3.js` da `PROGRAMS linked=73` (eski: 184).
+- **Ilova (Flutter) WebView'i**: `displayWithHybridComposition: true` — TLHC rejimida kadr 12,3 ms,
+  hybrid'da 9,6 ms (Adreno 710), ko'p barmoq to'g'ridan-to'g'ri WebView'ga. O'lchash: ilovada
+  `--dart-define=WEBVIEW_DEBUG=true` (+ `AVTODROM_URL=http://localhost:8787/` — faqat manifestga
+  vaqtincha `usesCleartextTraffic` qo'yib), `adb forward tcp:9223 localabstract:webview_devtools_remote_<pid>`,
+  skript `webtest/phone_webview.js`.
+- **Telefon brauzerida doim yengil manzara + telefon mashinasi**: `Settings._detect_web_quality`
+  `lite_scenery=true` (WEB_DETECT=3), `Car.MODELS[...]["phone"]` — `assets/cars/lod/<id>_phone.glb`
+  (Blender decimate 0.4/0.25/0.5 + shade_smooth_by_angle 42°, 32–39k uchburchak; asl 70–94k).
+  Desktopda ko'rish: `--phone-car`. Natija (ilova WebView, 1.5x): to'liq 15,3 ms → yengil 12,7 ms,
+  primitivlar 102k → 66k. Mashina sahnaning 9/10 geometriyasi edi — manzara emas.
+- **DPR 2 yaramaydi**: WebView'da kanvasni ekranga ko'chirish piksel soniga bog'liq — 1.5x 12,7 ms,
+  2x 20 ms. Kanvas 1.5x qoladi, silliqlik MSAA 2x (0-darajada ham). `?dpr=` URL bilan sinash.
+- Telefon issiq bo'lsa (uzoq sinovdan keyin) raqamlar 20–30 % yomonlashadi — A/B ni ketma-ket qiling.

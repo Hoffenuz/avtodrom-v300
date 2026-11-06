@@ -63,3 +63,23 @@ bo'lmasligi kerak. Lokal: `package_web(Path('export/web-cf'))`, `npx wrangler@4 
   dvigatelda kattaroq o'zgarish kerak, 5,7 s ni ~2 s ga tushirishi mumkin.
 - Materiallar sonini kamaytirish (StandardMaterial variantlarini birlashtirish): har material ~150 ms.
 - Yuklashda `getBufferSubData` bilan mesh o'qish (~0,4 s): bake'da tayyorlash mumkin.
+
+## 2026-11-06 davomi: ilova ichida va web telefon profili
+
+Egasi: «ilova ichida juda qotyapti». O'lchov ilovaning WebView'ida (DevTools orqali):
+
+| Holat | Warm-up | Kadr (o'rtacha / p99) | Dasturlar |
+|---|---|---|---|
+| Production (eski dvigatel, TLHC WebView) | 14,5 s | 12,3 / 29,7 ms + 0,5–2,3 s qotishlar | 184 |
+| Production, hybrid composition | 13,0 s | 9,6 / 20,4 ms + qotishlar | 184 |
+| Yangi build, yengil manzara + telefon mashina, 1.5x | 3,1 s | 12,7 / 28,7 ms (issiq telefon), qotish yo'q | 73 |
+| Shu build, 2x kanvas | — | 20,0 / 48 ms | 73 |
+
+Sabablar va tuzatishlar:
+1. Production'ga yamoqsiz dvigatel chiqqan (shablon gitignore'da edi) — shablon git'ga qo'shildi (3d44c4d).
+2. Flutter WebView TLHC rejimida — hybrid composition (ilova 7540167).
+3. Mashina 70–94k uchburchak (sahnaning 90 %i) — telefon uchun decimated nusxalar (9e6632d).
+4. Telefon brauzerida manzara doim yengil, MSAA 2x hamma darajada; kanvas 1.5x (2x o'lchovda yomon).
+
+Chiqarish: `py scripts/build.py --publish-web` (export tayyor) yoki boshqa checkout'dan
+`git pull && py scripts/build.py --web --no-native --publish-web`.
