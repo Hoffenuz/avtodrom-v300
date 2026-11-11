@@ -254,3 +254,22 @@ uchun `run_tests.py` exit kodini emas, `EXIT <kod>` qatorini o'qiydi.
 - **DPR 2 yaramaydi**: WebView'da kanvasni ekranga ko'chirish piksel soniga bog'liq — 1.5x 12,7 ms,
   2x 20 ms. Kanvas 1.5x qoladi, silliqlik MSAA 2x (0-darajada ham). `?dpr=` URL bilan sinash.
 - Telefon issiq bo'lsa (uzoq sinovdan keyin) raqamlar 20–30 % yomonlashadi — A/B ni ketma-ket qiling.
+
+## Web telefon: aniqlik, mashina, osmon (2026-11-11)
+
+- **Kanvas telefon brauzerida 2x** (shell.html; zaif telefon — 2 GB yoki 4 yadro — va ilova WebView'i
+  `?src=app` 1.5x). Sabab: menyu va HUD ham shu kanvasda chiziladi, 3x ekranda 1.5x yozuvlar xira edi.
+  O'lchov (POCO X6 5G, Adreno 710, Chrome, 120 Hz): menyu 1.5x 9,2 ms / 2x 10,5 / 2.5x 12,5 / 3x 16;
+  haydash 11,3 → 12,3 ms. 3D qismi `Settings.render_scale()` da piksel byudjeti bilan (0,6 / 1,1 / 1,5 M px).
+  Ilova WebView'ida 2x o'lchanmagan (11-06 da 12,7 → 20 ms edi) — telefon + debug ilova bilan qayta o'lchang.
+- **Telefon uchun decimate qilingan mashinalar (`*_phone.glb`) olib tashlandi**: kuzov ikki qavatli yupqa
+  panel, har qanday collapse uni g'ijimlaydi; normal ko'chirish (Data Transfer) ichki qavatnikini oladi
+  (qora uchburchaklar); planar dissolve atigi −3 %. Kuzovni butun qoldirgan nusxa 14–22 % tejardi, xolos.
+  Endi hamma joyda to'liq model; telefon pck 34,5 → 28,3 MB.
+- **Kunduzgi osmon telefon brauzerida gradient** (`EnvironmentSetup.DAY_PLAIN`, `plain_day_sky()`):
+  1k panorama bulutlari xira va tasmali edi. Sinash: `--plain-sky` / `--photo-sky`.
+- Eng kuchli telefonlarda (sifat 2) quyosh soyasi: bitta kaskad 40 m (avval 2 ta, 55 m).
+- O'lchash: scratchpad `webtest/phone_run.js` (`REAL=1` — haqiqiy ekran, `adb shell input tap` o'yinni
+  yotiq holatga o'tkazadi; RAF avg/p95 qatorlari; ekran 120 Hz bo'lsa kadr vaqti 16,7 ms dan pastni
+  ko'rsatadi, 60 Hz rejimga tushib qolsa hammasi 16,7 ko'rinadi — `dumpsys display | grep renderFrameRate`).
+  Kompyuterda telefon rejimi: `webtest/desk_phone.js` (Playwright, Android UA, 904x407 @3x).

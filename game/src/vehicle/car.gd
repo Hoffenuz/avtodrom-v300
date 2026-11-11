@@ -18,26 +18,26 @@ enum Indicator { OFF, LEFT, RIGHT }
 ## dashboard dials' full scale (km/h, rpm). paint: body colour (default white).
 const MODELS := {
 	"nexia2": {"turn_glow": [0.15, 0.07, 0.16], "path": "res://assets/cars/nexia2/nexia2.glb", "lod": "res://assets/cars/lod/nexia2_lod.glb",
-			"phone": "res://assets/cars/lod/nexia2_phone.glb", "front": 2.18, "rear": 2.31, "half_width": 0.83,
+			"front": 2.18, "rear": 2.31, "half_width": 0.83,
 			"mirror": Vector3(0.88, 0.93, -0.37), "speed_max": 220.0, "rpm_max": 8000.0,
 			# No plate surfaces in this model: [centre, outward normal] on the
 			# flat of the bumper and in the boot-lid recess.
 			"plates": [[Vector3(0.0, 0.41, -2.176), Vector3(0.0, 0.0, -1.0)],
 					[Vector3(0.0, 0.82, 2.171), Vector3(0.0, 0.23, 0.973)]]},
 	"cobalt_at": {"path": "res://assets/cars/cobalt/cobalt.glb", "lod": "res://assets/cars/lod/cobalt_lod.glb",
-			"phone": "res://assets/cars/lod/cobalt_phone.glb", "front": 2.22, "rear": 2.26, "half_width": 0.86,
+			"front": 2.22, "rear": 2.26, "half_width": 0.86,
 			"mirror": Vector3(0.936, 1.043, -0.53), "speed_max": 220.0, "rpm_max": 7000.0,
 			"smooth_lamps": ["Lamp_Head", "Lamp_TurnFL", "Lamp_TurnFR"], "lamp_shader": true,
 			# The rear indicators sit in the red lens: red when off, not amber.
 			"rear_turn_red": true},
 	"gentra": {"path": "res://assets/cars/gentra/gentra.glb", "lod": "res://assets/cars/lod/gentra_lod.glb",
-			"phone": "res://assets/cars/lod/gentra_phone.glb", "front": 2.22, "rear": 2.31, "half_width": 0.87,
+			"front": 2.22, "rear": 2.31, "half_width": 0.87,
 			"mirror": Vector3(0.905, 1.019, -0.45), "speed_max": 240.0, "rpm_max": 8000.0,
 			"paint": Color(0.012, 0.012, 0.014)},
 	# Chevrolet Onix sedan (pipeline/blender/build_onix.py); "onix_at" is the
 	# same car with the automatic gearbox (settings "onix_gearbox").
 	"onix": {"path": "res://assets/cars/onix/onix.glb", "lod": "res://assets/cars/lod/onix_lod.glb",
-			"phone": "res://assets/cars/lod/onix_phone.glb", "front": 2.163, "rear": 2.322, "half_width": 0.877,
+			"front": 2.163, "rear": 2.322, "half_width": 0.877,
 			"mirror": Vector3(0.946, 1.033, -0.572), "speed_max": 220.0, "rpm_max": 7000.0, "height": 1.49,
 			# One-skin body: its inside (seen through the windows and the panel
 			# gaps, and from the seats) is drawn as trim and headliner.
@@ -48,7 +48,7 @@ const MODELS := {
 	# GAZelle NEXT van (pipeline/blender/build_gazelle.py): the model's own
 	# front plate, the rear one low on the back doors.
 	"gazelle": {"path": "res://assets/cars/gazelle/gazelle.glb", "lod": "res://assets/cars/lod/gazelle_lod.glb",
-			"phone": "res://assets/cars/lod/gazelle_phone.glb", "front": 2.716, "rear": 3.352, "half_width": 1.03,
+			"front": 2.716, "rear": 3.352, "half_width": 1.03,
 			"mirror": Vector3(1.157, 1.323, -1.626), "speed_max": 160.0, "rpm_max": 5000.0,
 			"eye_offset": Vector3(-0.01, 0.42, 0.55), "paint": Color(0.95, 0.95, 0.96), "height": 2.65,
 			"shadow_inset": 0.12, "shadow_van": true, "cockpit_shell": true, "inner_shell": true,
@@ -217,13 +217,12 @@ func _load_model() -> void:
 	body_half_width = spec["half_width"]
 	body_height = spec.get("height", 1.45)
 	mirror_eye = spec["mirror"]
-	# Phone browsers get the decimated copy (MODELS[...]["phone"], 32-39k
-	# triangles instead of 70-94k - the car was nine tenths of the scene's
-	# geometry), the same objects, names and materials.
+	# One model on every device. Phone browsers had Blender-decimated copies
+	# for a week (2026-11-06): the thin double-layered body panels came out
+	# dented and blotched (the owner, 2026-11-11), and a copy with the body
+	# left whole saved under a fifth of the triangles for 12 MB more to
+	# download. The frame there is bound by draw calls, not by triangles.
 	var path: String = spec["path"]
-	var want_phone := (Settings.is_mobile() and OS.has_feature("web")) or "--phone-car" in OS.get_cmdline_user_args()
-	if spec.has("phone") and want_phone and ResourceLoader.exists(spec["phone"]):
-		path = spec["phone"]
 	var scene: PackedScene = load(path)
 	model = scene.instantiate()
 	model.name = "Model"

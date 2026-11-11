@@ -155,16 +155,24 @@ window.AVTODROM = {
 })();
 
 // The canvas follows devicePixelRatio, and every frame the engine copies it
-// to the screen with GPU-stalling state queries: on a 2.6x phone that copy of
-// a 2400x1100 canvas took two thirds of the frame. Phones get at most 1.5x
-// (the game raises its 3D resolution to match), computers 2x. Measured in the
-// app's WebView on an Adreno 710 (2026-11-06): 1.5x 12.7 ms a frame, 2x 20 ms
-// - the copy, not the shading, so the canvas stays at 1.5x and the 3D picture
-// is sharpened by MSAA instead. `?dpr=2` overrides it, for measuring.
+// to the screen: on a 2.6x phone that copy of a 2400x1100 canvas took two
+// thirds of the frame. So phones get less than their screen's 2.5-3x, and
+// computers at most 2x.
+//  - A phone's browser: 2x. Everything is drawn into this canvas, the menus
+//    and the HUD too, and at 1.5x on a 3x screen their text was a blur (the
+//    owner, 2026-11-11). Measured in Chrome on an Adreno 710, 120 Hz: the
+//    menu 9.2 ms a frame at 1.5x, 10.5 at 2x, 12.5 at 2.5x, 16 at 3x; driving
+//    11.3 -> 12.3 ms. The game holds its 3D picture to a pixel budget inside
+//    it (Settings.render_scale).
+//  - A weak phone (2 GB or four cores) and the AvtoSmart app's WebView stay
+//    at 1.5x: in the WebView 2x cost 12.7 -> 20 ms (2026-11-06).
+// `?dpr=2` overrides it, for measuring.
 (function () {
 	const real = window.devicePixelRatio || 1;
 	const asked = parseFloat(new URLSearchParams(location.search).get('dpr') || '');
-	const cap = asked > 0 ? asked : (matchMedia('(pointer:coarse)').matches ? 1.5 : 2);
+	const weak = (navigator.deviceMemory && navigator.deviceMemory <= 2) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+	const phone = matchMedia('(pointer:coarse)').matches;
+	const cap = asked > 0 ? asked : (phone && (weak || window.AVTODROM.src === 'app') ? 1.5 : 2);
 	window.AVTODROM.pixelRatio = Math.min(real, cap);
 	try {
 		Object.defineProperty(window, 'devicePixelRatio', { get: function () { return window.AVTODROM.pixelRatio; } });

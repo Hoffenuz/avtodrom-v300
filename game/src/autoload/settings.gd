@@ -248,9 +248,8 @@ func _detect_web_quality() -> int:
 	# picture), 3 GB says 2.
 	var weak := (mem > 0.0 and mem <= 2.0) or (cores > 0 and cores <= 4) or (adreno >= 0 and adreno < 610) 			or (mali >= 0 and mali < 68) or gpu.contains("mali-t") or gpu.contains("powervr")
 	# Every phone in a browser gets the lighter scenery (no city ring, parked
-	# cars, props; a quarter of the trees) and the decimated car (Car MODELS
-	# "phone"): in the app's WebView 15.3 -> 12.7 ms a frame. The avtodrom
-	# itself and the exam are the same.
+	# cars, props; a quarter of the trees). The avtodrom itself and the exam
+	# are the same.
 	_values["lite_scenery"] = true
 	if weak:
 		return 0
@@ -277,11 +276,19 @@ func render_scale() -> float:
 	if not is_mobile():
 		return 1.0
 	if OS.has_feature("web"):
-		# The page holds phone canvases at 1.5x the CSS pixels (shell.html), not
-		# the screen's 2.5-3x: a larger share of it still means fewer pixels.
-		# Phone browsers: the full canvas on medium and high; the lighter
-		# scenery and car leave the budget for it (2026-11-06).
-		return [0.8, 1.0, 1.0][clampi(int(get_value("quality")), 0, 2)]
+		# The page holds phone canvases at 2x the CSS pixels (shell.html; 1.5x
+		# inside the app), so the menus and the HUD are drawn sharp, and the 3D
+		# picture under them gets a pixel budget by quality: on a 904x407 page
+		# that is 2x canvas 1808x814 = 1.47 M pixels - all of it on high, 87 %
+		# of each side on medium, 64 % on low (what the 1.5x canvas showed at
+		# 80 %). Measured on an Adreno 710 in Chrome (2026-11-11): the whole 2x
+		# canvas costs a millisecond over 1.5x (11.3 -> 12.3 ms driving).
+		var q := clampi(int(get_value("quality")), 0, 2)
+		var canvas := Vector2(DisplayServer.window_get_size())
+		var web_budget: float = [0.6e6, 1.1e6, 1.5e6][q]
+		if canvas.x * canvas.y > 0.0:
+			return clampf(sqrt(web_budget / (canvas.x * canvas.y)), 0.5, 1.0)
+		return [0.8, 1.0, 1.0][q]
 	if bool(get_value("lite_scenery")) and int(get_value("quality")) == 0:
 		return 0.5
 	var q := clampi(int(get_value("quality")), 0, 2)

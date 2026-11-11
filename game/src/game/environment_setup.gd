@@ -34,6 +34,23 @@ const LOOKS := {
 }
 
 
+## The clear day's sky in phone browsers: a plain gradient (top, horizon,
+## ground horizon, ground bottom) in place of the photographed clouds. The
+## 1k panorama is soft already on a computer; stretched over a phone's canvas
+## its clouds were a blur with banding (the owner, 2026-11-11), and the
+## gradient is drawn sharp at any resolution. Colours and energy are matched
+## to the panorama's light, so the scene is lit as before.
+const DAY_PLAIN := [Color(0.19, 0.4, 0.78), Color(0.66, 0.79, 0.93), Color(0.62, 0.72, 0.84), Color(0.3, 0.33, 0.37)]
+const DAY_PLAIN_ENERGY := 1.0
+
+
+static func plain_day_sky() -> bool:
+	var args := OS.get_cmdline_user_args()
+	if "--photo-sky" in args:
+		return false
+	return (OS.has_feature("web") and Settings.is_mobile()) or "--plain-sky" in args
+
+
 ## Settings "weather", or "day" for anything unknown.
 static func weather() -> String:
 	var w := str(Settings.get_value("weather"))
@@ -65,10 +82,24 @@ static func create(parent: Node, quality: int, look := "day") -> DirectionalLigh
 	var env := Environment.new()
 	var q := clampi(quality, 0, 2)
 	var spec: Dictionary = LOOKS.get(look, {})
-	var key := "%d:%s" % [q, look]
+	var plain := spec.is_empty() and plain_day_sky()
+	var key := "%d:%s%s" % [q, look, ":plain" if plain else ""]
 	if not _skies.has(key):
 		var new_sky := Sky.new()
-		if spec.is_empty():
+		if plain:
+			var c: Array = DAY_PLAIN
+			var pm := ProceduralSkyMaterial.new()
+			pm.sky_top_color = c[0]
+			pm.sky_horizon_color = c[1]
+			pm.ground_horizon_color = c[2]
+			pm.ground_bottom_color = c[3]
+			pm.sky_curve = 0.1
+			pm.ground_curve = 0.04
+			pm.sun_angle_max = 24.0
+			pm.sky_energy_multiplier = DAY_PLAIN_ENERGY
+			pm.ground_energy_multiplier = DAY_PLAIN_ENERGY
+			new_sky.sky_material = pm
+		elif spec.is_empty():
 			var sky_mat := PanoramaSkyMaterial.new()
 			sky_mat.panorama = load("res://assets/sky/sky_1k.hdr")
 			sky_mat.energy_multiplier = 1.0
@@ -149,7 +180,12 @@ static func create(parent: Node, quality: int, look := "day") -> DirectionalLigh
 	sun.shadow_enabled = sun_shadows_at(quality, look)
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.2
-	if quality >= 2:
+	if quality >= 2 and mobile and OS.has_feature("web"):
+		# The best phones' browsers (the only ones with a shadowed sun): one
+		# cascade around the car instead of two to 55 m - half the shadow pass.
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sun.directional_shadow_max_distance = 40.0
+	elif quality >= 2:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if mobile 				else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 		sun.directional_shadow_max_distance = 55.0 if mobile else 80.0
 	else:
